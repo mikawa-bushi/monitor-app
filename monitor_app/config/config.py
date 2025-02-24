@@ -34,3 +34,27 @@ ALLOWED_TABLES = {
         """,
     },
 }
+
+# 📌 ヘッダーとフッターの設定
+APP_TITLE = "Monitor App"
+HEADER_TEXT = "📊 Monitor Dashboard"
+FOOTER_TEXT = "© 2025 Monitor App - Powered by Flask & Bootstrap"
+FAVICON_PATH = "favicon.ico"  # 📌 Favicon のパスを設定
+
+# 📌 セルの色のルール設定
+TABLE_CELL_STYLES = {
+    "orders": {  # 📌 orders テーブルのセルスタイル
+        "amount": {  # 📌 `amount` カラムのルール
+            "greater_than": {"value": 10, "class": "bg-danger text-white"},
+            "less_than": {"value": 5, "class": "bg-warning text-dark"},
+            "equal_to": {"value": 7, "class": "bg-success text-white"},
+        }
+    },
+    "products": {  # 📌 products テーブルのセルスタイル
+        "price": {
+            "greater_than": {"value": 1000, "class": "bg-primary text-white"},
+            "less_than": {"value": 500, "class": "bg-info text-dark"},
+            "equal_to": {"value": 750, "class": "bg-secondary text-white"},
+        }
+    },
+}
