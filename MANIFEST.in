@@ -1,0 +1,3 @@
+include monitor_app/schema.json
+include monitor_app/rule.json
+include monitor_app/templates/*
