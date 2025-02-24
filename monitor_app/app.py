@@ -1,53 +1,48 @@
-from flask import Flask, render_template
+import click
+import os
+import subprocess  # ✅ `csv_to_db.py` を実行するために追加
+from flask import Flask, render_template, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text  # ✅ text を追加
-import os
-import json
-import importlib.resources as resources
-import click
-from dotenv import load_dotenv
-
-# 環境変数をロード
-load_dotenv()
+from sqlalchemy import text
+from monitor_app.config.config import (
+    SQLALCHEMY_DATABASE_URI,
+    SQLALCHEMY_TRACK_MODIFICATIONS,
+    ALLOWED_TABLES,
+)
 
 app = Flask(__name__)
 CORS(app)
 
-# ✅ データベースを `monitor_app/instances/database.db` に保存
-INSTANCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instances")
-os.makedirs(INSTANCE_DIR, exist_ok=True)  # `instances/` フォルダがなければ作成
-DB_PATH = os.path.join(INSTANCE_DIR, "database.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# 設定を `config.py` から読み込む
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
 
 db = SQLAlchemy(app)
 
 
-# JSONファイルの読み込み
-def load_json(filename):
-    """インストールされたパッケージ内の JSON ファイルを読み込む"""
-    with resources.open_text("monitor_app", filename) as f:
-        return json.load(f)
-
-
 @app.route("/")
 def index():
-    inspector = inspect(db.engine)
-    tables = inspector.get_table_names()
-    print(tables)  # ✅ デバッグ用に表示
+    tables = list(ALLOWED_TABLES.keys())  # 📌 許可されたテーブルのみ表示
     return render_template("index.html", tables=tables)
 
 
 @app.route("/table/<table_name>")
 def show_table(table_name):
-    query = text(f"SELECT * FROM {table_name}")  # ✅ text() を使う
-    result = db.session.execute(query)  # ✅ `execute` のみ実行
+    if table_name not in ALLOWED_TABLES:  # 📌 許可されていないテーブルは 404
+        abort(404)
 
-    columns = result.keys()  # ✅ `.keys()` は `fetchall()` の前に実行
-    data = [
-        dict(zip(columns, row)) for row in result.fetchall()
-    ]  # ✅ `fetchall()` はここで実行
+    table_info = ALLOWED_TABLES[table_name]
+
+    # 📌 `join` 設定があれば JOIN クエリを実行
+    if "join" in table_info:
+        query = text(table_info["join"])
+    else:
+        query = text(f"SELECT * FROM {table_name}")
+
+    result = db.session.execute(query)
+    columns = result.keys()
+    data = [dict(zip(columns, row)) for row in result.fetchall()]
 
     return render_template(
         "table.html", table_name=table_name, columns=columns, data=data
@@ -56,12 +51,21 @@ def show_table(table_name):
 
 @click.command()
 @click.option("--host", default="0.0.0.0", help="ホストアドレス")
-@click.option(
-    "--port", default=9990, help="ポート番号"
-)  # ✅ デフォルトポートを 9990 に変更
-def run(host, port):
+@click.option("--port", default=9990, help="ポート番号")
+@click.option("--csv", is_flag=True, help="CSV をデータベースに登録してから起動")
+@click.option("--debug", is_flag=True, help="デバッグモードを有効化")
+def run(host, port, csv, debug):
     """Flask Web アプリを起動"""
-    app.run(host=host, port=port, debug=True)
+
+    if csv and not os.environ.get("FLASK_RUN_FROM_CLI"):
+        print("🔄 CSV をデータベースに登録中...")
+        subprocess.run(
+            ["poetry", "run", "python", "monitor_app/csv_to_db.py"], check=True
+        )  # ✅ `check=True` を追加
+        print("✅ CSV 登録完了！アプリを起動します...")
+
+    # ✅ `use_reloader=False` にすることで、Flask の再起動時に `csv_to_db.py` が再実行されるのを防ぐ
+    app.run(host=host, port=port, debug=debug, use_reloader=debug)
 
 
 def main():
