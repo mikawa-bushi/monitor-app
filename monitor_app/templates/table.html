@@ -5,43 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ table_name }}</title>
     <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid black;
-            padding: 8px;
-            text-align: left;
-        }
-        .highlight {
-            background-color: red;
-            color: white;
-        }
+        .highlight { background-color: red; }
     </style>
 </head>
 <body>
-    <h1>テーブル: {{ table_name }}</h1>
-    <table>
+    <h1>{{ table_name }}</h1>
+    <table border="1">
         <thead>
             <tr>
-                {% for column in columns %}
-                    <th>{{ column }}</th>
+                {% for col in columns %}
+                    <th>{{ col }}</th>
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for row in data %}
                 <tr>
-                    {% for column in columns %}
-                        <td class="{% if row[column] is number and row[column] >= 10 %}highlight{% endif %}">
-                            {{ row[column] }}
+                    {% for col in columns %}
+                        <td class="{% if row[col] is number and row[col] >= 10 %}highlight{% endif %}">
+                            {{ row[col] }}
                         </td>
                     {% endfor %}
                 </tr>
             {% endfor %}
         </tbody>
     </table>
-    <a href="{{ url_for('index') }}">戻る</a>
 </body>
 </html>
