@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or app_title }}</title>
+
+    <!-- 📌 修正: Favicon のパスが static/ 直下を参照するように -->
+    <link rel="icon" href="{{ url_for('static', filename=favicon_path) }}" type="image/x-icon">
+
+    <!-- Bootstrap CSS を `static/csv/` から読み込む -->
+    <link href="{{ url_for('static', filename='csv/bootstrap.min.css') }}" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .header, .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <h1>{{ header_text or "Monitor Dashboard" }}</h1>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- フッター -->
+    <footer class="footer mt-4">
+        <p>{{ footer_text or "© 2025 Monitor App - Powered by Flask & Bootstrap" }}</p>
+    </footer>
+
+    <!-- Bootstrap JS を `static/js/` から読み込む -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>

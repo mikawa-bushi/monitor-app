@@ -9,6 +9,11 @@ from monitor_app.config.config import (
     SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS,
     ALLOWED_TABLES,
+    APP_TITLE,
+    HEADER_TEXT,
+    FOOTER_TEXT,
+    FAVICON_PATH,  # ✅ Favicon を追加
+    TABLE_CELL_STYLES,
 )
 
 app = Flask(__name__)
@@ -23,29 +28,49 @@ db = SQLAlchemy(app)
 
 @app.route("/")
 def index():
+    """トップページ"""
     tables = list(ALLOWED_TABLES.keys())  # 📌 許可されたテーブルのみ表示
-    return render_template("index.html", tables=tables)
+    return render_template(
+        "index.html",
+        tables=tables,
+        app_title=APP_TITLE,
+        header_text=HEADER_TEXT,
+        footer_text=FOOTER_TEXT,
+        favicon_path=FAVICON_PATH,  # ✅ Favicon を追加
+        title=APP_TITLE,  # ✅ タイトルを設定
+    )
 
 
 @app.route("/table/<table_name>")
 def show_table(table_name):
+    """指定されたテーブルのデータを表示"""
     if table_name not in ALLOWED_TABLES:  # 📌 許可されていないテーブルは 404
         abort(404)
 
     table_info = ALLOWED_TABLES[table_name]
 
     # 📌 `join` 設定があれば JOIN クエリを実行
-    if "join" in table_info:
-        query = text(table_info["join"])
-    else:
-        query = text(f"SELECT * FROM {table_name}")
+    query = (
+        text(table_info["join"])
+        if "join" in table_info
+        else text(f"SELECT * FROM {table_name}")
+    )
 
     result = db.session.execute(query)
     columns = result.keys()
     data = [dict(zip(columns, row)) for row in result.fetchall()]
 
     return render_template(
-        "table.html", table_name=table_name, columns=columns, data=data
+        "table.html",
+        table_name=table_name,
+        columns=columns,
+        data=data,
+        cell_styles=TABLE_CELL_STYLES,
+        app_title=APP_TITLE,
+        header_text=HEADER_TEXT,
+        footer_text=FOOTER_TEXT,
+        favicon_path=FAVICON_PATH,  # ✅ Favicon を追加
+        title=f"{table_name} - {APP_TITLE}",  # ✅ タイトルを設定
     )
 
 
