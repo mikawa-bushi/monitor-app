@@ -20,7 +20,7 @@ engine = create_engine(SQLALCHEMY_DATABASE_URI)
 metadata = MetaData()
 
 # 📌 CSV ディレクトリのパスを修正
-CSV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv_data")
+CSV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv")
 
 
 def create_tables():
