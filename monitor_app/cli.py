@@ -2,9 +2,19 @@ import os
 import shutil
 import subprocess
 import click
+import toml
 from monitor_app.app import run_server  # `app.py` の `run_server()` を直接呼び出す
 
-TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "project_template")
+# TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "monitor_app")
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MONITOR_APP_DIR = os.path.dirname(__file__)
+CONFIG_DIR = os.path.join(MONITOR_APP_DIR, "config")
+CSV_DIR = os.path.join(MONITOR_APP_DIR, "csv")
+TEMPLATES_DIR = os.path.join(MONITOR_APP_DIR, "templates")
+STATIC_DIR = os.path.join(MONITOR_APP_DIR, "static")
+STATIC_CSS_DIR = os.path.join(STATIC_DIR, "css")
+STATIC_JS_DIR = os.path.join(STATIC_DIR, "js")
+PYPROJECT_TEMPLATE = os.path.join(MONITOR_APP_DIR, "pyproject.toml")
 
 
 @click.group()
@@ -27,53 +37,101 @@ def startproject(project_name):
     os.makedirs(project_path)
 
     # 📂 monitor_app アプリフォルダ作成
-    app_dir = os.path.join(project_path, "monitor_app")
-    os.makedirs(app_dir)
+    DEST_MONITOR_APP_DIR = os.path.join(project_path, "monitor_app")
+    DEST_PARENT_DIR = os.path.dirname(DEST_MONITOR_APP_DIR)
+    DEST_CONFIG_DIR = os.path.join(DEST_MONITOR_APP_DIR, "config")
+    DEST_CSV_DIR = os.path.join(DEST_MONITOR_APP_DIR, "csv")
+    DEST_INSTANCES_DIR = os.path.join(DEST_MONITOR_APP_DIR, "instances")
+    DEST_TEMPLATES_DIR = os.path.join(DEST_MONITOR_APP_DIR, "templates")
+    DEST_STATIC_DIR = os.path.join(DEST_MONITOR_APP_DIR, "static")
+    DEST_STATIC_CSS_DIR = os.path.join(DEST_STATIC_DIR, "css")
+    DEST_STATIC_JS_DIR = os.path.join(DEST_STATIC_DIR, "js")
+    os.makedirs(DEST_MONITOR_APP_DIR)
 
     # 📂 CSV・インスタンスフォルダ作成
-    os.makedirs(os.path.join(app_dir, "csv"), exist_ok=True)
-    os.makedirs(os.path.join(app_dir, "instances"), exist_ok=True)
-    os.makedirs(os.path.join(app_dir, "templates"), exist_ok=True)
-    os.makedirs(os.path.join(app_dir, "static/js"), exist_ok=True)
-    os.makedirs(os.path.join(app_dir, "static/css"), exist_ok=True)
+    os.makedirs(DEST_CSV_DIR, exist_ok=True)
+    os.makedirs(DEST_CONFIG_DIR, exist_ok=True)
+    os.makedirs(DEST_INSTANCES_DIR, exist_ok=True)
+    os.makedirs(DEST_TEMPLATES_DIR, exist_ok=True)
+    os.makedirs(DEST_STATIC_JS_DIR, exist_ok=True)
+    os.makedirs(DEST_STATIC_CSS_DIR, exist_ok=True)
 
-    # 📄 必要なファイルをコピー
-    for file in ["app.py", "config.py", "csv_to_db.py", "models.py"]:
-        shutil.copy(os.path.join(TEMPLATE_DIR, file), app_dir)
+    # 📄 `project_template` からファイルをコピー
+    monitor_app_files = ["app.py", "cli.py", "csv_to_db.py"]
+    for file in monitor_app_files:
+        src_path = os.path.join(MONITOR_APP_DIR, file)
+        dest_path = os.path.join(DEST_MONITOR_APP_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
+
+    config_files = ["config.py"]
+    for file in config_files:
+        src_path = os.path.join(CONFIG_DIR, file)
+        dest_path = os.path.join(DEST_CONFIG_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
+
+    templates_files = ["base.html", "index.html", "table.html"]
+    for file in templates_files:
+        src_path = os.path.join(TEMPLATES_DIR, file)
+        dest_path = os.path.join(DEST_TEMPLATES_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
+
+    css_files = ["bootstrap.min.css"]
+    for file in css_files:
+        src_path = os.path.join(STATIC_CSS_DIR, file)
+        dest_path = os.path.join(DEST_STATIC_CSS_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
+
+    js_files = ["bootstrap.bundle.min.js"]
+    for file in js_files:
+        src_path = os.path.join(STATIC_JS_DIR, file)
+        dest_path = os.path.join(DEST_STATIC_JS_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
 
     # 📄 Favicon コピー
-    shutil.copy(
-        os.path.join(TEMPLATE_DIR, "favicon.ico"), os.path.join(app_dir, "static")
-    )
-
-    # 📄 `pyproject.toml` の作成
-    with open(os.path.join(project_path, "pyproject.toml"), "w") as f:
-        f.write(
-            f"""\
-[tool.poetry]
-name = "{project_name}"
-version = "0.1.0"
-description = "Monitor App Project"
-authors = ["Your Name <your@email.com>"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-flask = "^3.1.0"
-flask-sqlalchemy = "^3.1.1"
-pandas = "^2.2.3"
-flask-cors = "^4.0.0"
-click = "^8.1.3"
-pymysql = "^1.1.0"
-psycopg2-binary = "^2.9.10"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-"""
+    favicon_src = os.path.join(MONITOR_APP_DIR, "static/favicon.ico")
+    favicon_dest = os.path.join(DEST_MONITOR_APP_DIR, "static/favicon.ico")
+    if os.path.exists(favicon_src):
+        shutil.copy(favicon_src, favicon_dest)
+    else:
+        click.echo(
+            "⚠️  favicon.ico が `project_template` に見つかりません。スキップします。"
         )
 
-    click.echo(f"✅ プロジェクト '{project_name}' を作成しました！")
+    parent_files = ["pyproject.toml"]
+    for file in parent_files:
+        src_path = os.path.join(PARENT_DIR, file)
+        dest_path = os.path.join(DEST_PARENT_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
 
 
 def run_command(command_list):

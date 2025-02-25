@@ -28,6 +28,7 @@ flask-cors = "^4.0.0"
 click = "^8.1.3"
 pymysql = "^1.1.0"  # MySQL対応
 psycopg2-binary = "^2.9.10"  # PostgreSQL対応
+toml = "^0.10.2"
 
 [tool.poetry.scripts]
 monitor-app = "monitor_app.cli:cli"  # ✅ `monitor-app` コマンドを統一
