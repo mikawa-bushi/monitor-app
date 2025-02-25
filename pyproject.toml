@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "monitor-app"
 version = "0.1.0"
-description = "A simple Flask-based database viewer"
+description = "A simple Flask-based database viewer and manager"
 authors = ["hardwork9047 <tomatosimple1104@gmail.com>"]
 readme = "README.md"
 license = "MIT"
@@ -14,20 +14,23 @@ packages = [{ include = "monitor_app" }]
 include = [
     "monitor_app/config/config.py",
     "monitor_app/templates/*",
-    "monitor_app/csv_to_db.py"
+    "monitor_app/static/*",
+    "monitor_app/csv_to_db.py",
+    "monitor_app/cli.py"
 ]
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.10"
 flask = "^3.1.0"
 flask-sqlalchemy = "^3.1.1"
 pandas = "^2.2.3"
-python-dotenv = "^1.0.0"
 flask-cors = "^4.0.0"
 click = "^8.1.3"
+pymysql = "^1.1.0"  # MySQL対応
+psycopg2-binary = "^2.9.10"  # PostgreSQL対応
 
 [tool.poetry.scripts]
-monitor-app = "monitor_app.app:main"  # ✅ `app.py` に統一
+monitor-app = "monitor_app.cli:cli"  # ✅ `monitor-app` コマンドを統一
 
 [build-system]
 requires = ["poetry-core"]
