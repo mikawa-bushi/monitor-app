@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import click
+from monitor_app.app import run_server  # `app.py` の `run_server()` を直接呼び出す
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "project_template")
 
@@ -75,6 +76,19 @@ build-backend = "poetry.core.masonry.api"
     click.echo(f"✅ プロジェクト '{project_name}' を作成しました！")
 
 
+def run_command(command_list):
+    """
+    📌 poetry がインストールされていれば `poetry run` を使用し、なければ `python` を使用
+    """
+    if shutil.which("poetry"):
+        command_list.insert(0, "poetry")
+        command_list.insert(1, "run")
+    else:
+        command_list.insert(0, "python")
+
+    subprocess.run(command_list, check=True)
+
+
 @click.command()
 @click.option("--host", default="0.0.0.0", help="ホストアドレス")
 @click.option("--port", default=9990, help="ポート番号")
@@ -85,32 +99,18 @@ def runserver(host, port, csv, debug):
 
     if csv:
         click.echo("🔄 CSV をデータベースに登録中...")
-        subprocess.run(
-            ["poetry", "run", "python", "monitor_app/csv_to_db.py"], check=True
-        )
+        run_command(["monitor_app/csv_to_db.py"])
         click.echo("✅ CSV 登録完了！アプリを起動します...")
 
     click.echo(f"🚀 Web アプリを {host}:{port} で起動")
-    subprocess.run(
-        [
-            "poetry",
-            "run",
-            "python",
-            "monitor_app/app.py",
-            "--host",
-            host,
-            "--port",
-            str(port),
-            "--debug" if debug else "",
-        ]
-    )
+    run_server(host=host, port=port, debug=debug)  # `run_server()` を直接呼び出す
 
 
 @click.command()
 def import_csv():
     """CSV をデータベースにインポート"""
     click.echo("📂 CSV をデータベースに登録中...")
-    subprocess.run(["poetry", "run", "python", "monitor_app/csv_to_db.py"], check=True)
+    run_command(["monitor_app/csv_to_db.py"])
     click.echo("✅ CSV 登録完了！")
 
 
