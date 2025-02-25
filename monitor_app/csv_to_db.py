@@ -13,14 +13,12 @@ from sqlalchemy import (
 from monitor_app.config.config import (
     SQLALCHEMY_DATABASE_URI,
     ALLOWED_TABLES,
-)  # ✅ `ALLOWED_TABLES` を使用
+    CSV_DIR,  # ✅ `CSV_DIR` を `config.py` から取得
+)
 
 # データベースエンジンの作成
 engine = create_engine(SQLALCHEMY_DATABASE_URI)
 metadata = MetaData()
-
-# 📌 CSV ディレクトリのパスを修正
-CSV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv")
 
 
 def create_tables():
@@ -28,18 +26,22 @@ def create_tables():
     for table_name, table_info in ALLOWED_TABLES.items():
         columns = []
 
+        # プライマリーキーの追加
+        primary_key = table_info.get("primary_key")
+
         # カラムの型を判定
         for col in table_info["columns"]:
-            if col.endswith("_id"):  # ID系のカラムは Integer 型
-                columns.append(Column(col, Integer))
-            elif "price" in col or "amount" in col:  # 金額や数量系のカラムは Float 型
-                columns.append(Column(col, Float))
-            else:  # それ以外は String 型
-                columns.append(Column(col, String(255)))
+            col_type = String(255)  # デフォルトは String
 
-        # プライマリーキーの追加
-        if "primary_key" in table_info:
-            columns.append(Column(table_info["primary_key"], Integer, primary_key=True))
+            if col == primary_key:  # プライマリーキー
+                col_type = Integer
+            elif col.endswith("_id"):  # ID系のカラムは Integer 型
+                col_type = Integer
+            elif "price" in col or "amount" in col:  # 金額や数量系のカラムは Float 型
+                col_type = Float
+
+            col_def = Column(col, col_type, primary_key=(col == primary_key))
+            columns.append(col_def)
 
         # 外部キーの設定
         if "foreign_keys" in table_info:
@@ -61,7 +63,19 @@ def import_csv_to_db():
             if (
                 table_name in ALLOWED_TABLES
             ):  # 📌 `ALLOWED_TABLES` に含まれるもののみ処理
-                df = pd.read_csv(os.path.join(CSV_DIR, file))
+                file_path = os.path.join(CSV_DIR, file)
+                df = pd.read_csv(file_path)
+
+                # データ型を SQLAlchemy のカラム定義と合わせる
+                for col in df.columns:
+                    if col in ALLOWED_TABLES[table_name]["columns"]:
+                        if col.endswith("_id") or col == ALLOWED_TABLES[table_name].get(
+                            "primary_key"
+                        ):
+                            df[col] = df[col].astype("Int64")  # Nullを考慮した整数型
+                        elif "price" in col or "amount" in col:
+                            df[col] = df[col].astype(float)
+
                 df.to_sql(table_name, con=engine, if_exists="replace", index=False)
                 print(f"✅ {table_name} に {len(df)} 件のデータを挿入しました")
 
