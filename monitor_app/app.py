@@ -74,27 +74,13 @@ def show_table(table_name):
     )
 
 
-@click.command()
-@click.option("--host", default="0.0.0.0", help="ホストアドレス")
-@click.option("--port", default=9990, help="ポート番号")
-@click.option("--csv", is_flag=True, help="CSV をデータベースに登録してから起動")
-@click.option("--debug", is_flag=True, help="デバッグモードを有効化")
-def run(host, port, csv, debug):
+def run_server(host="0.0.0.0", port=9990, debug=False):
     """Flask Web アプリを起動"""
-
-    if csv and not os.environ.get("FLASK_RUN_FROM_CLI"):
-        print("🔄 CSV をデータベースに登録中...")
-        subprocess.run(
-            ["poetry", "run", "python", "monitor_app/csv_to_db.py"], check=True
-        )  # ✅ `check=True` を追加
-        print("✅ CSV 登録完了！アプリを起動します...")
-
-    # ✅ `use_reloader=False` にすることで、Flask の再起動時に `csv_to_db.py` が再実行されるのを防ぐ
-    app.run(host=host, port=port, debug=debug, use_reloader=debug)
+    app.run(host=host, port=port, debug=debug)
 
 
 def main():
-    run()
+    run_server()
 
 
 if __name__ == "__main__":

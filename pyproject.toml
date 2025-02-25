@@ -32,6 +32,9 @@ psycopg2-binary = "^2.9.10"  # PostgreSQL対応
 [tool.poetry.scripts]
 monitor-app = "monitor_app.cli:cli"  # ✅ `monitor-app` コマンドを統一
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
