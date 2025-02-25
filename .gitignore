@@ -1,0 +1,37 @@
+# 📂 Python 環境関連
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 📂 仮想環境
+venv/
+.venv/
+
+dist/
+my_pjt/
+
+# 📂 データベース
+instances/*.db
+instances/*.sqlite
+*.sqlite3
+*.db-journal
+
+# 📂 ログファイル
+*.log
+logs/
+
+# 📂 ビルド関連（Poetry / setuptools）
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# 📂 Pytest キャッシュ
+.pytest_cache/
+
+# 📂 VS Code 設定（無視する場合）
+.vscode/
+
+# 📂 Mac OS 関連
+.DS_Store
