@@ -37,7 +37,8 @@ def startproject(project_name):
     os.makedirs(project_path)
 
     # 📂 monitor_app アプリフォルダ作成
-    DEST_MONITOR_APP_DIR = os.path.join(project_path, "monitor_app")
+    # DEST_MONITOR_APP_DIR = os.path.join(project_path, "monitor_app")
+    DEST_MONITOR_APP_DIR = project_path
     DEST_PARENT_DIR = os.path.dirname(DEST_MONITOR_APP_DIR)
     DEST_CONFIG_DIR = os.path.join(DEST_MONITOR_APP_DIR, "config")
     DEST_CSV_DIR = os.path.join(DEST_MONITOR_APP_DIR, "csv")
@@ -122,16 +123,16 @@ def startproject(project_name):
             "⚠️  favicon.ico が `project_template` に見つかりません。スキップします。"
         )
 
-    parent_files = ["pyproject.toml"]
-    for file in parent_files:
-        src_path = os.path.join(PARENT_DIR, file)
-        dest_path = os.path.join(DEST_PARENT_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
+    # parent_files = ["pyproject.toml"]
+    # for file in parent_files:
+    #     src_path = os.path.join(PARENT_DIR, file)
+    #     dest_path = os.path.join(DEST_PARENT_DIR, file)
+    #     if os.path.exists(src_path):
+    #         shutil.copy(src_path, dest_path)
+    #     else:
+    #         click.echo(
+    #             f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+    #         )
 
 
 def run_command(command_list):
