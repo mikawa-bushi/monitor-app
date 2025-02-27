@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "monitor-app"
-version = "0.1.0"
+version = "0.1.1"
 description = "A simple Flask-based database viewer and manager"
 authors = ["hardwork9047 <tomatosimple1104@gmail.com>"]
 readme = "README.md"

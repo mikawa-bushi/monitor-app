@@ -8,8 +8,8 @@ __pycache__/
 venv/
 .venv/
 
-dist/
 my_pjt/
+bin/
 
 # 📂 データベース
 instances/*.db
