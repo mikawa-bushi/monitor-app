@@ -20,7 +20,7 @@
         }
         /* 📌 ヘッダーの高さを小さく */
         .header {
-            background-color: #343a40;
+            background-color: #20364b;
             color: white;
             padding: 5px; /* ヘッダーの高さを小さく */
             text-align: center;
@@ -44,7 +44,7 @@
         }
         /* 📌 フッターの余白をヘッダーと統一し、中央揃え */
         .footer {
-            background-color: #343a40;
+            background-color: #20364b;
             color: white;
             text-align: center;
             font-size: 0.9rem;
@@ -60,7 +60,7 @@
             margin: 0;
         }
         /* 📌 フッターがページ最下部に配置されるよう調整 */
-        .container {
+        .container-fluid {
             flex: 1; /* メインコンテンツが伸縮可能に */
         }
     </style>
@@ -73,7 +73,7 @@
     </header>
 
     <!-- メインコンテンツ -->
-    <div class="container mt-4">
+    <div class="container-fluid mt-4 mb-4">
         {% block content %}{% endblock %}
     </div>
 
