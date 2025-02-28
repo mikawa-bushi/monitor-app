@@ -1,11 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mt-4">{{ table_name }} テーブル</h2>
+<style>
+    /* 📌 背景画像を設定 */
+    body {
+        background-image: url("{{ url_for('static', filename='img/background.webp') }}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    /* 📌 背景が透けないようにコンテンツに半透明の背景色を適用 */
+    .content-container {
+        background-color: rgba(255, 255, 255, 0.9); /* 透明度90% */
+        padding: 10px 20px; /* 上下の余白を減らす */
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    /* 📌 h2 の余白を減らす */
+    .content-container h2 {
+        margin-top: 5px; /* 上の余白を減らす */
+        margin-bottom: 5px; /* 下の余白を減らす */
+        font-size: 1.8rem; /* 必要に応じてフォントサイズも調整 */
+    }
+</style>
+
+<div class="container content-container">
+    <h2>{{ table_name }} テーブル</h2>
+
     <div class="table-responsive">
-        <table class="table table-striped table-hover mt-3">
-            <thead class="table-dark">
+        <table id="dataTable" class="table table-striped table-hover mt-3">
+            <thead class="table-primary">
                 <tr>
                     {% for col in columns %}
                         <th>{{ col }}</th>
@@ -37,4 +61,43 @@
         </table>
     </div>
 </div>
+
+<script>
+    var TABLE_REFRESH_INTERVAL = {{ refresh_interval | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/refresh_table.js') }}"></script>
+
+<!-- ローカルの DataTables の CSS を読み込む -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}">
+
+<!-- ローカルの jQuery & DataTables を読み込む -->
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>
+
+<!-- DataTables の初期化スクリプト -->
+<script>
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        paging: true,        // ページネーション有効
+        searching: true,     // 検索ボックス有効
+        ordering: true,      // 列ソート有効
+        pageLength: 25,      // 1ページあたりの表示数
+        lengthMenu: [5, 10, 25, 50, 100], // 表示件数オプション
+        language: {
+            search: "フィルター:",
+            lengthMenu: "表示 _MENU_ 件",
+            info: "全 _TOTAL_ 件中 _START_ から _END_ まで表示",
+            paginate: {
+                first: "最初",
+                last: "最後",
+                next: "次へ",
+                previous: "前へ"
+            },
+            emptyTable: "データがありません",
+            zeroRecords: "一致するレコードが見つかりません"
+        }
+    });
+});
+</script>
+
 {% endblock %}

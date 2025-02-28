@@ -14,6 +14,7 @@ from monitor_app.config.config import (
     FOOTER_TEXT,
     FAVICON_PATH,  # ✅ Favicon を追加
     TABLE_CELL_STYLES,
+    TABLE_REFRESH_INTERVAL,
 )
 
 app = Flask(__name__)
@@ -71,6 +72,7 @@ def show_table(table_name):
         footer_text=FOOTER_TEXT,
         favicon_path=FAVICON_PATH,  # ✅ Favicon を追加
         title=f"{table_name} - {APP_TITLE}",  # ✅ タイトルを設定
+        refresh_interval=TABLE_REFRESH_INTERVAL,
     )
 
 
