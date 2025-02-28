@@ -62,7 +62,7 @@ ALLOWED_TABLES = {
         "primary_key": "id",
         "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
         "join": """
-            SELECT orders.id, users.name AS user_name, products.name AS product_name, orders.amount
+            SELECT orders.id, users.name AS ユーザー名, products.name AS 商品名, orders.amount AS 量
             FROM orders
             JOIN users ON orders.user_id = users.id
             JOIN products ON orders.product_id = products.id
@@ -70,11 +70,6 @@ ALLOWED_TABLES = {
     },
 }
 
-# 📌 ヘッダーとフッターの設定
-APP_TITLE = "Monitor App"
-HEADER_TEXT = "📊 Monitor Dashboard"
-FOOTER_TEXT = "© 2025 Monitor App - Powered by Flask & Bootstrap"
-FAVICON_PATH = "favicon.ico"
 
 # 📌 **テーブルセルのスタイル**
 TABLE_CELL_STYLES = {
@@ -93,3 +88,13 @@ TABLE_CELL_STYLES = {
         }
     },
 }
+
+
+# 📌 ヘッダーとフッターの設定
+APP_TITLE = "Monitor App"
+HEADER_TEXT = "📊 Monitor Dashboard"
+FOOTER_TEXT = "© 2025 Monitor App - Powered by Flask & Bootstrap"
+FAVICON_PATH = "favicon.ico"
+
+# 📌 テーブルのデータ更新間隔（ミリ秒単位）
+TABLE_REFRESH_INTERVAL = 2000
