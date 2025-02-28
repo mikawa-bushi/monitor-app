@@ -9,19 +9,59 @@
         background-position: center;
         background-attachment: fixed;
     }
-    /* 📌 背景が透けないようにコンテンツに半透明の背景色を適用 */
+
+    /* 📌 `content-container` のサイズ調整 */
     .content-container {
-        background-color: rgba(255, 255, 255, 0.9); /* 透明度90% */
-        padding: 10px 20px; /* 上下の余白を減らす */
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px 20px;
         border-radius: 10px;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+
+        /* サイズ調整 */
+        max-width: 1920px;  /* 📌 最大幅 */
+        width: 100%;         /* 📌 ビューポートに対する幅 */
+        min-height: 500px;  /* 📌 最小の高さ */
+        height: auto;       /* 📌 内容に応じて高さを自動調整 */
     }
-    /* 📌 h2 の余白を減らす */
+
+    /* 📌 `table-responsive` に高さを指定してスクロールを可能にする */
+    .table-responsive {
+        max-height: 600px;  /* 📌 必要なら高さを制限してスクロール可能に */
+        overflow-y: auto;
+    }
+
+    /* 📌 h2 の余白を調整 */
     .content-container h2 {
-        margin-top: 5px; /* 上の余白を減らす */
-        margin-bottom: 5px; /* 下の余白を減らす */
-        font-size: 1.8rem; /* 必要に応じてフォントサイズも調整 */
+        margin-top: 5px;
+        margin-bottom: 5px;
+        font-size: 1.8rem;
     }
+
+    /* 📌 各カラムのスタイル（config.py の `TABLE_CELL_STYLES` を適用） */
+    {% for table, columns in cell_styles.items() %}
+        {% for col, rules in columns.items() %}
+            {% if "width" in rules %}
+                th[data-column="{{ col }}"], td[data-column="{{ col }}"] {
+                    width: {{ rules["width"] }} !important;
+                }
+            {% endif %}
+            {% if "font_size" in rules %}
+                td[data-column="{{ col }}"] {
+                    font-size: {{ rules["font_size"] }} !important;
+                }
+            {% endif %}
+            {% if "align" in rules %}
+                td[data-column="{{ col }}"] {
+                    text-align: {{ rules["align"] }} !important;
+                }
+            {% endif %}
+            {% if "bold" in rules and rules["bold"] %}
+                td[data-column="{{ col }}"] {
+                    font-weight: bold !important;
+                }
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
 </style>
 
 <div class="container content-container">
@@ -32,7 +72,11 @@
             <thead class="table-primary">
                 <tr>
                     {% for col in columns %}
-                        <th>{{ col }}</th>
+                        <th data-column="{{ col }}"
+                            style="width: {% if col in cell_styles[table_name] and 'width' in cell_styles[table_name][col] %}
+                                {{ cell_styles[table_name][col]['width'] }}{% else %}auto{% endif %}; text-align: center;">
+                            {{ col }}
+                        </th>
                     {% endfor %}
                 </tr>
             </thead>
@@ -41,19 +85,47 @@
                     <tr>
                         {% for col in columns %}
                             {% set style_class = "" %}
+                            {% set cell_value = row[col] %}
+
                             {% if table_name in cell_styles and col in cell_styles[table_name] %}
                                 {% set rules = cell_styles[table_name][col] %}
-                                {% if row[col] is number %}
-                                    {% if "greater_than" in rules and row[col] > rules["greater_than"]["value"] %}
+                                
+                                {# 🔹 cell_value が数値かどうかを判定し、数値なら float に変換 #}
+                                {% if cell_value is not string and cell_value is number %}
+                                    {% set cell_value = cell_value|float %}
+                                {% endif %}
+
+                                {% if cell_value is number %}
+                                    {% if "greater_than" in rules and cell_value > rules["greater_than"]["value"]|float %}
                                         {% set style_class = rules["greater_than"]["class"] %}
-                                    {% elif "less_than" in rules and row[col] < rules["less_than"]["value"] %}
+                                    {% elif "less_than" in rules and cell_value < rules["less_than"]["value"]|float %}
                                         {% set style_class = rules["less_than"]["class"] %}
-                                    {% elif "equal_to" in rules and row[col] == rules["equal_to"]["value"] %}
+                                    {% elif "equal_to" in rules and cell_value == rules["equal_to"]["value"]|float %}
                                         {% set style_class = rules["equal_to"]["class"] %}
                                     {% endif %}
                                 {% endif %}
                             {% endif %}
-                            <td class="{{ style_class }}">{{ row[col] }}</td>
+
+                            {# 🔹 文字列はそのまま表示し、数値のみ整数・小数の判定 #}
+                            <td class="{{ style_class }}" data-column="{{ col }}" data-value="{{ row[col] }}" data-class="{{ style_class }}"
+                                style="
+                                    font-size: {% if col in cell_styles[table_name] and 'font_size' in cell_styles[table_name][col] %}
+                                        {{ cell_styles[table_name][col]['font_size'] }}{% else %}14px{% endif %};
+                                    text-align: {% if col in cell_styles[table_name] and 'align' in cell_styles[table_name][col] %}
+                                        {{ cell_styles[table_name][col]['align'] }}{% else %}left{% endif %};
+                                    font-weight: {% if col in cell_styles[table_name] and 'bold' in cell_styles[table_name][col] and cell_styles[table_name][col]['bold'] %}
+                                        bold{% else %}normal{% endif %};
+                                ">
+                                {% if cell_value is number %}
+                                    {% if cell_value == cell_value|int %}
+                                        {{ cell_value|int }}
+                                    {% else %}
+                                        {{ cell_value|float }}
+                                    {% endif %}
+                                {% else %}
+                                    {{ cell_value }}
+                                {% endif %}
+                            </td>
                         {% endfor %}
                     </tr>
                 {% endfor %}
@@ -62,27 +134,19 @@
     </div>
 </div>
 
-<script>
-    var TABLE_REFRESH_INTERVAL = {{ refresh_interval | tojson }};
-</script>
-<script src="{{ url_for('static', filename='js/refresh_table.js') }}"></script>
-
-<!-- ローカルの DataTables の CSS を読み込む -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}">
-
-<!-- ローカルの jQuery & DataTables を読み込む -->
+<!-- DataTables のスクリプト -->
 <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}">
 
-<!-- DataTables の初期化スクリプト -->
 <script>
 $(document).ready(function() {
-    $('#dataTable').DataTable({
-        paging: true,        // ページネーション有効
-        searching: true,     // 検索ボックス有効
-        ordering: true,      // 列ソート有効
-        pageLength: 25,      // 1ページあたりの表示数
-        lengthMenu: [5, 10, 25, 50, 100], // 表示件数オプション
+    var table = $('#dataTable').DataTable({
+        paging: true,
+        searching: true,
+        ordering: true,
+        pageLength: 25,
+        lengthMenu: [5, 10, 25, 50, 100],
         language: {
             search: "フィルター:",
             lengthMenu: "表示 _MENU_ 件",
