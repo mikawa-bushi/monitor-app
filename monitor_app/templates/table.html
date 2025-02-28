@@ -16,17 +16,15 @@
         padding: 10px 20px;
         border-radius: 10px;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-
-        /* サイズ調整 */
-        max-width: 1920px;  /* 📌 最大幅 */
-        width: 100%;         /* 📌 ビューポートに対する幅 */
-        min-height: 500px;  /* 📌 最小の高さ */
-        height: auto;       /* 📌 内容に応じて高さを自動調整 */
+        max-width: 1920px;
+        width: 100%;
+        min-height: 500px;
+        height: auto;
     }
 
     /* 📌 `table-responsive` に高さを指定してスクロールを可能にする */
     .table-responsive {
-        max-height: 600px;  /* 📌 必要なら高さを制限してスクロール可能に */
+        max-height: 600px;
         overflow-y: auto;
     }
 
@@ -35,6 +33,16 @@
         margin-top: 5px;
         margin-bottom: 5px;
         font-size: 1.8rem;
+    }
+
+    /* 📌 デフォルトでテーブル全体を中央揃えに */
+    table {
+        text-align: center;
+    }
+    th, td {
+        text-align: center !important;
+        vertical-align: middle; /* 📌 縦方向の中央揃え */
+        font-size: 24px;
     }
 
     /* 📌 各カラムのスタイル（config.py の `TABLE_CELL_STYLES` を適用） */
@@ -74,7 +82,7 @@
                     {% for col in columns %}
                         <th data-column="{{ col }}"
                             style="width: {% if col in cell_styles[table_name] and 'width' in cell_styles[table_name][col] %}
-                                {{ cell_styles[table_name][col]['width'] }}{% else %}auto{% endif %}; text-align: center;">
+                                {{ cell_styles[table_name][col]['width'] }}{% else %}auto{% endif %};">
                             {{ col }}
                         </th>
                     {% endfor %}
@@ -107,15 +115,7 @@
                             {% endif %}
 
                             {# 🔹 文字列はそのまま表示し、数値のみ整数・小数の判定 #}
-                            <td class="{{ style_class }}" data-column="{{ col }}" data-value="{{ row[col] }}" data-class="{{ style_class }}"
-                                style="
-                                    font-size: {% if col in cell_styles[table_name] and 'font_size' in cell_styles[table_name][col] %}
-                                        {{ cell_styles[table_name][col]['font_size'] }}{% else %}14px{% endif %};
-                                    text-align: {% if col in cell_styles[table_name] and 'align' in cell_styles[table_name][col] %}
-                                        {{ cell_styles[table_name][col]['align'] }}{% else %}left{% endif %};
-                                    font-weight: {% if col in cell_styles[table_name] and 'bold' in cell_styles[table_name][col] and cell_styles[table_name][col]['bold'] %}
-                                        bold{% else %}normal{% endif %};
-                                ">
+                            <td class="{{ style_class }}" data-column="{{ col }}" data-value="{{ row[col] }}" data-class="{{ style_class }}">
                                 {% if cell_value is number %}
                                     {% if cell_value == cell_value|int %}
                                         {{ cell_value|int }}

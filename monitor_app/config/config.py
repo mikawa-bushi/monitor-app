@@ -79,7 +79,7 @@ TABLE_CELL_STYLES = {
             "less_than": {"value": 5, "class": "bg-warning text-dark"},
             "equal_to": {"value": 7, "class": "bg-success text-white"},
             "width": "15%",  # 📌 カラムの幅
-            "font_size": "14px",  # 📌 フォントサイズ
+            "font_size": "32px",  # 📌 フォントサイズ
             "align": "center",  # 📌 中央揃え
             "bold": True,  # 📌 太字
         }
