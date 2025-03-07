@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or app_title }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename=favicon_path) }}" type="image/x-icon">
+
+    <!-- Bootstrap CSS を `static/css/` から読み込む -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        /* 📌 ヘッダーの高さを小さく */
+        .header {
+            background-color: #20364b;
+            color: white;
+            padding: 5px; /* ヘッダーの高さを小さく */
+            text-align: center;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px; /* 高さを固定 */
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        /* 📌 右端に画像を配置 */
+        .header img {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 30px; /* 画像の高さを調整 */
+        }
+        /* 📌 フッターの余白をヘッダーと統一し、中央揃え */
+        .footer {
+            background-color: #20364b;
+            color: white;
+            text-align: center;
+            font-size: 0.9rem;
+            height: 40px; /* 高さを固定 */
+            display: flex;
+            align-items: center; /* 縦方向の中央揃え */
+            justify-content: center; /* 横方向の中央揃え */
+            margin-top: 0;
+            padding: 0; /* 余白を削除 */
+        }
+        .footer h1 {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        /* 📌 フッターがページ最下部に配置されるよう調整 */
+        .container-fluid {
+            flex: 1; /* メインコンテンツが伸縮可能に */
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <h1>{{ header_text or "Monitor Dashboard" }}</h1>
+        <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="ロゴ">
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="container-fluid mt-4 mb-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <h1>{{ footer_text or "© 2025 Monitor App - Powered by Flask & Bootstrap" }}</h1>
+    </footer>
+
+    <!-- Bootstrap JS を `static/js/` から読み込む -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>
