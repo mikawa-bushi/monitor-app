@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 📌 背景画像を設定 */
+    body {
+        background-image: url("{{ url_for('static', filename='img/background.webp') }}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    /* 📌 `content-container` のサイズ調整 */
+    .content-container {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        max-width: 1920px;
+        width: 100%;
+        min-height: 500px;
+        height: auto;
+    }
+
+    /* 📌 `table-responsive` に高さを指定してスクロールを可能にする */
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    /* 📌 h2 の余白を調整 */
+    .content-container h2 {
+        margin-top: 5px;
+        margin-bottom: 5px;
+        font-size: 1.8rem;
+    }
+
+    /* 📌 デフォルトでテーブル全体を中央揃えに */
+    table {
+        text-align: center;
+    }
+    th, td {
+        text-align: center !important;
+        vertical-align: middle; /* 📌 縦方向の中央揃え */
+        font-size: 24px;
+    }
+
+    /* 📌 各カラムのスタイル（config.py の `TABLE_CELL_STYLES` を適用） */
+    {% for table, columns in cell_styles.items() %}
+        {% for col, rules in columns.items() %}
+            {% if "width" in rules %}
+                th[data-column="{{ col }}"], td[data-column="{{ col }}"] {
+                    width: {{ rules["width"] }} !important;
+                }
+            {% endif %}
+            {% if "font_size" in rules %}
+                td[data-column="{{ col }}"] {
+                    font-size: {{ rules["font_size"] }} !important;
+                }
+            {% endif %}
+            {% if "align" in rules %}
+                td[data-column="{{ col }}"] {
+                    text-align: {{ rules["align"] }} !important;
+                }
+            {% endif %}
+            {% if "bold" in rules and rules["bold"] %}
+                td[data-column="{{ col }}"] {
+                    font-weight: bold !important;
+                }
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</style>
+
+<div class="container content-container">
+    <h2>{{ table_name }} テーブル</h2>
+
+    <div class="table-responsive">
+        <table id="dataTable" class="table table-striped table-hover mt-3">
+            <thead class="table-primary">
+                <tr>
+                    {% for col in columns %}
+                        <th data-column="{{ col }}"
+                            style="width: {% if col in cell_styles[table_name] and 'width' in cell_styles[table_name][col] %}
+                                {{ cell_styles[table_name][col]['width'] }}{% else %}auto{% endif %};">
+                            {{ col }}
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                    <tr>
+                        {% for col in columns %}
+                            {% set style_class = "" %}
+                            {% set cell_value = row[col] %}
+
+                            {% if table_name in cell_styles and col in cell_styles[table_name] %}
+                                {% set rules = cell_styles[table_name][col] %}
+                                
+                                {# 🔹 cell_value が数値かどうかを判定し、数値なら float に変換 #}
+                                {% if cell_value is not string and cell_value is number %}
+                                    {% set cell_value = cell_value|float %}
+                                {% endif %}
+
+                                {% if cell_value is number %}
+                                    {% if "greater_than" in rules and cell_value > rules["greater_than"]["value"]|float %}
+                                        {% set style_class = rules["greater_than"]["class"] %}
+                                    {% elif "less_than" in rules and cell_value < rules["less_than"]["value"]|float %}
+                                        {% set style_class = rules["less_than"]["class"] %}
+                                    {% elif "equal_to" in rules and cell_value == rules["equal_to"]["value"]|float %}
+                                        {% set style_class = rules["equal_to"]["class"] %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+
+                            {# 🔹 文字列はそのまま表示し、数値のみ整数・小数の判定 #}
+                            <td class="{{ style_class }}" data-column="{{ col }}" data-value="{{ row[col] }}" data-class="{{ style_class }}">
+                                {% if cell_value is number %}
+                                    {% if cell_value == cell_value|int %}
+                                        {{ cell_value|int }}
+                                    {% else %}
+                                        {{ cell_value|float }}
+                                    {% endif %}
+                                {% else %}
+                                    {{ cell_value }}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DataTables のスクリプト -->
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}">
+
+<script>
+$(document).ready(function() {
+    var table = $('#dataTable').DataTable({
+        paging: true,
+        searching: true,
+        ordering: true,
+        pageLength: 25,
+        lengthMenu: [5, 10, 25, 50, 100],
+        language: {
+            search: "フィルター:",
+            lengthMenu: "表示 _MENU_ 件",
+            info: "全 _TOTAL_ 件中 _START_ から _END_ まで表示",
+            paginate: {
+                first: "最初",
+                last: "最後",
+                next: "次へ",
+                previous: "前へ"
+            },
+            emptyTable: "データがありません",
+            zeroRecords: "一致するレコードが見つかりません"
+        }
+    });
+});
+</script>
+
+{% endblock %}
