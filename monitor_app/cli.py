@@ -14,6 +14,7 @@ TEMPLATES_DIR = os.path.join(MONITOR_APP_DIR, "templates")
 STATIC_DIR = os.path.join(MONITOR_APP_DIR, "static")
 STATIC_CSS_DIR = os.path.join(STATIC_DIR, "css")
 STATIC_JS_DIR = os.path.join(STATIC_DIR, "js")
+STATIC_IMG_DIR = os.path.join(STATIC_DIR, "img")
 PYPROJECT_TEMPLATE = os.path.join(MONITOR_APP_DIR, "pyproject.toml")
 
 
@@ -47,7 +48,8 @@ def startproject(project_name):
     DEST_STATIC_DIR = os.path.join(DEST_MONITOR_APP_DIR, "static")
     DEST_STATIC_CSS_DIR = os.path.join(DEST_STATIC_DIR, "css")
     DEST_STATIC_JS_DIR = os.path.join(DEST_STATIC_DIR, "js")
-    os.makedirs(DEST_MONITOR_APP_DIR)
+    DEST_STATIC_IMG_DIR = os.path.join(DEST_STATIC_DIR, "img")
+    # os.makedirs(DEST_MONITOR_APP_DIR)
 
     # 📂 CSV・インスタンスフォルダ作成
     os.makedirs(DEST_CSV_DIR, exist_ok=True)
@@ -56,6 +58,7 @@ def startproject(project_name):
     os.makedirs(DEST_TEMPLATES_DIR, exist_ok=True)
     os.makedirs(DEST_STATIC_JS_DIR, exist_ok=True)
     os.makedirs(DEST_STATIC_CSS_DIR, exist_ok=True)
+    os.makedirs(DEST_STATIC_IMG_DIR, exist_ok=True)
 
     # 📄 `project_template` からファイルをコピー
     monitor_app_files = ["app.py", "cli.py", "csv_to_db.py"]
@@ -91,7 +94,7 @@ def startproject(project_name):
                 f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
             )
 
-    css_files = ["bootstrap.min.css"]
+    css_files = ["bootstrap.min.css", "jquery.datatables.min.css"]
     for file in css_files:
         src_path = os.path.join(STATIC_CSS_DIR, file)
         dest_path = os.path.join(DEST_STATIC_CSS_DIR, file)
@@ -102,7 +105,12 @@ def startproject(project_name):
                 f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
             )
 
-    js_files = ["bootstrap.bundle.min.js"]
+    js_files = [
+        "bootstrap.bundle.min.js",
+        "jquery.datatables.min.js",
+        "jquery.min.js",
+        "refresh_table.js",
+    ]
     for file in js_files:
         src_path = os.path.join(STATIC_JS_DIR, file)
         dest_path = os.path.join(DEST_STATIC_JS_DIR, file)
@@ -113,6 +121,16 @@ def startproject(project_name):
                 f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
             )
 
+    img_files = ["background.webp", "logo.webp"]
+    for file in img_files:
+        src_path = os.path.join(STATIC_IMG_DIR, file)
+        dest_path = os.path.join(DEST_STATIC_IMG_DIR, file)
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dest_path)
+        else:
+            click.echo(
+                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
+            )
     # 📄 Favicon コピー
     favicon_src = os.path.join(MONITOR_APP_DIR, "static/favicon.ico")
     favicon_dest = os.path.join(DEST_MONITOR_APP_DIR, "static/favicon.ico")
