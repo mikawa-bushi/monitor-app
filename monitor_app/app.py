@@ -1,11 +1,12 @@
 import click
 import os
+import sys
 import subprocess  # ✅ `csv_to_db.py` を実行するために追加
 from flask import Flask, render_template, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
-from monitor_app.config.config import (
+from config.config import (
     SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS,
     ALLOWED_TABLES,
@@ -16,6 +17,11 @@ from monitor_app.config.config import (
     TABLE_CELL_STYLES,
     TABLE_REFRESH_INTERVAL,
 )
+
+# config/config.py の親ディレクトリを sys.path に追加
+CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
+if CONFIG_PARENT_DIR not in sys.path:
+    sys.path.append(CONFIG_PARENT_DIR)
 
 app = Flask(__name__)
 CORS(app)
