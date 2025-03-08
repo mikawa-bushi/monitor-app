@@ -1,7 +1,5 @@
-import click
 import os
 import sys
-import subprocess  # ✅ `csv_to_db.py` を実行するために追加
 from flask import Flask, render_template, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
