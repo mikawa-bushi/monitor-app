@@ -1,9 +1,19 @@
 import os
+import sys
 import shutil
 import subprocess
 import click
 import toml
-from monitor_app.app import run_server  # `app.py` の `run_server()` を直接呼び出す
+
+# `monitor_app` のパスを `sys.path` に追加
+CLI_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)  # `monitor_app/cli.py` のあるディレクトリ
+if CLI_DIR not in sys.path:
+    sys.path.append(CLI_DIR)
+
+
+from app import run_server  # `app.py` の `run_server()` を直接呼び出す
 
 # TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "monitor_app")
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
