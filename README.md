@@ -1,11 +1,13 @@
 # Monitor App 🚀
 
-Monitor App は、CSV データをデータベースに取り込み、Web ブラウザで閲覧できるシンプルなアプリケーションです。  
-SQLite / MySQL / PostgreSQL に対応し、Django のように `startproject` コマンドでプロジェクトを作成できます。
+Monitor App は、CSV データをデータベースに取り込み、Webブラウザで閲覧できるシンプルなアプリケーションです。  
+SQLite / MySQL / PostgreSQL に対応し、`startproject` コマンドでプロジェクトを作成できます。  
+このプロジェクトはFlask, Djangoに非常にインスパイアされており、特にFlaskをベースとしたライブラリです。  
+Python初学者の多い製造業にて、より短期間でWebアプリを作成することを目的に開発しています。
 
 ## 📌 特徴
 - `monitor-app startproject` で新しいプロジェクトを作成
-- CSV データをデータベースに簡単にインポート
+- CSV データをSQLiteに簡単に変換
 - Web UI でデータを表示
 - `Flask-SQLAlchemy` を使用し、SQLite / MySQL / PostgreSQL に対応
 - Bootstrap を使用したスタイリッシュな UI
@@ -28,14 +30,14 @@ pip install monitor-app
 ```sh
 monitor-app startproject my_project
 ```
-➡ `my_project` フォルダに Flask アプリのテンプレートが作成されます。
+➡ `my_project` フォルダにMonitor-appアプリのテンプレートが作成されます。
 
 ### **2️⃣ CSV をデータベースに登録**
 ```sh
 cd my_project
 monitor-app import-csv
 ```
-➡ `csv/` フォルダの CSV をデータベースに登録します。
+➡ `csv/` フォルダのCSVをSQLiteデータベースに変換します。
 
 ### **3️⃣ Web アプリを起動**
 ```sh
@@ -80,7 +82,7 @@ my_project/
 ---
 
 ## 🔧 `config.py` の設定
-プロジェクトの設定は `monitor_app/config.py` で変更できます。
+プロジェクトの設定は `config/config.py` で変更できます。
 
 📌 **データベースの設定**
 ```python
