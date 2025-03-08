@@ -3,7 +3,6 @@ import sys
 import shutil
 import subprocess
 import click
-import toml
 
 # `monitor_app` のパスを `sys.path` に追加
 CLI_DIR = os.path.dirname(
