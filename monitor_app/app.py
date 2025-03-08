@@ -6,7 +6,13 @@ from flask import Flask, render_template, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
-from config.config import (
+
+# config/config.py の親ディレクトリを sys.path に追加
+CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
+if CONFIG_PARENT_DIR not in sys.path:
+    sys.path.append(CONFIG_PARENT_DIR)
+
+from config import (
     SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS,
     ALLOWED_TABLES,
@@ -18,10 +24,6 @@ from config.config import (
     TABLE_REFRESH_INTERVAL,
 )
 
-# config/config.py の親ディレクトリを sys.path に追加
-CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
-if CONFIG_PARENT_DIR not in sys.path:
-    sys.path.append(CONFIG_PARENT_DIR)
 
 app = Flask(__name__)
 CORS(app)
@@ -29,6 +31,7 @@ CORS(app)
 # 設定を `config.py` から読み込む
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
+print(SQLALCHEMY_DATABASE_URI)
 
 db = SQLAlchemy(app)
 
