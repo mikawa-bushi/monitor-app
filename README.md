@@ -41,7 +41,7 @@ monitor-app import-csv
 
 ### **3️⃣ Web アプリを起動**
 ```sh
-monitor-app runserver
+python <プロジェクト名>/app.py
 ```
 ➡ `http://127.0.0.1:9990` にアクセス！
 
@@ -54,12 +54,12 @@ monitor-app runserver
 
 📌 **例: CSV を登録後に起動**
 ```sh
-monitor-app runserver --csv
+python <プロジェクト名>/app.py --csv
 ```
 
 📌 **例: デバッグモードでポート `8000` で起動**
 ```sh
-monitor-app runserver --debug --port 8000
+python <プロジェクト名>/app.py --debug --port 8000
 ```
 
 ---
@@ -122,9 +122,9 @@ ALLOWED_TABLES = {
 |------------|----------------------------------|
 | `monitor-app startproject <name>` | 新しいプロジェクトを作成 |
 | `monitor-app import-csv` | CSV をデータベースに登録 |
-| `monitor-app runserver` | Web アプリを起動 |
-| `monitor-app runserver --csv` | CSV 登録後に起動 |
-| `monitor-app runserver --port <PORT>` | 指定ポートで起動 |
+| `python <プロジェクト名>/app.py` | Web アプリを起動 |
+| `python <プロジェクト名>/app.py --csv` | CSV 登録後に起動 |
+| `python <プロジェクト名>/app.py --port <PORT>` | 指定ポートで起動 |
 
 ---
 
