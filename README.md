@@ -28,20 +28,25 @@ pip install monitor-app
 
 ### **1️⃣ 新しいプロジェクトを作成**
 ```sh
+monitor-app startproject <プロジェクト名>
+```
+📌 **例: my_projectという名称でテンプレートを作成**
+```sh
 monitor-app startproject my_project
 ```
 ➡ `my_project` フォルダにMonitor-appアプリのテンプレートが作成されます。
 
+
 ### **2️⃣ CSV をデータベースに登録**
 ```sh
 cd my_project
-monitor-app import-csv
+python <プロジェクト名>/app.py import-csv
 ```
 ➡ `csv/` フォルダのCSVをSQLiteデータベースに変換します。
 
 ### **3️⃣ Web アプリを起動**
 ```sh
-python <プロジェクト名>/app.py
+python <プロジェクト名>/app.py runserver
 ```
 ➡ `http://127.0.0.1:9990` にアクセス！
 
@@ -54,12 +59,12 @@ python <プロジェクト名>/app.py
 
 📌 **例: CSV を登録後に起動**
 ```sh
-python <プロジェクト名>/app.py --csv
+python <プロジェクト名>/app.py runserver --csv
 ```
 
 📌 **例: デバッグモードでポート `8000` で起動**
 ```sh
-python <プロジェクト名>/app.py --debug --port 8000
+python <プロジェクト名>/app.py runserver --debug --port 8000
 ```
 
 ---
@@ -68,15 +73,17 @@ python <プロジェクト名>/app.py --debug --port 8000
 ```sh
 my_project/
 │── monitor_app/
-│   ├── app.py        # Flask アプリのメインファイル
-│   ├── config.py     # 設定ファイル
-│   ├── csv_to_db.py  # CSV をデータベースにインポートするスクリプト
-│   ├── templates/    # HTML テンプレート
-│   ├── static/       # CSS / JavaScript / 画像
-│   ├── csv/          # CSV データを保存するフォルダ
-│   ├── instances/    # データベースの保存先
-│── pyproject.toml    # Poetry の設定ファイル
-│── README.md         # このファイル
+│   ├── app.py           # Flask アプリのメインファイル
+│   ├── cli.py           # テンプレート作成用のコマンドファイル
+│   ├── csv_to_db.py     # CSV をデータベースにインポートするスクリプト
+│   ├── config/
+│   │    ├── config.py   # 設定ファイル
+│   ├── templates/       # HTML テンプレート
+│   ├── static/          # CSS / JavaScript / 画像
+│   ├── csv/             # CSV データを保存するフォルダ
+│   ├── instances/       # SQLiteデータベースの保存先
+│── pyproject.toml       # Poetry の設定ファイル
+│── README.md            # このファイル
 ```
 
 ---

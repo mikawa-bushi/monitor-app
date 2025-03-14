@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 from sqlalchemy import (
     create_engine,
@@ -10,7 +11,13 @@ from sqlalchemy import (
     Float,
     ForeignKey,
 )
-from monitor_app.config.config import (
+
+# config/config.py の親ディレクトリを sys.path に追加
+CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
+if CONFIG_PARENT_DIR not in sys.path:
+    sys.path.append(CONFIG_PARENT_DIR)
+
+from config import (
     SQLALCHEMY_DATABASE_URI,
     ALLOWED_TABLES,
     CSV_DIR,  # ✅ `CSV_DIR` を `config.py` から取得
