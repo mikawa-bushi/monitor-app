@@ -4,6 +4,9 @@ from flask import Flask, render_template, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+import shutil
+import subprocess
+import click
 
 # config/config.py の親ディレクトリを sys.path に追加
 CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
@@ -17,11 +20,12 @@ from config import (
     APP_TITLE,
     HEADER_TEXT,
     FOOTER_TEXT,
-    FAVICON_PATH,  # ✅ Favicon を追加
+    FAVICON_PATH,
     TABLE_CELL_STYLES,
     TABLE_REFRESH_INTERVAL,
 )
 
+from csv_to_db import create_tables, import_csv_to_db
 
 app = Flask(__name__)
 CORS(app)
@@ -37,27 +41,25 @@ db = SQLAlchemy(app)
 @app.route("/")
 def index():
     """トップページ"""
-    tables = list(ALLOWED_TABLES.keys())  # 📌 許可されたテーブルのみ表示
+    tables = list(ALLOWED_TABLES.keys())
     return render_template(
         "index.html",
         tables=tables,
         app_title=APP_TITLE,
         header_text=HEADER_TEXT,
         footer_text=FOOTER_TEXT,
-        favicon_path=FAVICON_PATH,  # ✅ Favicon を追加
-        title=APP_TITLE,  # ✅ タイトルを設定
+        favicon_path=FAVICON_PATH,
+        title=APP_TITLE,
     )
 
 
 @app.route("/table/<table_name>")
 def show_table(table_name):
     """指定されたテーブルのデータを表示"""
-    if table_name not in ALLOWED_TABLES:  # 📌 許可されていないテーブルは 404
+    if table_name not in ALLOWED_TABLES:
         abort(404)
 
     table_info = ALLOWED_TABLES[table_name]
-
-    # 📌 `join` 設定があれば JOIN クエリを実行
     query = (
         text(table_info["join"])
         if "join" in table_info
@@ -77,20 +79,58 @@ def show_table(table_name):
         app_title=APP_TITLE,
         header_text=HEADER_TEXT,
         footer_text=FOOTER_TEXT,
-        favicon_path=FAVICON_PATH,  # ✅ Favicon を追加
-        title=f"{table_name} - {APP_TITLE}",  # ✅ タイトルを設定
+        favicon_path=FAVICON_PATH,
+        title=f"{table_name} - {APP_TITLE}",
         refresh_interval=TABLE_REFRESH_INTERVAL,
     )
 
 
-def run_server(host="0.0.0.0", port=9990, debug=False):
+def run_command(command_list):
+    """
+    📌 poetry がインストールされていれば `poetry run` を使用し、なければ `python` を使用
+    """
+    if shutil.which("poetry"):
+        command_list.insert(0, "poetry")
+        command_list.insert(1, "run")
+    else:
+        command_list.insert(0, "python")
+
+    subprocess.run(command_list, check=True)
+
+
+@click.command()
+@click.option("--host", default="0.0.0.0", help="ホストアドレス")
+@click.option("--port", default=9990, help="ポート番号")
+@click.option("--csv", is_flag=True, help="CSV をデータベースに登録してから起動")
+@click.option("--debug", is_flag=True, help="デバッグモードを有効化")
+def run_server(host, port, csv, debug):
     """Flask Web アプリを起動"""
+    if csv:
+        click.echo("🔄 CSV をデータベースに登録中...")
+        create_tables()
+        import_csv_to_db()
+        click.echo("✅ CSV 登録完了！アプリを起動します...")
+
     app.run(host=host, port=port, debug=debug)
 
 
-def main():
-    run_server()
+@click.command()
+def import_csv():
+    """CSV をデータベースにインポート"""
+    click.echo("📂 CSV をデータベースに登録中...")
+    create_tables()
+    import_csv_to_db()
+    click.echo("✅ CSV 登録完了！")
 
+
+@click.group()
+def cli():
+    """コマンドラインインターフェースのエントリーポイント"""
+    pass
+
+
+cli.add_command(run_server)
+cli.add_command(import_csv)
 
 if __name__ == "__main__":
-    main()
+    cli()
