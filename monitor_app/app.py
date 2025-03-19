@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, render_template, abort
+from flask import Flask, render_template, abort, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -55,7 +55,7 @@ def index():
 
 @app.route("/table/<table_name>")
 def show_table(table_name):
-    """指定されたテーブルのデータを表示"""
+    """指定されたテーブルのデータを表示（Jinja 用）"""
     if table_name not in ALLOWED_TABLES:
         abort(404)
 
@@ -70,18 +70,47 @@ def show_table(table_name):
     columns = result.keys()
     data = [dict(zip(columns, row)) for row in result.fetchall()]
 
+    # ✅ デバッグログを追加（Flask のログに出力）
+    print(f"Columns: {columns}")
+    print(f"Data: {data}")
+    print(f"cell_styles: {TABLE_CELL_STYLES}")
+
+    if not data:
+        return f"データが見つかりませんでした: {table_name}", 500  # エラーハンドリング
+
     return render_template(
         "table.html",
         table_name=table_name,
         columns=columns,
         data=data,
-        cell_styles=TABLE_CELL_STYLES,
-        app_title=APP_TITLE,
-        header_text=HEADER_TEXT,
-        footer_text=FOOTER_TEXT,
-        favicon_path=FAVICON_PATH,
-        title=f"{table_name} - {APP_TITLE}",
-        refresh_interval=TABLE_REFRESH_INTERVAL,
+        cell_styles=TABLE_CELL_STYLES.get(table_name, {}),
+    )
+
+
+@app.route("/api/table/<table_name>")
+def get_table_data(table_name):
+    """テーブルデータを JSON で返す API"""
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "テーブルが見つかりません"}), 404
+
+    table_info = ALLOWED_TABLES[table_name]
+    query = (
+        text(table_info["join"])
+        if "join" in table_info
+        else text(f"SELECT * FROM {table_name}")
+    )
+
+    result = db.session.execute(query)
+    columns = result.keys()
+    data = [dict(zip(columns, row)) for row in result.fetchall()]
+
+    return jsonify(
+        {
+            "table_name": table_name,
+            "columns": list(columns),
+            "data": data,
+            "cell_styles": TABLE_CELL_STYLES.get(table_name, {}),
+        }
     )
 
 
