@@ -131,38 +131,220 @@ my_project/
 
 ---
 
-## 🔧 `config.py` の設定
-プロジェクトの設定は `config/config.py` で変更できます。
+## 🔧 `config/config.py` の設定
 
-📌 **データベースの設定**
+プロジェクトの全設定は `config/config.py` で変更できます。以下は設定可能な全項目の詳細です。
+
+### **📌 データベース設定**
+
+#### **データベースタイプの選択**
 ```python
-# SQLite（デフォルト）
-SQLALCHEMY_DATABASE_URI = "sqlite:///instances/database.db"
-
-# MySQL を使用する場合
-# SQLALCHEMY_DATABASE_URI = "mysql+pymysql://user:password@localhost/dbname"
-
-# PostgreSQL を使用する場合
-# SQLALCHEMY_DATABASE_URI = "postgresql://user:password@localhost/dbname"
+# 使用するデータベースの種類を指定
+DB_TYPE = "sqlite"  # "sqlite" | "mysql" | "postgresql"
 ```
 
-📌 **カスタムテーブルと JOIN の設定**
+#### **SQLite設定**
+```python
+# SQLite のカスタムパス設定
+CUSTOM_SQLITE_DB_PATH = None  # None の場合は instances/database.db を使用
+# CUSTOM_SQLITE_DB_PATH = "/path/to/custom/database.db"  # カスタムパス指定
+```
+
+#### **MySQL設定**
+```python
+# DB_TYPE = "mysql" の場合に使用
+MYSQL_USER = "root"
+MYSQL_PASSWORD = "password"
+MYSQL_HOST = "localhost"
+MYSQL_PORT = "3306"
+MYSQL_DB = "monitor_app"
+```
+
+#### **PostgreSQL設定**
+```python
+# DB_TYPE = "postgresql" の場合に使用
+POSTGRES_USER = "postgres"
+POSTGRES_PASSWORD = "password"
+POSTGRES_HOST = "localhost"
+POSTGRES_PORT = "5432"
+POSTGRES_DB = "monitor_app"
+```
+
+### **📌 テーブル定義設定（ALLOWED_TABLES）**
+
+`ALLOWED_TABLES`は、Monitor Appで表示・操作可能なテーブルを定義する**最重要設定**です。セキュリティ上、ここに定義されていないテーブルは一切アクセスできません。
+
+#### **ALLOWED_TABLESの必要性**
+- **セキュリティ**: 不正なテーブルアクセスを防止
+- **REST API自動生成**: 定義されたテーブルのみCRUD APIが自動作成
+- **UI自動生成**: Web画面でのテーブル表示・編集機能を自動構築
+- **データ型推定**: カラム名から適切なデータ型を自動判定
+
+#### **基本的なテーブル設定**
 ```python
 ALLOWED_TABLES = {
-    "users": {"columns": ["id", "name", "email"], "primary_key": "id"},
-    "products": {"columns": ["id", "name", "price"], "primary_key": "id"},
+    "users": {
+        "columns": ["id", "name", "email"],  # 表示・操作するカラムリスト
+        "primary_key": "id"                  # プライマリーキー（省略時は"id"）
+    },
+    "products": {
+        "columns": ["id", "name", "price", "category"],
+        "primary_key": "product_id"          # カスタム主キー
+    }
+}
+```
+
+
+#### **JOIN クエリによる関連データ表示**
+```python
+ALLOWED_TABLES = {
     "orders": {
         "columns": ["id", "user_id", "product_id", "amount"],
         "primary_key": "id",
         "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
-        "join": '''
-            SELECT orders.id, users.name AS user_name, products.name AS product_name, orders.amount
+        "join": """
+            SELECT 
+                orders.id, 
+                users.name AS ユーザー名, 
+                products.name AS 商品名, 
+                orders.amount AS 数量,
+                (products.price * orders.amount) AS 合計金額
             FROM orders
             JOIN users ON orders.user_id = users.id
             JOIN products ON orders.product_id = products.id
-        ''',
-    },
+            ORDER BY orders.order_date DESC
+        """
+    }
 }
+```
+
+### **📌 テーブルスタイリング設定（TABLE_CELL_STYLES）**
+
+`TABLE_CELL_STYLES`は、テーブルセルの見た目を値に応じて動的に変更する高度な機能です。
+
+#### **条件付きスタイリングの基本構造**
+```python
+TABLE_CELL_STYLES = {
+    "テーブル名": {
+        "カラム名": {
+            # 値による条件分岐
+            "greater_than": {"value": 数値, "class": "CSSクラス"},
+            "less_than": {"value": 数値, "class": "CSSクラス"}, 
+            "equal_to": {"value": 値, "class": "CSSクラス"},
+            
+            # 表示スタイル設定
+            "width": "幅%",
+            "font_size": "サイズpx",
+            "align": "配置",
+            "bold": True/False
+        }
+    }
+}
+```
+
+#### **数値による条件分岐**
+```python
+TABLE_CELL_STYLES = {
+    "products": {
+        "price": {
+            # 1000以上は青背景（高価格商品）
+            "greater_than": {"value": 1000, "class": "bg-primary text-white"},
+            # 500未満は水色背景（低価格商品）
+            "less_than": {"value": 500, "class": "bg-info text-dark"},
+            # 750ちょうどは灰色背景（標準価格）
+            "equal_to": {"value": 750, "class": "bg-secondary text-white"}
+        }
+    }
+}
+```
+
+#### **文字列による完全一致条件**
+```python
+TABLE_CELL_STYLES = {
+    "orders": {
+        "status": {
+            "equal_to": [
+                {"value": "完了", "class": "bg-success text-white"},
+                {"value": "進行中", "class": "bg-warning text-dark"},
+                {"value": "キャンセル", "class": "bg-danger text-white"},
+                {"value": "保留", "class": "bg-secondary text-white"}
+            ]
+        }
+    }
+}
+```
+
+#### **表示スタイル詳細設定**
+```python
+TABLE_CELL_STYLES = {
+    "sales": {
+        "amount": {
+            # 条件による色分け
+            "greater_than": {"value": 1000000, "class": "bg-success text-white"},
+            "less_than": {"value": 100000, "class": "bg-danger text-white"},
+            
+            # 表示スタイル
+            "width": "20%",           # カラム幅（CSS width）
+            "font_size": "24px",      # フォントサイズ
+            "align": "right",         # テキスト配置
+            "bold": True              # 太字にする
+        }
+    }
+}
+```
+
+#### **使用可能なBootstrap CSSクラス**
+```python
+# 背景色クラス
+"bg-primary"      # 青（重要）
+"bg-secondary"    # グレー（普通）
+"bg-success"      # 緑（成功・完了）
+"bg-danger"       # 赤（危険・エラー）
+"bg-warning"      # 黄（警告・注意）
+"bg-info"         # 水色（情報）
+"bg-light"        # 薄グレー
+"bg-dark"         # 黒
+
+# テキスト色クラス  
+"text-white"      # 白文字（濃い背景用）
+"text-dark"       # 黒文字（薄い背景用）
+"text-primary"    # 青文字
+"text-success"    # 緑文字
+"text-danger"     # 赤文字
+"text-warning"    # 黄文字
+"text-info"       # 水色文字
+
+# 組み合わせ例
+"bg-success text-white"     # 緑背景に白文字
+"bg-warning text-dark"      # 黄背景に黒文字
+"bg-danger text-white"      # 赤背景に白文字
+```
+
+#### **align設定の選択肢**
+```python
+"align": "left"     # 左寄せ（デフォルト）
+"align": "center"   # 中央揃え
+"align": "right"    # 右寄せ（数値に推奨）
+```
+
+### **📌 アプリケーション設定**
+```python
+# 基本情報
+APP_TITLE = "Monitor App"                                    # ブラウザタイトル
+HEADER_TEXT = "📊 Monitor Dashboard"                         # ページヘッダー
+FOOTER_TEXT = "© 2025 Monitor App - Powered by Flask & Bootstrap"  # フッター
+FAVICON_PATH = "favicon.ico"                                 # ファビコン
+
+# 動作設定
+TABLE_REFRESH_INTERVAL = 2000           # テーブル自動更新間隔（ミリ秒）
+SQLALCHEMY_TRACK_MODIFICATIONS = False  # SQLAlchemy変更追跡（通常はFalse）
+```
+
+### **📌 CSV設定**
+```python
+# CSV ファイルディレクトリ
+CUSTOM_CSV_DIR = None  # None の場合は プロジェクト/csv/ を使用
+# CUSTOM_CSV_DIR = "/data/csv_files"  # カスタムディレクトリ指定
 ```
 
 ## 🌐 REST API エンドポイント
