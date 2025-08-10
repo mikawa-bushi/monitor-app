@@ -20,11 +20,19 @@ def client():
     
     with app.test_client() as test_client:
         with app.app_context():
+            # テーブルを作成し、テストデータをセットアップ
+            create_tables()
+            setup_test_data()
             yield test_client
 
 
 def setup_test_data():
     """テスト用の基本データをセットアップ"""
+    # 既存データをクリア
+    db.session.execute(text("DELETE FROM orders"))
+    db.session.execute(text("DELETE FROM users"))
+    db.session.execute(text("DELETE FROM products"))
+    
     # テストユーザーを追加
     db.session.execute(
         text("INSERT INTO users (id, name, email) VALUES (1, 'Test User', 'test@example.com')")
