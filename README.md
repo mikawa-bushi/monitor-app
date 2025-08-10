@@ -122,6 +122,187 @@ ALLOWED_TABLES = {
 }
 ```
 
+## 🌐 REST API エンドポイント
+
+Monitor App では、データベースの CRUD 操作を行う REST API が利用できます。
+
+### **📌 利用可能なエンドポイント**
+
+#### **テーブル情報**
+- `GET /api/tables` - すべてのテーブルのスキーマ情報を取得
+
+#### **データ操作**
+- `GET /api/<table_name>` - テーブルの全レコードを取得
+- `GET /api/<table_name>/<id>` - 指定 ID のレコードを取得
+- `POST /api/<table_name>` - 新しいレコードを作成
+- `PUT /api/<table_name>/<id>` - 指定 ID のレコードを更新
+- `DELETE /api/<table_name>/<id>` - 指定 ID のレコードを削除
+
+### **📌 API 使用例**
+
+#### **1. テーブル一覧の取得**
+```bash
+curl -X GET http://localhost:9990/api/tables
+```
+
+#### **2. ユーザー一覧の取得**
+```bash
+curl -X GET http://localhost:9990/api/users
+```
+
+#### **3. 新しいユーザーの作成**
+```bash
+curl -X POST http://localhost:9990/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "田中太郎", "email": "tanaka@example.com"}'
+```
+
+#### **4. ユーザー情報の更新**
+```bash
+curl -X PUT http://localhost:9990/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "田中次郎", "email": "tanaka.updated@example.com"}'
+```
+
+#### **5. ユーザーの削除**
+```bash
+curl -X DELETE http://localhost:9990/api/users/1
+```
+
+### **📌 レスポンス形式**
+
+#### **成功時のレスポンス例**
+```json
+{
+  "success": true,
+  "message": "Record created successfully",
+  "data": {
+    "id": 1,
+    "name": "田中太郎",
+    "email": "tanaka@example.com"
+  }
+}
+```
+
+#### **エラー時のレスポンス例**
+```json
+{
+  "error": "Record not found"
+}
+```
+
+### **📌 注意事項**
+- API は `config.py` の `ALLOWED_TABLES` で定義されたテーブルのみ操作可能
+- プライマリーキー（通常は `id`）は自動設定のため、POST リクエストでは送信不要
+- 外部キー制約のあるテーブルでは、関連するレコードの存在を確認してから操作してください
+
+## 🧪 テストの実行
+
+Monitor App には、REST API の動作を検証する包括的なテストスイートが含まれています。
+
+### **📌 テスト環境のセットアップ**
+
+テストの実行には `pytest` が必要です（Poetry 環境では既にインストール済み）。
+
+```bash
+# Poetry を使用している場合
+poetry install
+
+# pip を使用している場合
+pip install pytest
+```
+
+### **📌 テストの実行方法**
+
+#### **全テストを実行**
+```bash
+python -m pytest tests/test_api.py -v
+```
+
+#### **特定のテストクラスのみ実行**
+```bash
+# ユーザー API のテストのみ
+python -m pytest tests/test_api.py::TestUsersAPI -v
+
+# 商品 API のテストのみ
+python -m pytest tests/test_api.py::TestProductsAPI -v
+
+# エラーハンドリングのテストのみ
+python -m pytest tests/test_api.py::TestErrorHandling -v
+```
+
+#### **特定のテストメソッドのみ実行**
+```bash
+python -m pytest tests/test_api.py::TestUsersAPI::test_create_user -v
+```
+
+### **📌 テスト内容**
+
+#### **🔹 テーブル情報API (`TestTableAPI`)**
+- `GET /api/tables` - テーブルスキーマの取得
+
+#### **🔹 ユーザーAPI (`TestUsersAPI`)**
+- `GET /api/users` - 全ユーザー取得
+- `GET /api/users/<id>` - 特定ユーザー取得
+- `POST /api/users` - ユーザー作成
+- `PUT /api/users/<id>` - ユーザー更新
+- `DELETE /api/users/<id>` - ユーザー削除
+- エラーケース（存在しないユーザー、無効なデータ）
+
+#### **🔹 商品API (`TestProductsAPI`)**
+- `GET /api/products` - 全商品取得
+- `POST /api/products` - 商品作成
+- `PUT /api/products/<id>` - 商品更新
+
+#### **🔹 注文API (`TestOrdersAPI`)**
+- `GET /api/orders` - 全注文取得
+- `POST /api/orders` - 注文作成（外部キー制約付き）
+
+#### **🔹 エラーハンドリング (`TestErrorHandling`)**
+- 存在しないテーブルへのアクセス
+- 不正なJSON形式のリクエスト
+- Content-Type ヘッダーなしのリクエスト
+
+#### **🔹 データ検証 (`TestDataValidation`)**
+- 余分なフィールドの自動除去
+- 外部キー制約の検証
+
+### **📌 テスト実行例**
+
+```bash
+$ python -m pytest tests/test_api.py -v
+
+============================= test session starts ==============================
+platform darwin -- Python 3.13.1, pytest-8.3.5, pluggy-1.5.0
+collecting ... collected 20 items
+
+tests/test_api.py::TestTableAPI::test_get_tables PASSED                  [  5%]
+tests/test_api.py::TestUsersAPI::test_get_all_users PASSED               [ 10%]
+tests/test_api.py::TestUsersAPI::test_get_user_by_id PASSED              [ 15%]
+tests/test_api.py::TestUsersAPI::test_get_user_not_found PASSED          [ 20%]
+tests/test_api.py::TestUsersAPI::test_create_user PASSED                 [ 25%]
+...
+============================== 20 passed in 0.95s ===========================
+```
+
+### **📌 継続的インテグレーション**
+
+プロジェクトに CI/CD を設定する場合は、以下のコマンドをビルドスクリプトに追加してください：
+
+```bash
+# テストの実行
+python -m pytest tests/test_api.py
+
+# カバレッジレポート付きでテスト実行（オプション）
+pip install pytest-cov
+python -m pytest tests/test_api.py --cov=monitor_app --cov-report=html
+```
+
+### **📌 テストファイルの場所**
+- `tests/test_api.py` - REST API のテスト
+- `tests/test_app.py` - Web アプリケーションのテスト
+- `tests/test_config.py` - 設定のテスト
+
 ---
 
 ## 📌 `monitor-app` の CLI コマンド一覧
