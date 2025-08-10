@@ -303,6 +303,51 @@ python -m pytest tests/test_api.py --cov=monitor_app --cov-report=html
 - `tests/test_app.py` - Web アプリケーションのテスト
 - `tests/test_config.py` - 設定のテスト
 
+### **📌 各テストファイルの詳細**
+
+#### **🔹 `tests/test_api.py`**
+REST APIの包括的なテストを行います。主な内容：
+
+- **TestTableAPI**: データベーステーブルのスキーマ情報取得API
+  - `GET /api/tables` のテスト（テーブル一覧、カラム情報、主キーの確認）
+  
+- **TestUsersAPI**: ユーザー管理API
+  - 全ユーザー取得、特定ユーザー取得、ユーザー作成、更新、削除
+  - エラーハンドリング（存在しないユーザー、無効なデータ）
+  
+- **TestProductsAPI**: 商品管理API
+  - 商品の取得、作成、更新機能のテスト
+  
+- **TestOrdersAPI**: 注文管理API
+  - 注文の取得、作成機能（外部キー制約の検証含む）
+  
+- **TestErrorHandling**: エラーハンドリング
+  - 存在しないテーブルへのアクセス、不正なJSON、Content-Typeなしリクエスト
+  
+- **TestDataValidation**: データ検証
+  - 余分なフィールドの除去、外部キー制約のテスト
+
+#### **🔹 `tests/test_app.py`**
+Webアプリケーションの基本機能をテストします：
+
+- **test_index_page**: ルートページ（`/`）の表示確認
+  - ステータスコード200、"Monitor Dashboard"の表示確認
+  
+- **test_table_page**: テーブル表示ページ（`/table/users`）の動作確認
+  - 許可されたテーブルの表示確認
+
+#### **🔹 `tests/test_config.py`**
+設定ファイルの検証を行います：
+
+- **test_database_uri**: データベース接続設定の確認
+  - SQLite/MySQL/PostgreSQLのURI形式チェック
+  
+- **test_allowed_tables**: 許可されたテーブル設定の確認
+  - users、orders、productsテーブルの設定確認
+  
+- **test_app_metadata**: アプリケーション設定の確認
+  - アプリタイトル、ヘッダー、フッターテキストの設定確認
+
 ---
 
 ## 📌 `monitor-app` の CLI コマンド一覧
