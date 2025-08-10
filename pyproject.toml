@@ -34,6 +34,13 @@ monitor-app = "monitor_app.cli:cli"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
+black = "^24.0.0"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+skip-string-normalization = false
 
 [build-system]
 requires = ["poetry-core"]
