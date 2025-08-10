@@ -35,3 +35,6 @@ pip-wheel-metadata/
 
 # 📂 Mac OS 関連
 .DS_Store
+
+# 📂 sqlite cache
+instances/*.db
