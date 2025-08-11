@@ -1,10 +1,10 @@
-name: CI
+name: Tests
 
 on:
   push:
-    branches: [ 'main' ]  # Only main branch
+    branches: [ '**' ]  # All branches
   pull_request:
-    branches: [ 'main' ]  # Only PRs targeting main branch
+    branches: [ '**' ]  # All PRs
 
 jobs:
   test:
@@ -82,29 +82,3 @@ jobs:
           echo "Black not available, skipping formatting check"
         fi
       continue-on-error: true
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-
-    - name: Build package
-      run: |
-        poetry build
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
