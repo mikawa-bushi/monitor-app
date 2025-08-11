@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ '**' ]  # All branches
+    branches: [ 'main' ]  # Only main branch
   pull_request:
-    branches: [ '**' ]  # All target branches
+    branches: [ 'main' ]  # Only PRs targeting main branch
 
 jobs:
   test:
