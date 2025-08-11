@@ -9,7 +9,9 @@ Monitor App は、CSV データから SQLite データベースを自動生成�
 
 **🔧 主要な機能:**
 - **包括的なREST API**: フル CRUD 操作（作成・読み取り・更新・削除）をサポート
-- **動的なテーブル表示**: JOIN クエリによる関連データの表示、リアルタイム更新（2秒間隔）
+- **自動API ドキュメント**: Swagger UI による FastAPI ライクなドキュメント自動生成（`/docs`）
+- **分離型設計**: CRUD操作用テーブルと表示用ビューの責任分離
+- **柔軟なビュー表示**: カスタムクエリによるデータ表示（JOIN、集計、フィルタリング等）、リアルタイム更新（2秒間隔）
 - **高度なスタイリング機能**: セル値に応じた条件付きスタイリング（色分け、フォントサイズ、配置）
 - **CORS対応**: フロントエンドアプリケーションとの連携が容易
 - **包括的なテスト**: REST API、Web UI、設定の全てに対する自動テスト
@@ -170,77 +172,123 @@ POSTGRES_PORT = "5432"
 POSTGRES_DB = "monitor_app"
 ```
 
-### **📌 テーブル定義設定（ALLOWED_TABLES）**
+### **📌 設定の分離設計**
 
-`ALLOWED_TABLES`は、Monitor Appで表示・操作可能なテーブルを定義する**最重要設定**です。セキュリティ上、ここに定義されていないテーブルは一切アクセスできません。
+Monitor App は、**CRUD操作用**と**表示用**の設定を明確に分離しています：
 
-#### **ALLOWED_TABLESの必要性**
+- **`ALLOWED_TABLES`**: CRUD API操作用のテーブル定義
+- **`VIEW_TABLES`**: 画面表示用のビュー定義  
+- **`TABLE_CELL_STYLES`**: ビュー表示用のスタイリング設定
+
+この分離により、データ操作のセキュリティを保ちつつ、表示の柔軟性を実現しています。
+
+### **📌 CRUD操作設定（ALLOWED_TABLES）**
+
+`ALLOWED_TABLES`は、REST API でCRUD操作可能なテーブルを定義します。セキュリティ上、ここに定義されていないテーブルは一切アクセスできません。
+
+#### **ALLOWED_TABLESの役割**
 - **セキュリティ**: 不正なテーブルアクセスを防止
 - **REST API自動生成**: 定義されたテーブルのみCRUD APIが自動作成
-- **UI自動生成**: Web画面でのテーブル表示・編集機能を自動構築
-- **データ型推定**: カラム名から適切なデータ型を自動判定
+- **入力検証**: POST/PUTリクエストでのカラム検証
+- **データ構造定義**: プライマリーキー、外部キー情報の管理
 
-#### **基本的なテーブル設定**
+#### **基本的なCRUD設定**
 ```python
 ALLOWED_TABLES = {
     "users": {
-        "columns": ["id", "name", "email"],  # 表示・操作するカラムリスト
-        "primary_key": "id"                  # プライマリーキー（省略時は"id"）
+        "columns": ["id", "name", "email"],  # CRUD操作対象カラム
+        "primary_key": "id"                  # プライマリーキー
     },
     "products": {
-        "columns": ["id", "name", "price", "category"],
-        "primary_key": "product_id"          # カスタム主キー
-    }
-}
-```
-
-
-#### **カスタムクエリによる関連データ表示・集計**
-```python
-ALLOWED_TABLES = {
+        "columns": ["id", "name", "price"], 
+        "primary_key": "id"
+    },
     "orders": {
         "columns": ["id", "user_id", "product_id", "amount"],
         "primary_key": "id",
-        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
-        "custom_query": """
-            SELECT 
-                orders.id, 
-                users.name AS ユーザー名, 
-                products.name AS 商品名, 
-                orders.amount AS 数量,
-                (products.price * orders.amount) AS 合計金額
-            FROM orders
-            JOIN users ON orders.user_id = users.id
-            JOIN products ON orders.product_id = products.id
-            ORDER BY orders.order_date DESC
-        """
-    },
-    "user_summary": {
-        "columns": ["user_name", "total_amount", "order_count"],
-        "primary_key": "user_name",
-        "custom_query": """
-            SELECT 
-                users.name as user_name,
-                SUM(orders.amount) as total_amount,
-                COUNT(orders.id) as order_count
-            FROM users
-            LEFT JOIN orders ON users.id = orders.user_id
-            GROUP BY users.id, users.name
-            ORDER BY total_amount DESC
-        """
+        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"}
     }
 }
 ```
 
-### **📌 テーブルスタイリング設定（TABLE_CELL_STYLES）**
 
-`TABLE_CELL_STYLES`は、テーブルセルの見た目を値に応じて動的に変更する高度な機能です。
+### **📌 ビュー表示設定（VIEW_TABLES）**
 
-#### **条件付きスタイリングの基本構造**
+`VIEW_TABLES`は、Web画面での表示専用のビューを定義します。複雑なJOIN、集計、フィルタリングなどが可能です。
+
+#### **VIEW_TABLESの特徴**
+- **表示専用**: CRUD操作は行わず、表示のみ
+- **柔軟なクエリ**: JOIN、集計、サブクエリなど自由に記述可能
+- **メタデータ対応**: タイトル、説明文の設定
+- **カラム名制御**: AS句による表示名の制御
+
+#### **基本的なビュー設定**
+```python
+VIEW_TABLES = {
+    "users_view": {
+        "query": "SELECT id, name, email FROM users",
+        "title": "ユーザー一覧",
+        "description": "システムに登録されているユーザーの一覧"
+    },
+    "products_view": {
+        "query": "SELECT id, name, price FROM products", 
+        "title": "商品一覧",
+        "description": "システムに登録されている商品の一覧"
+    },
+    "orders_summary": {
+        "query": """
+            SELECT 
+                orders.id, 
+                users.name AS user_name, 
+                products.name AS product_name, 
+                orders.amount
+            FROM orders
+            JOIN users ON orders.user_id = users.id
+            JOIN products ON orders.product_id = products.id
+        """,
+        "title": "注文サマリー",
+        "description": "ユーザー名と商品名を含む注文の詳細一覧"
+    }
+}
+```
+
+#### **高度なビュー例（集計・サブクエリ）**
+```python
+VIEW_TABLES = {
+    "sales_summary": {
+        "query": """
+            SELECT 
+                users.name as user_name,
+                COUNT(orders.id) as order_count,
+                SUM(orders.amount * products.price) as total_sales,
+                AVG(orders.amount * products.price) as avg_order_value
+            FROM users
+            LEFT JOIN orders ON users.id = orders.user_id
+            LEFT JOIN products ON orders.product_id = products.id
+            GROUP BY users.id, users.name
+            HAVING order_count > 0
+            ORDER BY total_sales DESC
+        """,
+        "title": "売上サマリー",
+        "description": "ユーザー別の注文統計と売上集計"
+    }
+}
+```
+
+### **📌 ビュースタイリング設定（TABLE_CELL_STYLES）**
+
+`TABLE_CELL_STYLES`は、ビュー表示時のセル外観を値に応じて動的に変更する高度な機能です。**VIEW_TABLESのビューのみ**に適用され、**実際のカラム名**（AS句で指定された名前）をキーとします。
+
+#### **重要な設計原則**
+- **ビュー専用**: `VIEW_TABLES`で定義されたビューにのみ適用
+- **カラム名ベース**: クエリの実際の出力カラム名を使用
+- **安定性**: データベースのカラム名変更に影響されにくい設計
+
+#### **基本構造**
 ```python
 TABLE_CELL_STYLES = {
-    "テーブル名": {
-        "カラム名": {
+    "ビュー名": {
+        "実際のカラム名": {  # AS句で指定された名前または元のカラム名
             # 値による条件分岐
             "greater_than": {"value": 数値, "class": "CSSクラス"},
             "less_than": {"value": 数値, "class": "CSSクラス"}, 
@@ -256,17 +304,31 @@ TABLE_CELL_STYLES = {
 }
 ```
 
-#### **数値による条件分岐**
+#### **実装例: カラム名ベースのスタイリング**
 ```python
 TABLE_CELL_STYLES = {
-    "products": {
-        "price": {
+    "products_view": {
+        "price": {  # 実際のカラム名を使用
             # 1000以上は青背景（高価格商品）
             "greater_than": {"value": 1000, "class": "bg-primary text-white"},
             # 500未満は水色背景（低価格商品）
             "less_than": {"value": 500, "class": "bg-info text-dark"},
             # 750ちょうどは灰色背景（標準価格）
-            "equal_to": {"value": 750, "class": "bg-secondary text-white"}
+            "equal_to": {"value": 750, "class": "bg-secondary text-white"},
+            "width": "20%",
+            "align": "right",
+            "bold": False
+        }
+    },
+    "orders_summary": {
+        "amount": {  # AS句なしの元カラム名
+            "greater_than": {"value": 10, "class": "bg-danger text-white"},
+            "less_than": {"value": 5, "class": "bg-warning text-dark"},
+            "equal_to": {"value": 7, "class": "bg-success text-white"},
+            "width": "15%",
+            "font_size": "32px",
+            "align": "center",
+            "bold": True
         }
     }
 }
@@ -363,54 +425,97 @@ CUSTOM_CSV_DIR = None  # None の場合は プロジェクト/csv/ を使用
 
 ## 🌐 REST API エンドポイント
 
-Monitor App では、データベースの CRUD 操作を行う REST API が利用できます。
+Monitor App では、データベースの CRUD 操作とビュー表示の両方に対応した REST API が利用できます。
+
+### **📌 API ドキュメント（Swagger UI）**
+
+FastAPI ライクな自動生成ドキュメントが利用可能です：
+
+- **`GET /docs`** - Swagger UI による対話的なAPI ドキュメント
+- **`GET /apispec_1.json`** - OpenAPI 仕様書（JSON形式）
 
 ### **📌 利用可能なエンドポイント**
 
-#### **テーブル情報**
+#### **🔹 テーブル情報**
 - `GET /api/tables` - すべてのテーブルのスキーマ情報を取得
 
-#### **データ操作**
+#### **🔹 テーブル操作（CRUD API）**
 - `GET /api/<table_name>` - テーブルの全レコードを取得
 - `GET /api/<table_name>/<id>` - 指定 ID のレコードを取得
 - `POST /api/<table_name>` - 新しいレコードを作成
 - `PUT /api/<table_name>/<id>` - 指定 ID のレコードを更新
 - `DELETE /api/<table_name>/<id>` - 指定 ID のレコードを削除
 
+#### **🔹 ビュー表示（Display API）**
+- `GET /api/table/<table_name>` - テーブルの生データを取得（スタイル情報なし）
+- `GET /api/view/<view_name>` - ビューデータを取得（スタイル情報付き）
+
 ### **📌 API 使用例**
 
-#### **1. テーブル一覧の取得**
+#### **🔹 基本操作**
+
+##### **1. API ドキュメントの確認**
+```bash
+# Swagger UI でAPI仕様を確認
+curl -X GET http://localhost:9990/docs
+
+# JSON形式のAPI仕様を取得
+curl -X GET http://localhost:9990/apispec_1.json
+```
+
+##### **2. テーブル一覧の取得**
 ```bash
 curl -X GET http://localhost:9990/api/tables
 ```
 
-#### **2. ユーザー一覧の取得**
+#### **🔹 CRUD操作**
+
+##### **3. ユーザー一覧の取得（CRUD）**
 ```bash
 curl -X GET http://localhost:9990/api/users
 ```
 
-#### **3. 新しいユーザーの作成**
+##### **4. 新しいユーザーの作成**
 ```bash
 curl -X POST http://localhost:9990/api/users \
   -H "Content-Type: application/json" \
   -d '{"name": "田中太郎", "email": "tanaka@example.com"}'
 ```
 
-#### **4. ユーザー情報の更新**
+##### **5. ユーザー情報の更新**
 ```bash
 curl -X PUT http://localhost:9990/api/users/1 \
   -H "Content-Type: application/json" \
   -d '{"name": "田中次郎", "email": "tanaka.updated@example.com"}'
 ```
 
-#### **5. ユーザーの削除**
+##### **6. ユーザーの削除**
 ```bash
 curl -X DELETE http://localhost:9990/api/users/1
 ```
 
+#### **🔹 表示専用API**
+
+##### **7. テーブル生データの取得**
+```bash
+# スタイル情報なしの生データ
+curl -X GET http://localhost:9990/api/table/users
+```
+
+##### **8. ビューデータの取得**
+```bash
+# スタイル情報付きのビューデータ
+curl -X GET http://localhost:9990/api/view/users_view
+
+# 注文サマリービューの取得
+curl -X GET http://localhost:9990/api/view/orders_summary
+```
+
 ### **📌 レスポンス形式**
 
-#### **成功時のレスポンス例**
+#### **🔹 CRUD API レスポンス例**
+
+##### **成功時（作成・更新）**
 ```json
 {
   "success": true,
@@ -423,17 +528,59 @@ curl -X DELETE http://localhost:9990/api/users/1
 }
 ```
 
-#### **エラー時のレスポンス例**
+##### **エラー時**
 ```json
 {
   "error": "Record not found"
 }
 ```
 
+#### **🔹 ビューAPI レスポンス例**
+
+##### **ビューデータ取得**
+```json
+{
+  "view_name": "orders_summary",
+  "title": "注文サマリー",
+  "description": "ユーザー名と商品名を含む注文の詳細一覧",
+  "columns": ["id", "user_name", "product_name", "amount"],
+  "data": [
+    {
+      "id": 1,
+      "user_name": "田中太郎",
+      "product_name": "Apple",
+      "amount": 5
+    }
+  ],
+  "cell_styles": {
+    "amount": {
+      "greater_than": {"value": 10, "class": "bg-danger text-white"},
+      "less_than": {"value": 5, "class": "bg-warning text-dark"},
+      "width": "15%",
+      "font_size": "32px",
+      "align": "center",
+      "bold": true
+    }
+  }
+}
+```
+
 ### **📌 注意事項**
-- API は `config.py` の `ALLOWED_TABLES` で定義されたテーブルのみ操作可能
+
+#### **🔹 CRUD API**
+- `ALLOWED_TABLES` で定義されたテーブルのみ操作可能
 - プライマリーキー（通常は `id`）は自動設定のため、POST リクエストでは送信不要
 - 外部キー制約のあるテーブルでは、関連するレコードの存在を確認してから操作してください
+
+#### **🔹 ビューAPI**
+- `VIEW_TABLES` で定義されたビューのみアクセス可能
+- ビューデータは表示専用（CRUD操作は不可）
+- スタイル設定は `TABLE_CELL_STYLES` で定義されたビューのみ適用
+
+#### **🔹 設計の分離**
+- **CRUD操作**: `/api/<table_name>` → `ALLOWED_TABLES`
+- **表示データ**: `/api/view/<view_name>` → `VIEW_TABLES` + `TABLE_CELL_STYLES`
+- **生データ**: `/api/table/<table_name>` → `ALLOWED_TABLES`（スタイルなし）
 
 ## 🧪 テストの実行
 
