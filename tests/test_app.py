@@ -8,6 +8,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Ensure monitor_app directory is in path
+monitor_app_dir = project_root / "monitor_app"
+sys.path.insert(0, str(monitor_app_dir))
+
 from monitor_app.app import app
 from monitor_app.csv_to_db import create_tables
 

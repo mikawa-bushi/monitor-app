@@ -67,6 +67,8 @@ jobs:
 
     - name: Run tests
       run: |
+        # Set up Python path for monitor_app module
+        export PYTHONPATH="${{ github.workspace }}:$PYTHONPATH"
         poetry run python -m pytest tests/ -v --tb=short
       env:
         PYTHONPATH: ${{ github.workspace }}
