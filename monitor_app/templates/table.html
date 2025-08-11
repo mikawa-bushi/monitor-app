@@ -49,7 +49,8 @@
 <!-- Vueのデリミタを修正中 -->
 <div id="app">
     <div class="container content-container">
-        <h2>[[ table_name ]] テーブル</h2>
+        <h2>[[ table_title || table_name ]]</h2>
+        <p v-if="table_description" class="text-muted">[[ table_description ]]</p>
         <div class="table-responsive">
             <table class="table table-striped table-hover mt-3">
                 <thead class="table-primary">
@@ -80,6 +81,8 @@
         data() {
             return {
                 table_name: {{ table_name | tojson }},
+                table_title: {{ table_title | tojson }},
+                table_description: {{ table_description | tojson }},
                 columns: [],
                 data: [],
                 cell_styles: {}
@@ -89,7 +92,7 @@
             async fetchData() {
                 try {
                     console.log("Fetching data...");
-                    const response = await axios.get(`/api/table/${this.table_name}`);
+                    const response = await axios.get(`/api/view/${this.table_name}`);
                     console.log("Data received:", response.data);
                     
                     this.columns = response.data.columns;

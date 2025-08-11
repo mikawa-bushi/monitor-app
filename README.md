@@ -195,14 +195,14 @@ ALLOWED_TABLES = {
 ```
 
 
-#### **JOIN クエリによる関連データ表示**
+#### **カスタムクエリによる関連データ表示・集計**
 ```python
 ALLOWED_TABLES = {
     "orders": {
         "columns": ["id", "user_id", "product_id", "amount"],
         "primary_key": "id",
         "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
-        "join": """
+        "custom_query": """
             SELECT 
                 orders.id, 
                 users.name AS ユーザー名, 
@@ -213,6 +213,20 @@ ALLOWED_TABLES = {
             JOIN users ON orders.user_id = users.id
             JOIN products ON orders.product_id = products.id
             ORDER BY orders.order_date DESC
+        """
+    },
+    "user_summary": {
+        "columns": ["user_name", "total_amount", "order_count"],
+        "primary_key": "user_name",
+        "custom_query": """
+            SELECT 
+                users.name as user_name,
+                SUM(orders.amount) as total_amount,
+                COUNT(orders.id) as order_count
+            FROM users
+            LEFT JOIN orders ON users.id = orders.user_id
+            GROUP BY users.id, users.name
+            ORDER BY total_amount DESC
         """
     }
 }
