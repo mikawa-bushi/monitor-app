@@ -53,46 +53,78 @@ else:
 # 📌 SQLAlchemy 設定
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# 📌 許可されたテーブルのみを表示
+# 📌 CRUD操作で許可されたテーブル（データ操作用）
 ALLOWED_TABLES = {
-    "users": {"columns": ["id", "name", "email"], "primary_key": "id"},
-    "products": {"columns": ["id", "name", "price"], "primary_key": "id"},
+    "users": {
+        "columns": ["id", "name", "email"], 
+        "primary_key": "id"
+    },
+    "products": {
+        "columns": ["id", "name", "price"], 
+        "primary_key": "id"
+    },
     "orders": {
         "columns": ["id", "user_id", "product_id", "amount"],
         "primary_key": "id",
-        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
-        "join": """
-            SELECT orders.id, users.name AS ユーザー名, products.name AS 商品名, orders.amount as 量
-            FROM orders
-            JOIN users ON orders.user_id = users.id
-            JOIN products ON orders.product_id = products.id
-        """,
+        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"}
     },
 }
 
 
-# 📌 **テーブルセルのスタイル**
-TABLE_CELL_STYLES = {
-    "orders": {
-        "量": {
-            "greater_than": {"value": 10, "class": "bg-danger text-white"},
-            "less_than": {"value": 5, "class": "bg-warning text-dark"},
-            "equal_to": {"value": 7, "class": "bg-success text-white"},
-            "width": "15%",  # 📌 カラムの幅
-            "font_size": "32px",  # 📌 フォントサイズ
-            "align": "center",  # 📌 中央揃え
-            "bold": True,  # 📌 太字
-        }
+# 📌 ビュー表示設定（画面表示用）
+VIEW_TABLES = {
+    "users_view": {
+        "query": "SELECT id, name, email FROM users",
+        "title": "ユーザー一覧",
+        "description": "システムに登録されているユーザーの一覧"
     },
-    "products": {
+    "products_view": {
+        "query": "SELECT id, name, price FROM products", 
+        "title": "商品一覧",
+        "description": "システムに登録されている商品の一覧"
+    },
+    "orders_summary": {
+        "query": """
+            SELECT 
+                orders.id, 
+                users.name AS user_name, 
+                products.name AS product_name, 
+                orders.amount
+            FROM orders
+            JOIN users ON orders.user_id = users.id
+            JOIN products ON orders.product_id = products.id
+        """,
+        "title": "注文サマリー",
+        "description": "ユーザー名と商品名を含む注文の詳細一覧"
+    }
+}
+
+
+# 📌 **ビューセルのスタイル**（VIEW_TABLESのみ）
+TABLE_CELL_STYLES = {
+    "users_view": {
+        # ユーザービューには特別なスタイル設定なし（将来的に追加可能）
+    },
+    "products_view": {
         "price": {
             "greater_than": {"value": 1000, "class": "bg-primary text-white"},
             "less_than": {"value": 500, "class": "bg-info text-dark"},
             "equal_to": {"value": 750, "class": "bg-secondary text-white"},
-            "width": "20%",  # 📌 カラムの幅
-            "font_size": "16px",  # 📌 フォントサイズ
-            "align": "right",  # 📌 右揃え
-            "bold": False,  # 📌 太字なし
+            "width": "20%",
+            "font_size": "16px",
+            "align": "right",
+            "bold": False,
+        }
+    },
+    "orders_summary": {
+        "amount": {
+            "greater_than": {"value": 10, "class": "bg-danger text-white"},
+            "less_than": {"value": 5, "class": "bg-warning text-dark"},
+            "equal_to": {"value": 7, "class": "bg-success text-white"},
+            "width": "15%",
+            "font_size": "32px",
+            "align": "center",
+            "bold": True,
         }
     },
 }

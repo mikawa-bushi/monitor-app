@@ -1,12 +1,13 @@
 import os
 import sys
-from flask import Flask, render_template, abort, jsonify
+from flask import Flask, render_template, abort, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 import shutil
 import subprocess
 import click
+from flasgger import Swagger
 
 # config/config.py の親ディレクトリを sys.path に追加
 CONFIG_PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "config"))
@@ -17,6 +18,7 @@ from config import (
     SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS,
     ALLOWED_TABLES,
+    VIEW_TABLES,
     APP_TITLE,
     HEADER_TEXT,
     FOOTER_TEXT,
@@ -37,14 +39,47 @@ print(SQLALCHEMY_DATABASE_URI)
 
 db = SQLAlchemy(app)
 
+# Swagger設定
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda _rule: True,
+            "model_filter": lambda _tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Monitor App API",
+        "description": "Monitor App API documentation with view and table endpoints",
+        "version": "1.0.0"
+    },
+    "consumes": [
+        "application/json",
+    ],
+    "produces": [
+        "application/json",
+    ],
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
 
 @app.route("/")
 def index():
     """トップページ"""
-    tables = list(ALLOWED_TABLES.keys())
+    views = list(VIEW_TABLES.keys())
     return render_template(
         "index.html",
-        tables=tables,
+        tables=views,
         app_title=APP_TITLE,
         header_text=HEADER_TEXT,
         footer_text=FOOTER_TEXT,
@@ -53,18 +88,14 @@ def index():
     )
 
 
-@app.route("/table/<table_name>")
-def show_table(table_name):
-    """指定されたテーブルのデータを表示（Jinja 用）"""
-    if table_name not in ALLOWED_TABLES:
+@app.route("/table/<view_name>")
+def show_table(view_name):
+    """指定されたビューのデータを表示（Jinja 用）"""
+    if view_name not in VIEW_TABLES:
         abort(404)
 
-    table_info = ALLOWED_TABLES[table_name]
-    query = (
-        text(table_info["join"])
-        if "join" in table_info
-        else text(f"SELECT * FROM {table_name}")
-    )
+    view_info = VIEW_TABLES[view_name]
+    query = text(view_info["query"])
 
     result = db.session.execute(query)
     columns = result.keys()
@@ -76,29 +107,65 @@ def show_table(table_name):
     print(f"cell_styles: {TABLE_CELL_STYLES}")
 
     if not data:
-        return f"データが見つかりませんでした: {table_name}", 500  # エラーハンドリング
+        return f"データが見つかりませんでした: {view_name}", 500  # エラーハンドリング
 
     return render_template(
         "table.html",
-        table_name=table_name,
+        table_name=view_name,
+        table_title=view_info.get("title", view_name),
+        table_description=view_info.get("description", ""),
         columns=columns,
         data=data,
-        cell_styles=TABLE_CELL_STYLES.get(table_name, {}),
+        cell_styles=TABLE_CELL_STYLES.get(view_name, {}),
     )
 
 
 @app.route("/api/table/<table_name>")
 def get_table_data(table_name):
-    """テーブルデータを JSON で返す API"""
+    """テーブルデータを JSON で返す API（生データ）
+    ---
+    tags:
+      - Tables
+    parameters:
+      - name: table_name
+        in: path
+        type: string
+        required: true
+        description: Table name as defined in ALLOWED_TABLES configuration
+    responses:
+      200:
+        description: Table raw data with columns and cell styles
+        schema:
+          type: object
+          properties:
+            table_name:
+              type: string
+              description: Name of the table
+            columns:
+              type: array
+              items:
+                type: string
+              description: Column names in the table
+            data:
+              type: array
+              items:
+                type: object
+              description: Array of data rows
+            cell_styles:
+              type: object
+              description: Cell styling configuration
+      404:
+        description: Table not found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
     if table_name not in ALLOWED_TABLES:
         return jsonify({"error": "テーブルが見つかりません"}), 404
 
-    table_info = ALLOWED_TABLES[table_name]
-    query = (
-        text(table_info["join"])
-        if "join" in table_info
-        else text(f"SELECT * FROM {table_name}")
-    )
+    query = text(f"SELECT * FROM {table_name}")
 
     result = db.session.execute(query)
     columns = result.keys()
@@ -112,6 +179,334 @@ def get_table_data(table_name):
             "cell_styles": TABLE_CELL_STYLES.get(table_name, {}),
         }
     )
+
+
+@app.route("/api/view/<view_name>")
+def get_view_data(view_name):
+    """ビューデータを JSON で返す API（表示用）
+    ---
+    tags:
+      - Views
+    parameters:
+      - name: view_name
+        in: path
+        type: string
+        required: true
+        description: View name as defined in VIEW_TABLES configuration
+    responses:
+      200:
+        description: View data with columns, data, and cell styles
+        schema:
+          type: object
+          properties:
+            view_name:
+              type: string
+              description: Name of the view
+            title:
+              type: string
+              description: Display title of the view
+            description:
+              type: string
+              description: Description of the view
+            columns:
+              type: array
+              items:
+                type: string
+              description: Column names in the view
+            data:
+              type: array
+              items:
+                type: object
+              description: Array of data rows
+            cell_styles:
+              type: object
+              description: Cell styling configuration
+      404:
+        description: View not found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
+    if view_name not in VIEW_TABLES:
+        return jsonify({"error": "ビューが見つかりません"}), 404
+
+    view_info = VIEW_TABLES[view_name]
+    query = text(view_info["query"])
+
+    result = db.session.execute(query)
+    columns = result.keys()
+    data = [dict(zip(columns, row)) for row in result.fetchall()]
+
+    return jsonify(
+        {
+            "view_name": view_name,
+            "title": view_info.get("title", view_name),
+            "description": view_info.get("description", ""),
+            "columns": list(columns),
+            "data": data,
+            "cell_styles": TABLE_CELL_STYLES.get(view_name, {}),
+        }
+    )
+
+
+# CRUD API endpoints
+@app.route("/api/<table_name>", methods=["GET"])
+def get_all_records(table_name):
+    """Get all records from a table
+    ---
+    tags:
+      - CRUD
+    parameters:
+      - name: table_name
+        in: path
+        type: string
+        required: true
+        description: Table name as defined in ALLOWED_TABLES configuration
+    responses:
+      200:
+        description: All records from the table
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: array
+              items:
+                type: object
+            count:
+              type: integer
+      404:
+        description: Table not found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found"}), 404
+    
+    try:
+        query = text(f"SELECT * FROM {table_name}")
+        result = db.session.execute(query)
+        columns = result.keys()
+        data = [dict(zip(columns, row)) for row in result.fetchall()]
+        
+        return jsonify({
+            "success": True,
+            "data": data,
+            "count": len(data)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/<table_name>/<int:record_id>", methods=["GET"])
+def get_record(table_name, record_id):
+    """Get a specific record by ID"""
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found"}), 404
+    
+    try:
+        primary_key = ALLOWED_TABLES[table_name].get("primary_key", "id")
+        query = text(f"SELECT * FROM {table_name} WHERE {primary_key} = :id")
+        result = db.session.execute(query, {"id": record_id})
+        columns = result.keys()
+        row = result.fetchone()
+        
+        if not row:
+            return jsonify({"error": "Record not found"}), 404
+        
+        data = dict(zip(columns, row))
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/<table_name>", methods=["POST"])
+def create_record(table_name):
+    """Create a new record
+    ---
+    tags:
+      - CRUD
+    parameters:
+      - name: table_name
+        in: path
+        type: string
+        required: true
+        description: Table name as defined in ALLOWED_TABLES configuration
+      - name: body
+        in: body
+        required: true
+        description: Record data matching the table's column structure
+        schema:
+          type: object
+          description: JSON object with fields matching table columns (excluding primary key)
+    responses:
+      201:
+        description: Record created successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            message:
+              type: string
+            data:
+              type: object
+      400:
+        description: Invalid data provided
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      404:
+        description: Table not found
+    """
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found"}), 404
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Get allowed columns for this table
+        allowed_columns = ALLOWED_TABLES[table_name]["columns"]
+        primary_key = ALLOWED_TABLES[table_name].get("primary_key", "id")
+        
+        # Filter data to only include allowed columns (exclude primary key for auto-increment)
+        filtered_data = {k: v for k, v in data.items() 
+                        if k in allowed_columns and k != primary_key}
+        
+        if not filtered_data:
+            return jsonify({"error": "No valid data provided"}), 400
+        
+        # Build INSERT query
+        columns = list(filtered_data.keys())
+        placeholders = ", ".join([f":{col}" for col in columns])
+        column_names = ", ".join(columns)
+        
+        query = text(f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})")
+        db.session.execute(query, filtered_data)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Record created successfully",
+            "data": filtered_data
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/<table_name>/<int:record_id>", methods=["PUT"])
+def update_record(table_name, record_id):
+    """Update a specific record"""
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found"}), 404
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Get allowed columns for this table
+        allowed_columns = ALLOWED_TABLES[table_name]["columns"]
+        primary_key = ALLOWED_TABLES[table_name].get("primary_key", "id")
+        
+        # Filter data to only include allowed columns (exclude primary key)
+        filtered_data = {k: v for k, v in data.items() 
+                        if k in allowed_columns and k != primary_key}
+        
+        if not filtered_data:
+            return jsonify({"error": "No valid data provided"}), 400
+        
+        # Check if record exists
+        check_query = text(f"SELECT COUNT(*) FROM {table_name} WHERE {primary_key} = :id")
+        result = db.session.execute(check_query, {"id": record_id})
+        if result.scalar() == 0:
+            return jsonify({"error": "Record not found"}), 404
+        
+        # Build UPDATE query
+        set_clause = ", ".join([f"{col} = :{col}" for col in filtered_data.keys()])
+        query = text(f"UPDATE {table_name} SET {set_clause} WHERE {primary_key} = :record_id")
+        
+        # Add record_id to the parameters
+        params = filtered_data.copy()
+        params["record_id"] = record_id
+        
+        db.session.execute(query, params)
+        db.session.commit()
+        
+        # Get the updated record
+        get_query = text(f"SELECT * FROM {table_name} WHERE {primary_key} = :id")
+        get_result = db.session.execute(get_query, {"id": record_id})
+        columns = get_result.keys()
+        row = get_result.fetchone()
+        
+        return jsonify({
+            "success": True,
+            "message": "Record updated successfully",
+            "data": dict(zip(columns, row))
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/<table_name>/<int:record_id>", methods=["DELETE"])
+def delete_record(table_name, record_id):
+    """Delete a specific record"""
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found"}), 404
+    
+    try:
+        primary_key = ALLOWED_TABLES[table_name].get("primary_key", "id")
+        
+        # Check if record exists
+        check_query = text(f"SELECT COUNT(*) FROM {table_name} WHERE {primary_key} = :id")
+        result = db.session.execute(check_query, {"id": record_id})
+        if result.scalar() == 0:
+            return jsonify({"error": "Record not found"}), 404
+        
+        # Delete the record
+        query = text(f"DELETE FROM {table_name} WHERE {primary_key} = :id")
+        db.session.execute(query, {"id": record_id})
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Record deleted successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tables", methods=["GET"])
+def get_tables():
+    """Get list of available tables and their schema"""
+    tables_info = {}
+    for table_name, table_info in ALLOWED_TABLES.items():
+        tables_info[table_name] = {
+            "columns": table_info["columns"],
+            "primary_key": table_info.get("primary_key", "id"),
+            "foreign_keys": table_info.get("foreign_keys", {})
+        }
+    
+    return jsonify({
+        "success": True,
+        "tables": tables_info
+    })
 
 
 def run_command(command_list):
