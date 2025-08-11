@@ -1,0 +1,186 @@
+name: Commit Message Language Check
+
+on:
+  push:
+    branches: [ '**' ]  # All branches
+  pull_request:
+    branches: [ '**' ]  # All target branches
+
+jobs:
+  check-commit-message:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for all branches
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install langdetect requests
+
+    - name: Check commit message language
+      run: |
+        python << 'EOF'
+        import subprocess
+        import sys
+        import re
+        from langdetect import detect, LangDetectError
+
+        def is_english_commit_message(message):
+            """Check if commit message is primarily in English"""
+            # Remove common patterns that might interfere with language detection
+            clean_message = message
+            
+            # Remove URLs
+            clean_message = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', clean_message)
+            
+            # Remove file paths
+            clean_message = re.sub(r'[a-zA-Z0-9_\-./]+\.(py|js|html|css|md|yml|yaml|json|txt)', '', clean_message)
+            
+            # Remove version numbers and technical identifiers
+            clean_message = re.sub(r'\b\d+\.\d+\.\d+\b', '', clean_message)
+            clean_message = re.sub(r'\b[a-f0-9]{7,40}\b', '', clean_message)
+            
+            # Remove common git/GitHub patterns
+            patterns_to_remove = [
+                r'🤖 Generated with \[Claude Code\].*',
+                r'Co-Authored-By: .*',
+                r'#\d+',  # Issue numbers
+                r'@\w+',  # Mentions
+            ]
+            
+            for pattern in patterns_to_remove:
+                clean_message = re.sub(pattern, '', clean_message, flags=re.IGNORECASE)
+            
+            # Remove extra whitespace
+            clean_message = ' '.join(clean_message.split())
+            
+            # Skip if message is too short or mostly symbols/numbers
+            if len(clean_message.strip()) < 10:
+                return True  # Assume short messages are OK
+            
+            # Check if it contains mostly ASCII characters (good indicator for English)
+            ascii_ratio = sum(1 for c in clean_message if ord(c) < 128) / len(clean_message)
+            if ascii_ratio < 0.8:
+                return False  # Likely contains non-English characters
+            
+            try:
+                detected_lang = detect(clean_message)
+                return detected_lang == 'en'
+            except LangDetectError:
+                # If detection fails, check for common non-English patterns
+                japanese_pattern = re.compile(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]')
+                chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+                korean_pattern = re.compile(r'[\uac00-\ud7af]')
+                
+                if (japanese_pattern.search(clean_message) or 
+                    chinese_pattern.search(clean_message) or 
+                    korean_pattern.search(clean_message)):
+                    return False
+                
+                # If no clear non-English patterns, assume English
+                return True
+
+        def get_commit_messages():
+            """Get commit messages from the current PR or push"""
+            try:
+                if '${{ github.event_name }}' == 'pull_request':
+                    # For PR, get commits between base and head
+                    base_sha = '${{ github.event.pull_request.base.sha }}'
+                    head_sha = '${{ github.event.pull_request.head.sha }}'
+                    cmd = f'git log --pretty=format:"%s" {base_sha}..{head_sha}'
+                else:
+                    # For push, get commits from the push
+                    before_sha = '${{ github.event.before }}'
+                    after_sha = '${{ github.event.after }}'
+                    
+                    # Handle initial commit case
+                    if before_sha == '0000000000000000000000000000000000000000':
+                        cmd = f'git log --pretty=format:"%s" {after_sha} -n 10'
+                    else:
+                        cmd = f'git log --pretty=format:"%s" {before_sha}..{after_sha}'
+                
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"Error getting commit messages: {result.stderr}")
+                    return []
+                
+                messages = [msg.strip() for msg in result.stdout.strip().split('\n') if msg.strip()]
+                return messages
+                
+            except Exception as e:
+                print(f"Error in get_commit_messages: {e}")
+                return []
+
+        def main():
+            commit_messages = get_commit_messages()
+            
+            if not commit_messages:
+                print("No commit messages found or error occurred. Skipping check.")
+                return 0
+            
+            print(f"Checking {len(commit_messages)} commit message(s)...")
+            
+            failed_messages = []
+            
+            for i, message in enumerate(commit_messages, 1):
+                print(f"\n--- Commit {i} ---")
+                print(f"Message: {message}")
+                
+                if not is_english_commit_message(message):
+                    print("❌ FAIL: This commit message appears to be in a non-English language")
+                    failed_messages.append(message)
+                else:
+                    print("✅ PASS: This commit message appears to be in English")
+            
+            if failed_messages:
+                print(f"\n❌ FAILURE: {len(failed_messages)} commit message(s) failed the English language check:")
+                for msg in failed_messages:
+                    print(f"  - {msg}")
+                print("\n📝 Please ensure all commit messages are written in English.")
+                print("💡 You can amend your commit message with: git commit --amend -m \"Your English message\"")
+                return 1
+            else:
+                print(f"\n✅ SUCCESS: All {len(commit_messages)} commit messages are in English!")
+                return 0
+
+        sys.exit(main())
+        EOF
+
+    - name: Comment on PR (if failed)
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🌐 Commit Message Language Check Failed
+
+          One or more commit messages in this PR are not in English. 
+
+          **Why English commit messages?**
+          - Maintains consistency for international contributors
+          - Improves project accessibility for global users
+          - Aligns with our internationalization efforts
+
+          **How to fix:**
+          1. Use \`git rebase -i\` to edit commit messages
+          2. Or amend the most recent commit: \`git commit --amend -m "Your English message"\`
+          3. Force push the changes: \`git push --force-with-lease\`
+
+          **Examples of good commit messages:**
+          - \`Add user authentication feature\`
+          - \`Fix database connection timeout issue\`
+          - \`Update API documentation for v2 endpoints\`
+
+          Please update your commit messages to English and push the changes.`
+          })
