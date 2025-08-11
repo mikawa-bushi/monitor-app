@@ -55,18 +55,12 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # 📌 CRUD操作で許可されたテーブル（データ操作用）
 ALLOWED_TABLES = {
-    "users": {
-        "columns": ["id", "name", "email"], 
-        "primary_key": "id"
-    },
-    "products": {
-        "columns": ["id", "name", "price"], 
-        "primary_key": "id"
-    },
+    "users": {"columns": ["id", "name", "email"], "primary_key": "id"},
+    "products": {"columns": ["id", "name", "price"], "primary_key": "id"},
     "orders": {
         "columns": ["id", "user_id", "product_id", "amount"],
         "primary_key": "id",
-        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"}
+        "foreign_keys": {"user_id": "users.id", "product_id": "products.id"},
     },
 }
 
@@ -76,12 +70,12 @@ VIEW_TABLES = {
     "users_view": {
         "query": "SELECT id, name, email FROM users",
         "title": "ユーザー一覧",
-        "description": "システムに登録されているユーザーの一覧"
+        "description": "システムに登録されているユーザーの一覧",
     },
     "products_view": {
-        "query": "SELECT id, name, price FROM products", 
+        "query": "SELECT id, name, price FROM products",
         "title": "商品一覧",
-        "description": "システムに登録されている商品の一覧"
+        "description": "システムに登録されている商品の一覧",
     },
     "orders_summary": {
         "query": """
@@ -95,8 +89,8 @@ VIEW_TABLES = {
             JOIN products ON orders.product_id = products.id
         """,
         "title": "注文サマリー",
-        "description": "ユーザー名と商品名を含む注文の詳細一覧"
-    }
+        "description": "ユーザー名と商品名を含む注文の詳細一覧",
+    },
 }
 
 
