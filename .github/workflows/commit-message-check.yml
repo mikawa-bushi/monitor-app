@@ -23,7 +23,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install langdetect requests
+        pip install requests
 
     - name: Check commit message language
       run: |
@@ -31,10 +31,9 @@ jobs:
         import subprocess
         import sys
         import re
-        from langdetect import detect, LangDetectError
 
         def is_english_commit_message(message):
-            """Check if commit message is primarily in English"""
+            """Check if commit message is primarily in English using Unicode patterns"""
             # Remove common patterns that might interfere with language detection
             clean_message = message
             
@@ -62,31 +61,36 @@ jobs:
             # Remove extra whitespace
             clean_message = ' '.join(clean_message.split())
             
-            # Skip if message is too short or mostly symbols/numbers
-            if len(clean_message.strip()) < 10:
-                return True  # Assume short messages are OK
+            # Skip if message is too short
+            if len(clean_message.strip()) < 5:
+                return True  # Assume very short messages are OK
             
-            # Check if it contains mostly ASCII characters (good indicator for English)
-            ascii_ratio = sum(1 for c in clean_message if ord(c) < 128) / len(clean_message)
-            if ascii_ratio < 0.8:
-                return False  # Likely contains non-English characters
+            # Check for non-English Unicode characters
+            japanese_pattern = re.compile(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]')
+            chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+            korean_pattern = re.compile(r'[\uac00-\ud7af]')
+            cyrillic_pattern = re.compile(r'[\u0400-\u04ff]')
+            arabic_pattern = re.compile(r'[\u0600-\u06ff]')
             
-            try:
-                detected_lang = detect(clean_message)
-                return detected_lang == 'en'
-            except LangDetectError:
-                # If detection fails, check for common non-English patterns
-                japanese_pattern = re.compile(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]')
-                chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
-                korean_pattern = re.compile(r'[\uac00-\ud7af]')
-                
-                if (japanese_pattern.search(clean_message) or 
-                    chinese_pattern.search(clean_message) or 
-                    korean_pattern.search(clean_message)):
-                    return False
-                
-                # If no clear non-English patterns, assume English
+            # If we find non-English characters, it's likely not English
+            if (japanese_pattern.search(clean_message) or 
+                chinese_pattern.search(clean_message) or 
+                korean_pattern.search(clean_message) or
+                cyrillic_pattern.search(clean_message) or
+                arabic_pattern.search(clean_message)):
+                return False
+            
+            # Check ASCII ratio - English should be mostly ASCII
+            ascii_chars = sum(1 for c in clean_message if ord(c) < 128)
+            total_chars = len(clean_message)
+            
+            if total_chars == 0:
                 return True
+                
+            ascii_ratio = ascii_chars / total_chars
+            
+            # If less than 80% ASCII, probably not English
+            return ascii_ratio >= 0.8
 
         def get_commit_messages():
             """Get commit messages from the current PR or push"""
