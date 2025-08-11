@@ -47,7 +47,7 @@ def test_index_page(client):
 
 
 def test_table_page(client):
-    """許可されたテーブルページが表示されるか"""
-    response = client.get("/table/users")
+    """許可されたビューページが表示されるか"""
+    response = client.get("/table/users_view")
     assert response.status_code == 200
-    assert b"users" in response.data
+    assert b"users_view" in response.data
