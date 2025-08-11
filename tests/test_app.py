@@ -20,13 +20,13 @@ from monitor_app.csv_to_db import create_tables
 def client():
     """Flask テストクライアント"""
     # Configure test database
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
+
     # Use in-memory SQLite for tests
-    test_db_path = tempfile.mktemp(suffix='.db')
-    app.config['DATABASE_URL'] = f'sqlite:///{test_db_path}'
-    
+    test_db_path = tempfile.mktemp(suffix=".db")
+    app.config["DATABASE_URL"] = f"sqlite:///{test_db_path}"
+
     with app.test_client() as test_client:
         with app.app_context():
             try:
