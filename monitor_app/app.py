@@ -17,6 +17,7 @@ from config import (
     SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS,
     ALLOWED_TABLES,
+    VIEW_TABLES,
     APP_TITLE,
     HEADER_TEXT,
     FOOTER_TEXT,
@@ -41,10 +42,10 @@ db = SQLAlchemy(app)
 @app.route("/")
 def index():
     """トップページ"""
-    tables = list(ALLOWED_TABLES.keys())
+    views = list(VIEW_TABLES.keys())
     return render_template(
         "index.html",
-        tables=tables,
+        tables=views,
         app_title=APP_TITLE,
         header_text=HEADER_TEXT,
         footer_text=FOOTER_TEXT,
@@ -53,18 +54,14 @@ def index():
     )
 
 
-@app.route("/table/<table_name>")
-def show_table(table_name):
-    """指定されたテーブルのデータを表示（Jinja 用）"""
-    if table_name not in ALLOWED_TABLES:
+@app.route("/table/<view_name>")
+def show_table(view_name):
+    """指定されたビューのデータを表示（Jinja 用）"""
+    if view_name not in VIEW_TABLES:
         abort(404)
 
-    table_info = ALLOWED_TABLES[table_name]
-    query = (
-        text(table_info["join"])
-        if "join" in table_info
-        else text(f"SELECT * FROM {table_name}")
-    )
+    view_info = VIEW_TABLES[view_name]
+    query = text(view_info["query"])
 
     result = db.session.execute(query)
     columns = result.keys()
@@ -76,29 +73,26 @@ def show_table(table_name):
     print(f"cell_styles: {TABLE_CELL_STYLES}")
 
     if not data:
-        return f"データが見つかりませんでした: {table_name}", 500  # エラーハンドリング
+        return f"データが見つかりませんでした: {view_name}", 500  # エラーハンドリング
 
     return render_template(
         "table.html",
-        table_name=table_name,
+        table_name=view_name,
+        table_title=view_info.get("title", view_name),
+        table_description=view_info.get("description", ""),
         columns=columns,
         data=data,
-        cell_styles=TABLE_CELL_STYLES.get(table_name, {}),
+        cell_styles=TABLE_CELL_STYLES.get(view_name, {}),
     )
 
 
 @app.route("/api/table/<table_name>")
 def get_table_data(table_name):
-    """テーブルデータを JSON で返す API"""
+    """テーブルデータを JSON で返す API（生データ）"""
     if table_name not in ALLOWED_TABLES:
         return jsonify({"error": "テーブルが見つかりません"}), 404
 
-    table_info = ALLOWED_TABLES[table_name]
-    query = (
-        text(table_info["join"])
-        if "join" in table_info
-        else text(f"SELECT * FROM {table_name}")
-    )
+    query = text(f"SELECT * FROM {table_name}")
 
     result = db.session.execute(query)
     columns = result.keys()
@@ -110,6 +104,31 @@ def get_table_data(table_name):
             "columns": list(columns),
             "data": data,
             "cell_styles": TABLE_CELL_STYLES.get(table_name, {}),
+        }
+    )
+
+
+@app.route("/api/view/<view_name>")
+def get_view_data(view_name):
+    """ビューデータを JSON で返す API（表示用）"""
+    if view_name not in VIEW_TABLES:
+        return jsonify({"error": "ビューが見つかりません"}), 404
+
+    view_info = VIEW_TABLES[view_name]
+    query = text(view_info["query"])
+
+    result = db.session.execute(query)
+    columns = result.keys()
+    data = [dict(zip(columns, row)) for row in result.fetchall()]
+
+    return jsonify(
+        {
+            "view_name": view_name,
+            "title": view_info.get("title", view_name),
+            "description": view_info.get("description", ""),
+            "columns": list(columns),
+            "data": data,
+            "cell_styles": TABLE_CELL_STYLES.get(view_name, {}),
         }
     )
 

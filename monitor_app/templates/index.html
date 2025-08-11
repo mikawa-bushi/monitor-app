@@ -2,11 +2,11 @@
 
 {% block content %}
 <div class="container">
-    <h2 class="mt-4">テーブル一覧</h2>
+    <h2 class="mt-4">ビュー一覧</h2>
     <div class="list-group">
-        {% for table in tables %}
-            <a href="{{ url_for('show_table', table_name=table) }}" class="list-group-item list-group-item-action">
-                {{ table }}
+        {% for view in tables %}
+            <a href="{{ url_for('show_table', view_name=view) }}" class="list-group-item list-group-item-action">
+                {{ view }}
             </a>
         {% endfor %}
     </div>
