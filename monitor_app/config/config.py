@@ -100,42 +100,10 @@ VIEW_TABLES = {
 }
 
 
-# 📌 **テーブル・ビューセルのスタイル**
+# 📌 **ビューセルのスタイル**（VIEW_TABLESのみ）
 TABLE_CELL_STYLES = {
-    # テーブル用スタイル（CRUD操作時）
-    "orders": {
-        "amount": {
-            "greater_than": {"value": 10, "class": "bg-danger text-white"},
-            "less_than": {"value": 5, "class": "bg-warning text-dark"},
-            "equal_to": {"value": 7, "class": "bg-success text-white"},
-            "width": "15%",
-            "font_size": "32px",
-            "align": "center",
-            "bold": True,
-        }
-    },
-    "products": {
-        "price": {
-            "greater_than": {"value": 1000, "class": "bg-primary text-white"},
-            "less_than": {"value": 500, "class": "bg-info text-dark"},
-            "equal_to": {"value": 750, "class": "bg-secondary text-white"},
-            "width": "20%",
-            "font_size": "16px",
-            "align": "right",
-            "bold": False,
-        }
-    },
-    # ビュー用スタイル（表示時）
-    "orders_summary": {
-        "amount": {
-            "greater_than": {"value": 10, "class": "bg-danger text-white"},
-            "less_than": {"value": 5, "class": "bg-warning text-dark"},
-            "equal_to": {"value": 7, "class": "bg-success text-white"},
-            "width": "15%",
-            "font_size": "32px",
-            "align": "center",
-            "bold": True,
-        }
+    "users_view": {
+        # ユーザービューには特別なスタイル設定なし（将来的に追加可能）
     },
     "products_view": {
         "price": {
@@ -146,6 +114,17 @@ TABLE_CELL_STYLES = {
             "font_size": "16px",
             "align": "right",
             "bold": False,
+        }
+    },
+    "orders_summary": {
+        "amount": {
+            "greater_than": {"value": 10, "class": "bg-danger text-white"},
+            "less_than": {"value": 5, "class": "bg-warning text-dark"},
+            "equal_to": {"value": 7, "class": "bg-success text-white"},
+            "width": "15%",
+            "font_size": "32px",
+            "align": "center",
+            "bold": True,
         }
     },
 }
