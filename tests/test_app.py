@@ -1,13 +1,38 @@
 import pytest
+import sys
+import tempfile
+import os
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from monitor_app.app import app
+from monitor_app.csv_to_db import create_tables
 
 
 @pytest.fixture
 def client():
     """Flask テストクライアント"""
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
+    # Configure test database
+    app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
+    
+    # Use in-memory SQLite for tests
+    test_db_path = tempfile.mktemp(suffix='.db')
+    app.config['DATABASE_URL'] = f'sqlite:///{test_db_path}'
+    
+    with app.test_client() as test_client:
+        with app.app_context():
+            try:
+                # Initialize database for tests
+                create_tables()
+                yield test_client
+            finally:
+                # Cleanup test database
+                if os.path.exists(test_db_path):
+                    os.unlink(test_db_path)
 
 
 def test_index_page(client):

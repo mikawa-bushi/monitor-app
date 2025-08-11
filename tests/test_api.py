@@ -5,8 +5,9 @@ import tempfile
 import sys
 from pathlib import Path
 
-# Add monitor_app to Python path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "monitor_app"))
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from monitor_app.app import app, db
 from monitor_app.csv_to_db import create_tables
@@ -15,15 +16,26 @@ from sqlalchemy import text
 
 @pytest.fixture
 def client():
-    """Flask テストクライアント - 実際のDBを使用（テスト用に制限）"""
+    """Flask テストクライアント - テスト用データベース使用"""
+    # Configure test database
     app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
+    
+    # Use in-memory SQLite for tests
+    test_db_path = tempfile.mktemp(suffix='.db')
+    app.config['DATABASE_URL'] = f'sqlite:///{test_db_path}'
     
     with app.test_client() as test_client:
         with app.app_context():
-            # テーブルを作成し、テストデータをセットアップ
-            create_tables()
-            setup_test_data()
-            yield test_client
+            try:
+                # テーブルを作成し、テストデータをセットアップ
+                create_tables()
+                setup_test_data()
+                yield test_client
+            finally:
+                # Cleanup test database
+                if os.path.exists(test_db_path):
+                    os.unlink(test_db_path)
 
 
 def setup_test_data():
