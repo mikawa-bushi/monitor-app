@@ -38,3 +38,6 @@ pip-wheel-metadata/
 
 # 📂 sqlite cache
 instances/*.db
+
+# 📂 Claude Code 設定ファイル
+CLAUDE.md
