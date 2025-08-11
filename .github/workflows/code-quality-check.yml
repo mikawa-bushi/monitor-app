@@ -1,4 +1,4 @@
-name: Commit Message Language Check
+name: Code Quality Check
 
 on:
   push:
@@ -187,4 +187,87 @@ jobs:
           - \`Update API documentation for v2 endpoints\`
 
           Please update your commit messages to English and push the changes.`
+          })
+
+  code-formatting:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root
+
+    - name: Install project
+      run: poetry install --no-interaction
+
+    - name: Check code formatting with Black
+      run: |
+        echo "Running Black formatter check..."
+        if poetry run which black >/dev/null 2>&1; then
+          poetry run black --check --diff .
+          if [ $? -ne 0 ]; then
+            echo "❌ Code formatting check failed. Run 'poetry run black .' to fix formatting."
+            exit 1
+          else
+            echo "✅ Code formatting check passed."
+          fi
+        else
+          echo "Black not available in dependencies, installing temporarily..."
+          poetry add --dev black
+          poetry run black --check --diff .
+          if [ $? -ne 0 ]; then
+            echo "❌ Code formatting check failed. Run 'poetry run black .' to fix formatting."
+            exit 1
+          else
+            echo "✅ Code formatting check passed."
+          fi
+        fi
+
+    - name: Comment on PR (if formatting failed)
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🎨 Code Formatting Check Failed
+
+          The code in this PR doesn't follow the Black formatting standards.
+
+          **How to fix:**
+          1. Install Black if not already installed: \`poetry add --dev black\`
+          2. Run the formatter: \`poetry run black .\`
+          3. Commit the formatting changes: \`git add . && git commit -m "Format code with Black"\`
+          4. Push the changes: \`git push\`
+
+          **Why consistent formatting?**
+          - Improves code readability and maintainability
+          - Reduces merge conflicts related to style differences
+          - Follows Python community best practices
+
+          The CI will pass once the code is properly formatted.`
           })
