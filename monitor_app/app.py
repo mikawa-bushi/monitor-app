@@ -27,7 +27,7 @@ from config import (
     TABLE_REFRESH_INTERVAL,
 )
 
-from csv_to_db import create_tables, import_csv_to_db
+from .csv_to_db import create_tables, import_csv_to_db
 
 app = Flask(__name__)
 CORS(app)
