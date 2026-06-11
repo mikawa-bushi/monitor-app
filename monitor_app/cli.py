@@ -1,208 +1,152 @@
+"""Typer ベースの CLI。
+
+v1 と異なり ``startproject`` はアプリ本体をコピーしない。生成するのは
+``config.py`` とサンプル CSV だけで、本体はパッケージから参照する。
+これにより ``pip install -U monitor-app`` だけで UI・API が更新される。
+"""
+
+from __future__ import annotations
+
+import importlib.resources as resources
 import os
-import sys
 import shutil
-import subprocess
-import click
+from pathlib import Path
 
-# `monitor_app` のパスを `sys.path` に追加
-CLI_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)  # `monitor_app/cli.py` のあるディレクトリ
-if CLI_DIR not in sys.path:
-    sys.path.append(CLI_DIR)
+import typer
 
+from .logging_conf import configure_logging
+from .settings.loader import ConfigError, load_config
+from .settings.runtime import AppSettings
 
-from app import run_server  # `app.py` の `run_server()` を直接呼び出す
-
-# TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "monitor_app")
-PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MONITOR_APP_DIR = os.path.dirname(__file__)
-CONFIG_DIR = os.path.join(MONITOR_APP_DIR, "config")
-CSV_DIR = os.path.join(MONITOR_APP_DIR, "csv")
-TEMPLATES_DIR = os.path.join(MONITOR_APP_DIR, "templates")
-STATIC_DIR = os.path.join(MONITOR_APP_DIR, "static")
-STATIC_CSS_DIR = os.path.join(STATIC_DIR, "css")
-STATIC_JS_DIR = os.path.join(STATIC_DIR, "js")
-STATIC_IMG_DIR = os.path.join(STATIC_DIR, "img")
-PYPROJECT_TEMPLATE = os.path.join(MONITOR_APP_DIR, "pyproject.toml")
+app = typer.Typer(add_completion=False, help="monitor-app コマンドラインツール")
 
 
-@click.group()
-def cli():
-    """Monitor App CLI ツール"""
-    pass
+def _scaffold_dir() -> Path:
+    return Path(str(resources.files("monitor_app") / "scaffold"))
 
 
-@click.command()
-@click.argument("project_name")
-def startproject(project_name):
-    """新しい Monitor App プロジェクトを作成"""
-    project_path = os.path.abspath(project_name)
-
-    if os.path.exists(project_path):
-        click.echo(f"⚠️  既に '{project_name}' が存在します！")
-        return
-
-    # 📂 プロジェクトフォルダ作成
-    os.makedirs(project_path)
-
-    # 📂 monitor_app アプリフォルダ作成
-    # DEST_MONITOR_APP_DIR = os.path.join(project_path, "monitor_app")
-    DEST_MONITOR_APP_DIR = project_path
-    DEST_PARENT_DIR = os.path.dirname(DEST_MONITOR_APP_DIR)
-    DEST_CONFIG_DIR = os.path.join(DEST_MONITOR_APP_DIR, "config")
-    DEST_CSV_DIR = os.path.join(DEST_MONITOR_APP_DIR, "csv")
-    DEST_INSTANCES_DIR = os.path.join(DEST_MONITOR_APP_DIR, "instances")
-    DEST_TEMPLATES_DIR = os.path.join(DEST_MONITOR_APP_DIR, "templates")
-    DEST_STATIC_DIR = os.path.join(DEST_MONITOR_APP_DIR, "static")
-    DEST_STATIC_CSS_DIR = os.path.join(DEST_STATIC_DIR, "css")
-    DEST_STATIC_JS_DIR = os.path.join(DEST_STATIC_DIR, "js")
-    DEST_STATIC_IMG_DIR = os.path.join(DEST_STATIC_DIR, "img")
-    # os.makedirs(DEST_MONITOR_APP_DIR)
-
-    # 📂 CSV・インスタンスフォルダ作成
-    os.makedirs(DEST_CSV_DIR, exist_ok=True)
-    os.makedirs(DEST_CONFIG_DIR, exist_ok=True)
-    os.makedirs(DEST_INSTANCES_DIR, exist_ok=True)
-    os.makedirs(DEST_TEMPLATES_DIR, exist_ok=True)
-    os.makedirs(DEST_STATIC_JS_DIR, exist_ok=True)
-    os.makedirs(DEST_STATIC_CSS_DIR, exist_ok=True)
-    os.makedirs(DEST_STATIC_IMG_DIR, exist_ok=True)
-
-    # 📄 `project_template` からファイルをコピー
-    monitor_app_files = ["app.py", "cli.py", "csv_to_db.py"]
-    for file in monitor_app_files:
-        src_path = os.path.join(MONITOR_APP_DIR, file)
-        dest_path = os.path.join(DEST_MONITOR_APP_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-
-    config_files = ["config.py"]
-    for file in config_files:
-        src_path = os.path.join(CONFIG_DIR, file)
-        dest_path = os.path.join(DEST_CONFIG_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-
-    templates_files = ["base.html", "index.html", "table.html"]
-    for file in templates_files:
-        src_path = os.path.join(TEMPLATES_DIR, file)
-        dest_path = os.path.join(DEST_TEMPLATES_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-
-    css_files = ["bootstrap.min.css", "jquery.datatables.min.css"]
-    for file in css_files:
-        src_path = os.path.join(STATIC_CSS_DIR, file)
-        dest_path = os.path.join(DEST_STATIC_CSS_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-
-    js_files = [
-        "bootstrap.bundle.min.js",
-        "jquery.datatables.min.js",
-        "jquery.min.js",
-        "refresh_table.js",
-    ]
-    for file in js_files:
-        src_path = os.path.join(STATIC_JS_DIR, file)
-        dest_path = os.path.join(DEST_STATIC_JS_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-
-    img_files = ["background.webp", "logo.webp"]
-    for file in img_files:
-        src_path = os.path.join(STATIC_IMG_DIR, file)
-        dest_path = os.path.join(DEST_STATIC_IMG_DIR, file)
-        if os.path.exists(src_path):
-            shutil.copy(src_path, dest_path)
-        else:
-            click.echo(
-                f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-            )
-    # 📄 Favicon コピー
-    favicon_src = os.path.join(MONITOR_APP_DIR, "static/favicon.ico")
-    favicon_dest = os.path.join(DEST_MONITOR_APP_DIR, "static/favicon.ico")
-    if os.path.exists(favicon_src):
-        shutil.copy(favicon_src, favicon_dest)
-    else:
-        click.echo(
-            "⚠️  favicon.ico が `project_template` に見つかりません。スキップします。"
-        )
-
-    # parent_files = ["pyproject.toml"]
-    # for file in parent_files:
-    #     src_path = os.path.join(PARENT_DIR, file)
-    #     dest_path = os.path.join(DEST_PARENT_DIR, file)
-    #     if os.path.exists(src_path):
-    #         shutil.copy(src_path, dest_path)
-    #     else:
-    #         click.echo(
-    #             f"⚠️  {file} が `project_template` に見つかりません。スキップします。"
-    #         )
+def _resolve_config(config: str) -> Path:
+    path = Path(config)
+    if not path.exists():
+        typer.secho(f"config.py が見つかりません: {path}", fg=typer.colors.RED)
+        raise typer.Exit(1)
+    return path
 
 
-def run_command(command_list):
-    """
-    📌 poetry がインストールされていれば `poetry run` を使用し、なければ `python` を使用
-    """
-    if shutil.which("poetry"):
-        command_list.insert(0, "poetry")
-        command_list.insert(1, "run")
-    else:
-        command_list.insert(0, "python")
+@app.command()
+def startproject(name: str = typer.Argument(..., help="作成するプロジェクト名")):
+    """新規プロジェクトの雛形(config.py・サンプル CSV)を生成する。"""
+    dest = Path(name).resolve()
+    if dest.exists():
+        typer.secho(f"⚠️  '{dest}' は既に存在します", fg=typer.colors.RED)
+        raise typer.Exit(1)
 
-    subprocess.run(command_list, check=True)
+    scaffold = _scaffold_dir()
+    (dest / "csv").mkdir(parents=True)
+    (dest / "instances").mkdir()
+    (dest / "instances" / ".gitkeep").touch()
 
+    shutil.copy(scaffold / "config.py", dest / "config.py")
+    shutil.copy(scaffold / "env.example", dest / ".env.example")
+    shutil.copy(scaffold / "README.md", dest / "README.md")
+    for csv_file in (scaffold / "csv").glob("*.csv"):
+        shutil.copy(csv_file, dest / "csv" / csv_file.name)
 
-@click.command()
-@click.option("--host", default="0.0.0.0", help="ホストアドレス")
-@click.option("--port", default=9990, help="ポート番号")
-@click.option("--csv", is_flag=True, help="CSV をデータベースに登録してから起動")
-@click.option("--debug", is_flag=True, help="デバッグモードを有効化")
-def runserver(host, port, csv, debug):
-    """Flask Web アプリを起動"""
-
-    if csv:
-        click.echo("🔄 CSV をデータベースに登録中...")
-        run_command(["monitor_app/csv_to_db.py"])
-        click.echo("✅ CSV 登録完了！アプリを起動します...")
-
-    click.echo(f"🚀 Web アプリを {host}:{port} で起動")
-    run_server(host=host, port=port, debug=debug)  # `run_server()` を直接呼び出す
+    typer.secho(f"✅ プロジェクトを作成しました: {dest}", fg=typer.colors.GREEN)
+    typer.echo("次のステップ:")
+    typer.echo(f"  cd {name}")
+    typer.echo("  monitor-app runserver --import-csv")
 
 
-@click.command()
-def import_csv():
-    """CSV をデータベースにインポート"""
-    click.echo("📂 CSV をデータベースに登録中...")
-    run_command(["monitor_app/csv_to_db.py"])
-    click.echo("✅ CSV 登録完了！")
+@app.command()
+def check(config: str = typer.Option("config.py", help="設定ファイルのパス")):
+    """config.py を読み込んで検証だけ行う(起動前の lint)。"""
+    path = _resolve_config(config)
+    try:
+        cfg = load_config(path)
+    except ConfigError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1)
+    typer.secho(
+        f"✅ OK — テーブル {len(cfg.tables)} 件 / ビュー {len(cfg.views)} 件",
+        fg=typer.colors.GREEN,
+    )
 
 
-cli.add_command(startproject)
-cli.add_command(runserver)
-cli.add_command(import_csv)
+@app.command("import-csv")
+def import_csv(
+    config: str = typer.Option("config.py", help="設定ファイルのパス"),
+    keep: bool = typer.Option(False, "--keep", help="既存行を消さずに追記する"),
+):
+    """csv/ フォルダの CSV をデータベースへ取り込む。"""
+    path = _resolve_config(config)
+    settings = AppSettings()
+    configure_logging(settings.log_level)
+    try:
+        cfg = load_config(path)
+    except ConfigError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1)
+
+    from .db.engine import Database
+    from .db.registry import TableRegistry
+    from .services.importer import CsvImporter
+
+    db = Database(settings.database_url)
+    registry = TableRegistry(cfg)
+    importer = CsvImporter(cfg, registry, db, settings.csv_dir)
+    report = importer.import_all(keep=keep)
+
+    for r in report.results:
+        typer.echo(f"  {r.table}: {r.inserted} 行 (skip {r.skipped})")
+        for w in r.warnings:
+            typer.secho(f"    ⚠️  {w}", fg=typer.colors.YELLOW)
+    typer.secho(
+        f"✅ 取り込み完了: 合計 {report.total_inserted} 行", fg=typer.colors.GREEN
+    )
+
+
+@app.command()
+def runserver(
+    config: str = typer.Option("config.py", help="設定ファイルのパス"),
+    host: str | None = typer.Option(
+        None, help="ホスト(既定: MONITOR_HOST または 127.0.0.1)"
+    ),
+    port: int | None = typer.Option(
+        None, help="ポート(既定: MONITOR_PORT または 9990)"
+    ),
+    reload: bool = typer.Option(False, "--reload", help="コード変更時に自動リロード"),
+    import_csv: bool = typer.Option(
+        False, "--import-csv", help="起動前に CSV を取り込む"
+    ),
+):
+    """Web サーバー(uvicorn)を起動する。"""
+    import uvicorn
+
+    path = _resolve_config(config)
+    settings = AppSettings()
+    configure_logging(settings.log_level)
+
+    if import_csv:
+        from .db.engine import Database
+        from .db.registry import TableRegistry
+        from .services.importer import CsvImporter
+
+        cfg = load_config(path)
+        db = Database(settings.database_url)
+        CsvImporter(cfg, TableRegistry(cfg), db, settings.csv_dir).import_all()
+
+    # app_factory が読む環境変数に設定パスを渡す。
+    os.environ["MONITOR_CONFIG_PATH"] = str(path)
+    uvicorn.run(
+        "monitor_app.main:app_factory",
+        factory=True,
+        host=host or settings.host,
+        port=port or settings.port,
+        reload=reload,
+        log_level=settings.log_level.lower(),
+    )
+
 
 if __name__ == "__main__":
-    cli()
+    app()

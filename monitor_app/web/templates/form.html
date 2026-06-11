@@ -1,0 +1,54 @@
+{#
+  form.html — 作業者向け入力フォーム(フェーズ3・F)。
+
+  base.html を継承する。受け取るコンテキスト(pages.py の show_form() が渡す):
+    table_name : str
+    form       : dict — CrudService.form_schema() の戻り値
+                 { table, submit_label, fields: [{name,label,input,step,choices}] }
+
+  送信は form.js が行う(POST /api/tables/{table_name})。サーバー側ではここで
+  入力欄の HTML だけを生成する(タッチ操作向けに大きめ)。
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ table_name }} 入力 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="page-head__main">
+        <h1>{{ table_name }} の入力</h1>
+        <p class="page-subtitle">必要な項目を入力して「{{ form.submit_label }}」を押してください</p>
+    </div>
+    <a class="back-link" href="{{ url_for('index') }}">← 一覧へ</a>
+</div>
+
+<div class="card form-card">
+    <form id="entry-form" data-table="{{ table_name }}">
+        {% for field in form.fields %}
+        <div class="form-row">
+            <label for="f-{{ field.name }}">{{ field.label }}</label>
+            {% if field.choices %}
+            <select id="f-{{ field.name }}" name="{{ field.name }}">
+                <option value="">—</option>
+                {% for choice in field.choices %}
+                <option value="{{ choice }}">{{ choice }}</option>
+                {% endfor %}
+            </select>
+            {% elif field.input == "checkbox" %}
+            <input type="checkbox" id="f-{{ field.name }}" name="{{ field.name }}">
+            {% else %}
+            <input type="{{ field.input }}" id="f-{{ field.name }}" name="{{ field.name }}"
+                   {% if field.step %}step="{{ field.step }}"{% endif %}
+                   {% if field.input == "number" %}inputmode="decimal"{% endif %}>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn-submit">{{ form.submit_label }}</button>
+        <p id="form-message" class="form-message" hidden></p>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/form.js') }}"></script>
+{% endblock %}

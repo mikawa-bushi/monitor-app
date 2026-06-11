@@ -1,0 +1,53 @@
+{#
+  kiosk.html — Andon / 大型表示モード(フェーズ1・B)。
+
+  base.html は継承しない(全画面・独自テーマのため独立した HTML)。
+  受け取るコンテキスト(api/routers/pages.py の kiosk() が渡す):
+    app_title          : str
+    kiosk_views        : list[str] — ローテーション対象のビュー名
+    rotate_seconds     : int       — 切替間隔(秒)
+    theme              : "dark"|"light"
+    refresh_interval_ms: int        — データ再取得間隔
+
+  kiosk.js への受け渡しは #kiosk[data-*] 属性で行う。実データは kiosk.js が
+  /api/views/<name> から取得する。
+#}
+<!DOCTYPE html>
+<html lang="ja" data-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_title }} — Andon</title>
+    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
+    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/kiosk.css') }}" rel="stylesheet">
+</head>
+<body class="kiosk">
+    <div id="kiosk"
+         data-views="{{ kiosk_views | join(',') }}"
+         data-rotate-seconds="{{ rotate_seconds }}"
+         data-refresh-interval="{{ refresh_interval_ms }}">
+
+        <header class="kiosk-header">
+            <span id="status-light" class="status-light"></span>
+            <h1 id="kiosk-title">{{ app_title }}</h1>
+            <span id="kiosk-clock" class="kiosk-clock"></span>
+        </header>
+
+        <div id="alert-banner" class="alert-banner" hidden></div>
+
+        <main class="kiosk-main">
+            <table class="data kiosk-table">
+                <thead><tr id="thead-row"></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </main>
+
+        <footer class="kiosk-dots" id="kiosk-dots"></footer>
+    </div>
+
+    <script src="{{ url_for('static', path='js/alerts-ui.js') }}"></script>
+    <script src="{{ url_for('static', path='js/kiosk.js') }}"></script>
+</body>
+</html>

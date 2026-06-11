@@ -1,0 +1,278 @@
+/* ============================================================================
+   app.css — monitor-app のモダンで簡素なテーマ
+
+   保守の指針(変更するときはここを読む):
+   - 色・角丸・影・フォントはすべて :root の CSS 変数で定義している。
+     見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
+   - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
+     親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
+   - bootstrap.min.css も読み込まれているが、用途は config.py のセルスタイル
+     (bg-danger / text-white などの色クラス)を解決することだけ。レイアウトには
+     使っていない。このファイルが bootstrap の後に読み込まれ、上書きする。
+
+   セクション目次:
+     1. テーマ変数(:root)
+     2. 土台(reset, body)
+     3. ヘッダー / フッター
+     4. ページレイアウト(container, page-head)
+     5. カード
+     6. テーブル
+     7. ビュー一覧
+     8. 状態インジケータ
+     9. 補助クラス
+   ============================================================================ */
+
+/* --- 1. テーマ変数 ------------------------------------------------------- */
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+}
+
+/* --- 2. 土台 ------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- 3. ヘッダー / フッター --------------------------------------------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 56px;
+  padding: 0 1.5rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header .brand {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-footer {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* --- 4. ページレイアウト ------------------------------------------------ */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.page-head__main { min-width: 0; }       /* タイトルと補足をまとめる左側ブロック */
+.page-head__actions { display: flex; align-items: center; gap: 1rem; }
+
+.page-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* --- 5. カード ----------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* --- 6. テーブル --------------------------------------------------------- */
+.table-wrap { max-height: 72vh; overflow: auto; }
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+table.data thead th {
+  position: sticky;
+  top: 0;
+  background: #fbfbfd;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.data tbody td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+table.data tbody tr:last-child td { border-bottom: none; }
+table.data tbody tr:hover { background: #f9fafb; }
+
+/* --- 7. ビュー一覧 ------------------------------------------------------- */
+.view-list { display: flex; flex-direction: column; }
+
+.view-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.view-list a:last-child { border-bottom: none; }
+.view-list a:hover { background: #f9fafb; }
+.view-list a::after { content: "→"; color: var(--muted); }
+
+/* --- 8. 状態インジケータ ------------------------------------------------ */
+/* JS が status 要素の class を "status live" / "status error" に切り替える。 */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;            /* 既定(読み込み中) */
+}
+
+.status.live .dot { background: #22c55e; }   /* 取得成功 */
+.status.error .dot { background: #ef4444; }  /* 取得失敗 */
+
+/* --- 9. アラートバナー(フェーズ1・A)----------------------------------- */
+/* level-info / level-warning / level-critical で色が変わる。 */
+.alert-banner {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+.alert-banner .alert-item + .alert-item { margin-top: 0.25rem; }
+.alert-banner.level-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.alert-banner.level-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.alert-banner.level-critical {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+  animation: alert-pulse 1.2s ease-in-out infinite;
+}
+@keyframes alert-pulse {
+  50% { border-color: #ef4444; }
+}
+
+/* --- 10. グラフ(フェーズ2・D)------------------------------------------ */
+.chart-card { padding: 1rem; height: 360px; margin-bottom: 1.25rem; }
+.chart-card canvas { width: 100% !important; height: 100% !important; }
+
+/* --- 11. KPIカード(フェーズ2・E)-------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.1rem;
+}
+.kpi-card .kpi-title { color: var(--muted); font-size: 0.85rem; }
+.kpi-card .kpi-value { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
+.kpi-card .kpi-unit { font-size: 0.9rem; color: var(--muted); margin-left: 0.2rem; }
+.kpi-card.good { border-left-color: #22c55e; }
+.kpi-card.bad { border-left-color: #ef4444; }
+
+/* --- 12. 入力フォーム(フェーズ3・F)----------------------------------- */
+/* タッチ操作向けに入力欄・ボタンを大きめにする。 */
+.form-card { padding: 1.5rem; }
+.form-row { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
+.form-row label { font-weight: 600; font-size: 0.95rem; }
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row input[type="date"],
+.form-row select {
+  padding: 0.7rem 0.8rem;
+  font-size: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.form-row input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
+.btn-submit {
+  width: 100%;
+  padding: 0.9rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-submit:active { opacity: 0.85; }
+.form-message { margin-top: 1rem; font-weight: 600; }
+.form-message.ok { color: #16a34a; }
+.form-message.error { color: #ef4444; }
+
+/* --- 13. 補助クラス ------------------------------------------------------ */
+.muted { color: var(--muted); }
+
+.empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+}
