@@ -45,19 +45,25 @@ def test_explicit_column_types_win():
 
 def test_load_v2_config(tmp_path):
     cfg_file = tmp_path / "config.py"
-    cfg_file.write_text(textwrap.dedent("""
+    cfg_file.write_text(
+        textwrap.dedent(
+            """
             from monitor_app import MonitorConfig, TableDef
             config = MonitorConfig(
                 tables={"users": TableDef(columns=["id", "name"], primary_key="id")}
             )
-            """))
+            """
+        )
+    )
     cfg = load_config(cfg_file)
     assert "users" in cfg.tables
 
 
 def test_load_v1_config_backward_compat(tmp_path):
     cfg_file = tmp_path / "config.py"
-    cfg_file.write_text(textwrap.dedent("""
+    cfg_file.write_text(
+        textwrap.dedent(
+            """
             ALLOWED_TABLES = {
                 "users": {"columns": ["id", "name"], "primary_key": "id"},
             }
@@ -66,7 +72,9 @@ def test_load_v1_config_backward_compat(tmp_path):
                 "users_view": {"id": {"greater_than": {"value": 1, "class": "bg-x"}}}
             }
             APP_TITLE = "Legacy"
-            """))
+            """
+        )
+    )
     cfg = load_config(cfg_file)
     assert cfg.app_title == "Legacy"
     assert "users" in cfg.tables
