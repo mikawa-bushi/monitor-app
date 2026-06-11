@@ -261,7 +261,7 @@ Beyond avoiding harmful behavior, we encourage actions that build a positive com
 ### Internal Resources
 * [Contributing Guidelines](CONTRIBUTING.md)
 * [Project Documentation](README.md)
-* [GitHub Discussions](https://github.com/hardwork9047/monitor-app/discussions)
+* [GitHub Discussions](https://github.com/mikawa-bushi/monitor-app/discussions)
 
 ## Acknowledgment
 
@@ -287,7 +287,7 @@ For answers to common questions about this code of conduct, see the FAQ at
 ## Questions?
 
 If you have questions about this Code of Conduct, please:
-- Open a [GitHub Discussion](https://github.com/hardwork9047/monitor-app/discussions)
+- Open a [GitHub Discussion](https://github.com/mikawa-bushi/monitor-app/discussions)
 - Email the maintainers at **tomatosimple1104@gmail.com**
 - Check the [Contributing Guidelines](CONTRIBUTING.md) for related information
 
