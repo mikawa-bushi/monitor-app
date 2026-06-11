@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
     - name: Checkout code
@@ -36,49 +36,11 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
-    - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
-
     - name: Install project
       run: poetry install --no-interaction
 
-    - name: Set up test environment
-      run: |
-        # Create necessary directories for tests
-        mkdir -p monitor_app/instances
-        mkdir -p monitor_app/csv
-        
-        # Ensure CSV test files exist
-        if [ ! -f monitor_app/csv/users.csv ]; then
-          echo "id,name,email" > monitor_app/csv/users.csv
-          echo "1,Test User,test@example.com" >> monitor_app/csv/users.csv
-        fi
-        
-        if [ ! -f monitor_app/csv/products.csv ]; then
-          echo "id,name,price" > monitor_app/csv/products.csv
-          echo "1,Test Product,100.0" >> monitor_app/csv/products.csv
-        fi
-        
-        if [ ! -f monitor_app/csv/orders.csv ]; then
-          echo "id,user_id,product_id,amount" > monitor_app/csv/orders.csv
-          echo "1,1,1,5.0" >> monitor_app/csv/orders.csv
-        fi
-
     - name: Run tests
-      run: |
-        # Set up Python path for monitor_app module
-        export PYTHONPATH="${{ github.workspace }}:$PYTHONPATH"
-        poetry run python -m pytest tests/ -v --tb=short
-      env:
-        PYTHONPATH: ${{ github.workspace }}
+      run: poetry run python -m pytest tests/ -v --tb=short
 
-    - name: Run linting (if available)
-      run: |
-        if poetry run which black >/dev/null 2>&1; then
-          echo "Running black formatter check..."
-          poetry run black --check .
-        else
-          echo "Black not available, skipping formatting check"
-        fi
-      continue-on-error: true
+    - name: Check formatting
+      run: poetry run black --check monitor_app/ tests/

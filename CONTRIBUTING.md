@@ -486,8 +486,8 @@ Contributors are recognized in several ways:
 ## 📞 Contact
 
 - **Project Maintainer**: [@hardwork9047](https://github.com/hardwork9047)
-- **Issues**: [GitHub Issues](https://github.com/hardwork9047/monitor-app/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/hardwork9047/monitor-app/discussions)
+- **Issues**: [GitHub Issues](https://github.com/mikawa-bushi/monitor-app/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mikawa-bushi/monitor-app/discussions)
 
 ---
 

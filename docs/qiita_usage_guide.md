@@ -477,7 +477,7 @@ Monitor Appを使うことで：
 ## リンク
 
 - 📦 **PyPI**: https://pypi.org/project/monitor-app/
-- 🔗 **GitHub**: https://github.com/hardwork9047/monitor-app
+- 🔗 **GitHub**: https://github.com/mikawa-bushi/monitor-app
 - 📖 **詳細ドキュメント**: リポジトリのREADME.md参照
 
 ぜひ試してみて、フィードバックをお聞かせください！🚀

@@ -1,40 +1,68 @@
-[tool.poetry]
+[project]
 name = "monitor-app"
-version = "0.1.9"
-description = "A simple Flask-based database viewer and manager"
-authors = ["hardwork9047 <tomatosimple1104@gmail.com>"]
+version = "2.1.0"
+description = "Drop in a CSV, write one config file, and get a live-updating Web UI + REST API. FastAPI-based data monitoring for shop floors and small teams."
+authors = [{ name = "hardwork9047", email = "tomatosimple1104@gmail.com" }]
 readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/hardwork9047/monitor-app"
-repository = "https://github.com/hardwork9047/monitor-app"
-documentation = "https://github.com/hardwork9047/monitor-app"
-packages = [{ include = "monitor_app" }]
-
-include = [
-    "monitor_app/config/config.py",
-    "monitor_app/templates/*",
-    "monitor_app/static/*",
-    "monitor_app/csv_to_db.py",
-    "monitor_app/cli.py"
+requires-python = ">=3.10"
+keywords = ["dashboard", "monitoring", "csv", "fastapi", "andon", "spc", "manufacturing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Database :: Front-Ends",
+    "Natural Language :: Japanese",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "fastapi (>=0.115,<1.0)",
+    "uvicorn[standard] (>=0.30,<1.0)",
+    "pydantic (>=2.7,<3.0)",
+    "pydantic-settings (>=2.3,<3.0)",
+    "sqlalchemy (>=2.0,<3.0)",
+    "typer (>=0.12,<1.0)",
+    # typer 0.12 系は click 8.2 の API 変更と非互換
+    "click (>=8.1,<8.2)",
+    "jinja2 (>=3.1,<4.0)",
+    "python-multipart (>=0.0.9)",
+    "sse-starlette (>=2.1,<3.0)",
+    "pymysql (>=1.1,<2.0)",   # MySQL 対応
+    "pg8000 (>=1.30,<2.0)",   # PostgreSQL 対応
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-flask = "^3.1.0"
-flask-sqlalchemy = "^3.1.1"
-pandas = "^2.2.3"
-flask-cors = "^4.0.0"
-click = "^8.1.3"
-pymysql = "^1.1.0"  # MySQL対応
-pg8000 = "^1.30.5"
-toml = "^0.10.2"
-flasgger = "^0.9.7.1"
+[project.optional-dependencies]
+xlsx = ["openpyxl (>=3.1,<4.0)"]  # Excel エクスポート
 
-[tool.poetry.scripts]
-monitor-app = "monitor_app.cli:cli"
+[project.urls]
+Homepage = "https://github.com/mikawa-bushi/monitor-app"
+Repository = "https://github.com/mikawa-bushi/monitor-app"
+Documentation = "https://github.com/mikawa-bushi/monitor-app#readme"
+Changelog = "https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md"
+
+[project.scripts]
+monitor-app = "monitor_app.cli:app"
+
+[tool.poetry]
+packages = [{ include = "monitor_app" }]
+include = [
+    "monitor_app/web/templates/*",
+    "monitor_app/web/static/**/*",
+    "monitor_app/scaffold/**/*",
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
+httpx = "^0.27.0"
 black = "^24.0.0"
 
 [tool.black]
@@ -44,5 +72,5 @@ include = '\.pyi?$'
 skip-string-normalization = false
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
