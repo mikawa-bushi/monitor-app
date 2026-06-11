@@ -310,7 +310,7 @@ When contributing Docker-related changes:
 ### Basic Usage
 ```bash
 # Clone repository
-git clone https://github.com/hardwork9047/monitor-app.git
+git clone https://github.com/mikawa-bushi/monitor-app.git
 cd monitor-app
 
 # Start with sample data

@@ -1,0 +1,44 @@
+{#
+  base.html — 全ページ共通のレイアウト。
+
+  このテンプレートが受け取るコンテキスト変数(すべて api/routers/pages.py の
+  _ctx() が渡す。値の出どころは config.py の MonitorConfig):
+    app_title    : str  — <title> に使うアプリ名
+    header_text  : str  — 画面上部バーに表示するブランド名
+    footer_text  : str  — 画面下部に表示する文言
+    favicon_path : str  — favicon の static パス(例 "img/favicon.ico")
+
+  子テンプレートが上書きできるブロック:
+    title   — <title> の中身(既定は app_title)
+    content — <main> の中身(必須)
+    scripts — </body> 直前に差し込む <script>(任意)
+
+  CSS は 2 枚読み込む:
+    1. bootstrap.min.css … config.py のセルスタイル(bg-*, text-* 等の色クラス)を
+       解決するためだけに使う。レイアウトには使っていない。
+    2. app.css … 本アプリ独自のモダンで簡素なテーマ。bootstrap の後に読み込み上書きする。
+#}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_title }}{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
+    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('index') }}">{{ header_text }}</a>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">{{ footer_text }}</footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

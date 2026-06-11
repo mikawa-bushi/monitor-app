@@ -1,0 +1,100 @@
+/* Andon / 大型表示モードのテーマ(フェーズ1・B)。
+   遠くから見えるよう大きなフォント・高コントラスト。
+   <html data-theme="dark|light"> で配色を切り替える。 */
+
+:root[data-theme="dark"] {
+  --k-bg: #0b1220;
+  --k-surface: #131c2e;
+  --k-text: #f1f5f9;
+  --k-muted: #94a3b8;
+  --k-border: #24314a;
+  --k-head: #1c2740;
+}
+:root[data-theme="light"] {
+  --k-bg: #f1f5f9;
+  --k-surface: #ffffff;
+  --k-text: #0f172a;
+  --k-muted: #64748b;
+  --k-border: #e2e8f0;
+  --k-head: #e8eef6;
+}
+
+body.kiosk {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--k-bg);
+  color: var(--k-text);
+}
+
+#kiosk {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1.5vh 2vw;
+  box-sizing: border-box;
+}
+
+/* --- ヘッダー(信号灯 + タイトル + 時計)--- */
+.kiosk-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5vw;
+  margin-bottom: 1.5vh;
+}
+.kiosk-header h1 { margin: 0; font-size: 3vh; font-weight: 700; flex: 1; }
+.kiosk-clock { font-size: 3vh; font-variant-numeric: tabular-nums; color: var(--k-muted); }
+
+/* 全体ステータス信号灯。JS が ok/warning/critical を付け替える。 */
+.status-light {
+  width: 4vh;
+  height: 4vh;
+  border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 1.5vh rgba(0, 0, 0, 0.4);
+}
+.status-light.ok { background: #22c55e; box-shadow: 0 0 2vh #22c55e; }
+.status-light.warning { background: #f59e0b; box-shadow: 0 0 2vh #f59e0b; }
+.status-light.critical {
+  background: #ef4444;
+  box-shadow: 0 0 2.5vh #ef4444;
+  animation: kiosk-blink 0.8s steps(1) infinite;
+}
+@keyframes kiosk-blink { 50% { opacity: 0.35; } }
+
+/* --- アラートバナー(大型用に拡大)--- */
+body.kiosk .alert-banner { font-size: 2.4vh; margin-bottom: 1.5vh; }
+
+/* --- テーブル(大きく)--- */
+.kiosk-main { flex: 1; overflow: auto; }
+table.kiosk-table { width: 100%; border-collapse: collapse; }
+table.kiosk-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--k-head);
+  color: var(--k-muted);
+  font-size: 2vh;
+  text-align: left;
+  padding: 1.2vh 1.5vw;
+  border-bottom: 2px solid var(--k-border);
+}
+table.kiosk-table tbody td {
+  font-size: 2.6vh;
+  padding: 1.2vh 1.5vw;
+  border-bottom: 1px solid var(--k-border);
+}
+
+/* --- ローテーションのインジケータ(下部のドット)--- */
+.kiosk-dots {
+  display: flex;
+  justify-content: center;
+  gap: 1vw;
+  padding-top: 1.2vh;
+}
+.kiosk-dots .dot {
+  width: 1.4vh;
+  height: 1.4vh;
+  border-radius: 50%;
+  background: var(--k-border);
+}
+.kiosk-dots .dot.active { background: var(--k-text); }

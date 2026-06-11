@@ -1,0 +1,55 @@
+{#
+  index.html — ホームページ。利用可能なビューを一覧表示する。
+
+  base.html を継承する。base.html の共通コンテキストに加えて受け取る変数:
+    views : list[str] — ビュー名の一覧(config.py の views のキー)
+
+  各リンクの遷移先は show_table ルート(/table/<view_name>)。
+#}
+{% extends "base.html" %}
+
+{% block content %}
+{# KPIサマリーカード(フェーズ2・E)。kpis.js が /api/kpis を流し込む。 #}
+{% if has_kpis %}
+<div id="kpi-grid" class="kpi-grid" data-refresh-interval="{{ refresh_interval_ms }}"></div>
+{% endif %}
+
+<div class="page-head">
+    <h1>ビュー一覧</h1>
+    {% if has_kiosk %}
+    <a class="back-link" href="{{ url_for('kiosk') }}">📺 大型表示(Andon)</a>
+    {% endif %}
+</div>
+
+{% if views %}
+<nav class="card view-list">
+    {% for view in views %}
+    <a href="{{ url_for('show_table', view_name=view) }}">{{ view }}</a>
+    {% endfor %}
+</nav>
+{% else %}
+<div class="card">
+    <p class="empty">
+        表示できるビューがありません。config.py の <code>views</code> を定義してください。
+    </p>
+</div>
+{% endif %}
+
+{# 入力フォーム(フェーズ3・F)。form を定義したテーブルだけリンクを出す。 #}
+{% if form_tables %}
+<div class="page-head" style="margin-top:2rem;">
+    <h1>データ入力</h1>
+</div>
+<nav class="card view-list">
+    {% for table in form_tables %}
+    <a href="{{ url_for('show_form', table_name=table) }}">📝 {{ table }} の入力</a>
+    {% endfor %}
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_kpis %}
+<script src="{{ url_for('static', path='js/kpis.js') }}"></script>
+{% endif %}
+{% endblock %}
