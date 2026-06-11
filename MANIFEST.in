@@ -1,5 +1,4 @@
 include README.md
 include LICENSE
-include monitor_app/config/config.py
-recursive-include monitor_app/templates *
-recursive-include monitor_app/static *
+recursive-include monitor_app/web *
+recursive-include monitor_app/scaffold *

@@ -42,9 +42,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
-# Install runtime system dependencies
+# Install runtime system dependencies (curl is needed by the healthcheck)
 RUN apt-get update && apt-get install -y \
     sqlite3 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -56,22 +57,14 @@ WORKDIR /app
 # Copy virtual environment from builder stage
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy application code
+# Copy application code and install the package itself (entry point + package data)
 COPY monitor_app/ ./monitor_app/
-COPY README.md LICENSE ./
+COPY pyproject.toml poetry.lock README.md LICENSE ./
+RUN /app/.venv/bin/pip install --no-deps .
 
-# Create necessary directories
-RUN mkdir -p ./monitor_app/instances \
-    ./monitor_app/csv \
-    ./monitor_app/static \
-    ./monitor_app/templates
-
-# CSV files will be mounted as volumes or added at runtime
-# Create empty .gitkeep file to ensure directory structure
-RUN touch ./monitor_app/csv/.gitkeep
-
-# Set ownership
-RUN chown -R appuser:appuser /app
+# A monitor-app project (config.py + csv/) is mounted here as a volume.
+WORKDIR /project
+RUN chown -R appuser:appuser /app /project
 
 # Switch to non-root user
 USER appuser
@@ -81,7 +74,8 @@ EXPOSE 9990
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:9990/api/tables || exit 1
+    CMD curl -f http://localhost:9990/api/health || exit 1
 
-# Default command
-CMD ["python", "monitor_app/app.py", "runserver", "--host", "0.0.0.0", "--port", "9990", "--csv"]
+# Default command: serve the mounted project, importing CSV on start.
+# Mount your project with: docker run -v $(pwd):/project -p 9990:9990 monitor-app
+CMD ["monitor-app", "runserver", "--host", "0.0.0.0", "--port", "9990", "--import-csv"]
