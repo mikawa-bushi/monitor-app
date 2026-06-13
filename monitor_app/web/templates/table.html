@@ -7,6 +7,8 @@
     view_description  : str — 補足説明(空なら表示しない)
     refresh_interval_ms : int — 再取得の間隔(ミリ秒)
     refresh_mode      : str — "sse"(差分配信)または "polling"
+    has_chart         : bool — chart 設定があれば True
+    chart_json        : str — ChartDef の JSON 文字列(has_chart のときのみ使用)
 
   描画の流れ:
     このテンプレートは「空の器」だけを出力する。実データは static/js/app.js が
@@ -14,10 +16,14 @@
     行データを描画しない(リアルタイム更新のため)。
 
   app.js との契約(JS はこれらの id / data-* 属性に依存している。変更時は app.js も直すこと):
-    #view-title   … 見出しテキストの差し替え先
+    [data-view]      … ビュー名(body 直下の識別用)
+    #view-title      … 見出しテキストの差し替え先
     #status, #status-text … 接続状態インジケータ
-    #thead-row    … 見出し行(<th> をここに追加)
-    #tbody        … データ行(<tr> をここに追加)
+    #thead-row       … 見出し行(<th> をここに追加)
+    #tbody           … データ行(<tr> をここに追加)
+    #row-count       … データテーブル summary の行数バッジ(chart 付き時のみ)
+    #chart           … Chart.js の canvas(chart 付き時のみ)
+    #chart-config    … ChartDef JSON(chart 付き時のみ)
     #app-data[data-view-name|data-refresh-interval|data-refresh-mode] … JS への設定受け渡し
 #}
 {% extends "base.html" %}
@@ -25,7 +31,7 @@
 {% block title %}{{ view_title }} - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="page-head">
+<div class="page-head" data-view="{{ view_name }}">
     <div class="page-head__main">
         <h1 id="view-title">{{ view_title }}</h1>
         {% if view_description %}
@@ -45,14 +51,26 @@
 {# アラートバナー。app.js が payload.alerts を流し込む(フェーズ1・A)。 #}
 <div id="alert-banner" class="alert-banner" hidden></div>
 
-{# グラフ表示(フェーズ2・D)。chart 設定がある場合のみ表示する。 #}
 {% if has_chart %}
+{# chart 付きビュー: チャートを主役として最上部に表示し、テーブルは折りたたみ。 #}
 <div class="card chart-card">
     <canvas id="chart"></canvas>
 </div>
 <script id="chart-config" type="application/json">{{ chart_json | safe }}</script>
-{% endif %}
 
+<details class="table-collapse">
+    <summary>データテーブル <span id="row-count"></span></summary>
+    <div class="card">
+        <div class="table-wrap">
+            <table class="data" id="data-table">
+                <thead><tr id="thead-row"></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</details>
+{% else %}
+{# chart なしビュー: 従来どおりテーブルを直接表示(折りたたまない)。 #}
 <div class="card">
     <div class="table-wrap">
         <table class="data" id="data-table">
@@ -61,6 +79,7 @@
         </table>
     </div>
 </div>
+{% endif %}
 
 {# JS への設定受け渡し用。画面には表示しない(hidden)。 #}
 <div id="app-data"

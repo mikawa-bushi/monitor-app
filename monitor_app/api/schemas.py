@@ -33,6 +33,7 @@ class ViewDataResponse(BaseModel):
     title: str
     description: str
     columns: List[str]
+    column_labels: Dict[str, str] = {}  # 列名 → 表示見出し(単位込み)。フロントが採用
     data: List[Dict[str, Any]]
     cell_styles: Dict[str, Dict[str, Any]]
     alerts: List[Dict[str, Any]] = []  # 現在アクティブなアラート(フェーズ1・A)

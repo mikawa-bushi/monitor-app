@@ -14,7 +14,7 @@ SCAFFOLD_CSV = Path(__file__).parent.parent / "monitor_app" / "scaffold" / "csv"
 def test_index_page(client):
     res = client.get("/")
     assert res.status_code == 200
-    assert "ビュー一覧" in res.text
+    assert "ダッシュボード" in res.text
 
 
 def test_table_page(client):

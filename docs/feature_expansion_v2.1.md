@@ -83,7 +83,7 @@ class AlertRule(BaseModel):
 **API / UI**:
 - `GET /api/alerts` … 現在アクティブなアラート。
 - ビューの SSE ペイロードに `alerts: [...]` を付与(または専用 `/api/alerts/stream`)。
-- `table.html` / `app.js`: 違反時に画面上部へ赤バナー + ブラウザ通知 + ビープ音(Web Audio)。
+- `table.html` / `app.js`: 違反時に画面上部へ赤バナー + ブラウザ通知(アラーム音は v2.3 で廃止)。
 
 **モジュール**: `settings/declarative.py`(`AlertRule`)、`services/alert_service.py`、
 `services/notifiers/*`、`api/routers/alerts.py`、`view_service`/`app.js`、`main.py`(エンジン保持)。
@@ -121,6 +121,8 @@ class ChartDef(BaseModel):
     type: Literal["line", "bar"] = "line"
     x: str                       # 横軸の列(時刻・連番)
     y: str | list[str]           # 縦軸の列(複数系列可)
+    x_label: str | None = None   # 横軸タイトル(未指定なら列名 x)
+    y_label: str | None = None   # 縦軸タイトル・単位(例 "応答時間 (ms)")
     ucl: float | None = None     # 管理上限線
     lcl: float | None = None     # 管理下限線
     target: float | None = None  # 目標線
@@ -128,7 +130,13 @@ class ChartDef(BaseModel):
 
 **UI**: `table.html` を表示タイプで分岐(表 or グラフ)。Chart.js を `web/static/js/` に
 同梱。`app.js` がビューデータをチャートデータに整形。UCL/LCL/target は注釈線、
-管理限界外の点を強調。リアルタイム更新は既存 SSE。
+管理限界外の点を強調。リアルタイム更新は既存 SSE。`x_label`/`y_label` は軸タイトルに
+なり、X 軸の `YYYY-MM-DD HH:MM:SS` ラベルは `HH:MM` に短縮表示する(`chart-view.js`)。
+
+**表ヘッダーの単位 (`ViewDef.labels`)**: `labels: dict[str, str]`(列名 → 表示見出し)を
+ビューに付けると、表のヘッダーが単位付きの日本語見出しになる(例 `{"response_time":
+"応答時間 (ms)"}`)。API/SSE は `column_labels` として配信し、`app.js` / `kiosk.js` が
+未設定の列は列名のまま、設定済みの列はラベルで `<th>` を描画する。
 
 **モジュール**: `settings/declarative.py`(`ChartDef`)、`web/static/js/chart.js`、
 `table.html`、`pages.py`(chart 情報をテンプレートへ)。

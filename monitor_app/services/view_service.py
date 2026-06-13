@@ -43,6 +43,7 @@ class ViewService:
             "title": vdef.title or view_name,
             "description": vdef.description,
             "columns": columns,
+            "column_labels": dict(vdef.labels),
             "data": rows,
             "cell_styles": cell_styles,
         }

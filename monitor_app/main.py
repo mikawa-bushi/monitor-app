@@ -20,10 +20,12 @@ from starlette.middleware.cors import CORSMiddleware
 from .api.errors import register_exception_handlers
 from .api.routers import alerts, audit, crud, ingest, meta, pages, views
 from .db.engine import Database
+from .db.ingest_state import IngestStateStore
 from .db.registry import TableRegistry
 from .db.repository import TableRepository
 from .services.alert_service import AlertEngine
 from .services.audit_service import AuditService
+from .services.connectors import build_connectors
 from .services.crud_service import CrudService
 from .services.importer import CsvImporter
 from .services.ingest_watcher import IngestWatcher
@@ -51,12 +53,22 @@ def create_app(
         registry.create_all(db)
     repository = TableRepository(db, registry)
 
+    # ソースコネクタ(config.sources が定義されているとき常に組み立てる)。
+    connectors = None
+    if config.sources:
+        state = IngestStateStore(db)
+        state.create()
+        connectors = build_connectors(config, registry, db, state)
+
     # フォルダ監視(フェーズ1・C)。lifespan で起動/停止する。
     watcher: Optional[IngestWatcher] = None
     if settings.ingest_watch:
         importer = CsvImporter(config, registry, db, settings.csv_dir)
         watcher = IngestWatcher(
-            importer, settings.ingest_interval, keep=settings.ingest_mode == "append"
+            importer,
+            settings.ingest_interval,
+            keep=settings.ingest_mode == "append",
+            connectors=connectors,
         )
 
     @asynccontextmanager
@@ -81,6 +93,7 @@ def create_app(
     app.state.config = config
     app.state.db = db
     app.state.registry = registry
+    app.state.connectors = connectors
     audit_svc = AuditService(db, settings.audit_enabled)
     app.state.audit_service = audit_svc
     app.state.crud_service = CrudService(config, registry, repository, audit_svc)

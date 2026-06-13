@@ -42,8 +42,80 @@ body.kiosk {
   gap: 1.5vw;
   margin-bottom: 1.5vh;
 }
-.kiosk-header h1 { margin: 0; font-size: 3vh; font-weight: 700; flex: 1; }
+.kiosk-titles { flex: 1; display: flex; flex-direction: column; gap: 0.2vh; }
+.kiosk-brand { font-size: 1.6vh; color: var(--k-muted); letter-spacing: 0.05em; }
+.kiosk-header h1 { margin: 0; font-size: 3.4vh; font-weight: 700; }
 .kiosk-clock { font-size: 3vh; font-variant-numeric: tabular-nums; color: var(--k-muted); }
+
+/* --- ローテーション進行バー(次の切替までの残り時間) --- */
+.kiosk-progress {
+  height: 0.5vh;
+  border-radius: 0.25vh;
+  background: var(--k-border);
+  overflow: hidden;
+  margin-bottom: 1.2vh;
+}
+#kiosk-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--k-muted);
+  border-radius: inherit;
+}
+body.alert-critical #kiosk-progress-fill { background: #ef4444; }
+
+/* --- KPI ストリップ(大型表示用の横並びカード) --- */
+.kiosk-kpis {
+  display: flex;
+  gap: 1vw;
+  margin-bottom: 1.5vh;
+  overflow-x: auto;
+}
+.kiosk-kpi {
+  flex: 1;
+  min-width: 12vw;
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-left: 0.5vh solid var(--k-muted);
+  border-radius: 1vh;
+  padding: 1.2vh 1.2vw;
+}
+.kiosk-kpi.good,
+.kiosk-kpi.ok { border-left-color: #22c55e; }
+.kiosk-kpi.bad { border-left-color: #ef4444; }
+a.kiosk-kpi { color: inherit; text-decoration: none; cursor: pointer; }
+a.kiosk-kpi:hover { border-color: var(--k-muted); }
+.kiosk-kpi-title { font-size: 1.7vh; color: var(--k-muted); white-space: nowrap; }
+.kiosk-kpi-value {
+  font-size: 4vh;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.kiosk-kpi-unit { font-size: 1.8vh; font-weight: 400; color: var(--k-muted); margin-left: 0.4vw; }
+
+/* --- チャート表示(ビューごとの canvas を切り替え) --- */
+.kiosk-charts { height: 100%; }
+.kiosk-chart-card {
+  display: none;
+  height: 100%;
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: 1vh;
+  padding: 2vh 1.5vw;
+  box-sizing: border-box;
+  position: relative;
+}
+.kiosk-chart-card.active { display: block; }
+.kiosk-chart-card canvas { width: 100% !important; height: 100% !important; }
+
+/* --- アンドン動作: critical 中は画面全体を点滅枠で強調 --- */
+body.alert-critical #kiosk {
+  animation: kiosk-frame-pulse 1.2s ease-in-out infinite;
+}
+@keyframes kiosk-frame-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: inset 0 0 0 1.2vh rgba(239, 68, 68, 0.55); }
+}
 
 /* 全体ステータス信号灯。JS が ok/warning/critical を付け替える。 */
 .status-light {
@@ -91,10 +163,21 @@ table.kiosk-table tbody td {
   gap: 1vw;
   padding-top: 1.2vh;
 }
-.kiosk-dots .dot {
-  width: 1.4vh;
-  height: 1.4vh;
-  border-radius: 50%;
-  background: var(--k-border);
+.kiosk-dots { flex-wrap: wrap; }
+.kiosk-dots .view-pill {
+  font-size: 1.7vh;
+  padding: 0.6vh 1.2vw;
+  border-radius: 2vh;
+  background: var(--k-surface);
+  color: var(--k-muted);
+  border: 1px solid var(--k-border);
+  cursor: pointer;
+  white-space: nowrap;
 }
-.kiosk-dots .dot.active { background: var(--k-text); }
+.kiosk-dots .view-pill:hover { color: var(--k-text); border-color: var(--k-muted); }
+.kiosk-dots .view-pill.active {
+  background: var(--k-text);
+  color: var(--k-bg);
+  border-color: var(--k-text);
+  font-weight: 700;
+}
