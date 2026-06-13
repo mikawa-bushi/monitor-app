@@ -20,9 +20,7 @@ def test_view_cache_invalidated_on_write(client):
 
 # --- #19 V3: 複数ビューを 1 リクエストでまとめて返す -------------------------
 def test_batch_returns_multiple_views(client):
-    data = client.get(
-        "/api/views/batch?names=users_view,orders_summary,ghost"
-    ).json()
+    data = client.get("/api/views/batch?names=users_view,orders_summary,ghost").json()
     # 存在しない 'ghost' は黙って除外される
     assert set(data["views"].keys()) == {"users_view", "orders_summary"}
     assert data["views"]["users_view"]["data"]

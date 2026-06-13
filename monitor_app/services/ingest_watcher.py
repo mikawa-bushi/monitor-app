@@ -62,7 +62,9 @@ class IngestWatcher:
             if not path.exists():
                 continue
             try:
-                self._row_counts[table_name] = self.importer.count_rows(table_name, path)
+                self._row_counts[table_name] = self.importer.count_rows(
+                    table_name, path
+                )
             except Exception as exc:  # noqa: BLE001 - 起動を止めない
                 logger.warning("row-count 初期化失敗 %s: %s", table_name, exc)
 
@@ -87,7 +89,9 @@ class IngestWatcher:
             for table_name in changed:
                 try:
                     self._import_changed(table_name)
-                except Exception as exc:  # noqa: BLE001 - 1 ファイルの失敗で全体を止めない
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 - 1 ファイルの失敗で全体を止めない
                     logger.warning("CSV 取り込み失敗 '%s': %s", table_name, exc)
             logger.info("auto-imported changed tables: %s", ", ".join(changed))
 

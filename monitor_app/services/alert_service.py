@@ -68,9 +68,7 @@ class AlertEngine:
         self._worker_lock = threading.Lock()
         # webhook/LINE/SMTP などブロッキング I/O を伴う通知先がある場合のみ
         # 非同期ワーカーを使う。console だけならログ出力のみで即時送る(#14)。
-        self._use_async_notify = any(
-            name != "console" for name in self._notifiers
-        )
+        self._use_async_notify = any(name != "console" for name in self._notifiers)
 
     # ------------------------------------------------------------------
     # 通知(非ブロッキング)
@@ -104,12 +102,12 @@ class AlertEngine:
                 except Exception:  # noqa: BLE001
                     pass
 
-    def _enqueue(self, channels: List[str], subject: str, body: str, level: str) -> None:
+    def _enqueue(
+        self, channels: List[str], subject: str, body: str, level: str
+    ) -> None:
         if not self._use_async_notify:
             # console のみ(ブロッキング I/O 無し)は同期送信で十分。
-            dispatch(
-                self._notifiers, channels, subject=subject, body=body, level=level
-            )
+            dispatch(self._notifiers, channels, subject=subject, body=body, level=level)
             return
         self._ensure_worker()
         self._notify_queue.put((list(channels), subject, body, level))

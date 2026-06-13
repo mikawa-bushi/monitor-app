@@ -161,7 +161,9 @@ class CsvImporter:
         if new_rows:
             with self.db.connect() as conn:
                 conn.execute(insert(table), new_rows)
-            logger.info("appended %s: %d new rows (total %d)", table_name, len(new_rows), total)
+            logger.info(
+                "appended %s: %d new rows (total %d)", table_name, len(new_rows), total
+            )
         return len(new_rows), total
 
     def count_rows(self, table_name: str, csv_path: Path) -> int:
