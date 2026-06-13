@@ -32,6 +32,8 @@ class IngestWatcher:
         self.keep = keep
         self.csv_dir: Path = importer.csv_dir
         self._mtimes: Dict[str, float] = {}
+        # 追記(keep=True)監視で「どこまで取り込んだか」を表す有効行数カーソル(#9)。
+        self._row_counts: Dict[str, int] = {}
         self._task: asyncio.Task | None = None
         self.connectors = connectors
 
@@ -48,13 +50,45 @@ class IngestWatcher:
                 changed.append(table_name)
         return changed
 
+    def _init_row_counts(self) -> None:
+        """追記監視の起動時、既存 CSV の現在行数をカーソル初期値にする(#9)。
+
+        起動前に取り込み済み(例: ``--import-csv``)の行を、起動後の最初の変更で
+        再取り込みしないため。"""
+        if not self.keep:
+            return
+        for table_name in self.importer.config.tables:
+            path = self.csv_dir / f"{table_name}.csv"
+            if not path.exists():
+                continue
+            try:
+                self._row_counts[table_name] = self.importer.count_rows(table_name, path)
+            except Exception as exc:  # noqa: BLE001 - 起動を止めない
+                logger.warning("row-count 初期化失敗 %s: %s", table_name, exc)
+
+    def _import_changed(self, table_name: str) -> None:
+        """変更された 1 つの CSV を取り込む。keep に応じて追記/置換。"""
+        path = self.csv_dir / f"{table_name}.csv"
+        if self.keep:
+            start = self._row_counts.get(table_name, 0)
+            _inserted, total = self.importer.append_since(
+                table_name, path, start_row=start
+            )
+            self._row_counts[table_name] = total
+        else:
+            self.importer.import_table(table_name, path, keep=False)
+
     def poll_once(self, *, import_on_change: bool = True) -> List[str]:
-        """変更を検出した CSV テーブル+取り込みが発生したソース名のリストを返す。"""
+        """変更を検出した CSV テーブル+取り込みが発生したソース名のリストを返す。
+
+        1 ファイル・1 ソースの失敗は warning に留め、他を巻き込まない(#10)。"""
         changed = self._changed_tables()
         if changed and import_on_change:
             for table_name in changed:
-                path = self.csv_dir / f"{table_name}.csv"
-                self.importer._import_one(table_name, path, keep=self.keep)
+                try:
+                    self._import_changed(table_name)
+                except Exception as exc:  # noqa: BLE001 - 1 ファイルの失敗で全体を止めない
+                    logger.warning("CSV 取り込み失敗 '%s': %s", table_name, exc)
             logger.info("auto-imported changed tables: %s", ", ".join(changed))
 
         # 各コネクタを呼び出し、取り込みがあったソース名を結果に加える
@@ -74,11 +108,15 @@ class IngestWatcher:
         # 起動時の初期状態を記録(既存ファイルで即発火させない)。
         self.importer.registry.create_all(self.importer.db)
         self._changed_tables()
+        self._init_row_counts()
         logger.info("ingest watcher started (interval=%.1fs)", self.interval)
         try:
             while True:
                 await asyncio.sleep(self.interval)
-                await asyncio.to_thread(self.poll_once)
+                try:
+                    await asyncio.to_thread(self.poll_once)
+                except Exception:  # noqa: BLE001 - ループを恒久停止させない(#10)
+                    logger.exception("ingest watcher poll failed; continuing")
         except asyncio.CancelledError:
             logger.info("ingest watcher stopped")
             raise

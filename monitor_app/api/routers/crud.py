@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Query
 
 from ..deps import (
     get_actor,
@@ -21,11 +21,13 @@ router = APIRouter(prefix="/api/tables", tags=["CRUD"])
 @router.get("/{table_name}", response_model=TableDataResponse)
 def list_records(
     table_name: str,
+    limit: Optional[int] = Query(None, ge=1, description="返す最大行数(#17)"),
+    offset: int = Query(0, ge=0, description="先頭からのスキップ行数(#17)"),
     service: CrudService = Depends(get_crud_service),
     _: None = Depends(require_read_auth),
 ):
-    """テーブルの全レコードを取得する。"""
-    rows = service.list_records(table_name)
+    """テーブルのレコードを取得する。``limit``/``offset`` 省略時は全件。"""
+    rows = service.list_records(table_name, limit=limit, offset=offset)
     columns = service.config.tables[table_name].column_names
     return TableDataResponse(
         table_name=table_name, columns=columns, data=rows, count=len(rows)

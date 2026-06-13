@@ -117,6 +117,26 @@ class TestAlerts:
         assert engine.evaluate_view("v", [{"t": 50}]) == []  # 復帰
         assert engine.active_alerts() == []
 
+    def test_scheduler_evaluates_without_viewer(self):
+        # #13: 画面取得が無くてもバックグラウンド評価で発火する。
+        from monitor_app.services.alert_scheduler import AlertScheduler
+
+        cfg = MonitorConfig(
+            views={"v": ViewDef(query="SELECT 1")},
+            alerts=[AlertRule(view="v", column="t", op=">", value=80)],
+        )
+        engine = AlertEngine(cfg, AppSettings())
+
+        class _StubViewService:
+            def get_view(self, _name):
+                return {"data": [{"t": 90}]}
+
+        scheduler = AlertScheduler(engine, _StubViewService(), interval_seconds=1.0)
+        assert engine.active_alerts() == []  # 誰もビューを開いていない
+        scheduler.run_once()  # バックグラウンド評価
+        alerts = engine.active_alerts()
+        assert alerts and alerts[0]["level"] == "warning"
+
 
 # --- E KPI / D チャート ---------------------------------------------------
 class TestKpiChart:

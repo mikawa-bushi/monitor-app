@@ -12,6 +12,7 @@ from ..db.registry import TableRegistry
 from ..db.repository import TableRepository
 from .audit_service import AuditService
 from .coercion import CoercionError, coerce
+from .view_cache import ViewCache
 
 
 class CrudService:
@@ -21,11 +22,18 @@ class CrudService:
         registry: TableRegistry,
         repository: TableRepository,
         audit: Optional[AuditService] = None,
+        view_cache: Optional[ViewCache] = None,
     ) -> None:
         self.config = config
         self.registry = registry
         self.repo = repository
         self.audit = audit
+        self.view_cache = view_cache
+
+    def _invalidate_views(self) -> None:
+        """書き込み後にビュー共有キャッシュを無効化し、鮮度を保つ(#18)。"""
+        if self.view_cache is not None:
+            self.view_cache.clear()
 
     def _require_table(self, table_name: str) -> None:
         if not self.registry.has(table_name):
@@ -60,11 +68,15 @@ class CrudService:
         cleaned = [
             self._clean_payload(table_name, rec, drop_pk=False) for rec in records
         ]
-        return self.repo.insert_many(table_name, cleaned)
+        inserted = self.repo.insert_many(table_name, cleaned)
+        self._invalidate_views()
+        return inserted
 
-    def list_records(self, table_name: str) -> List[Dict[str, Any]]:
+    def list_records(
+        self, table_name: str, limit: Optional[int] = None, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         self._require_table(table_name)
-        return self.repo.list(table_name)
+        return self.repo.list(table_name, limit=limit, offset=offset)
 
     def get_record(self, table_name: str, record_id: Any) -> Dict[str, Any]:
         self._require_table(table_name)
@@ -83,6 +95,7 @@ class CrudService:
         self._require_table(table_name)
         values = self._clean_payload(table_name, data, drop_pk=True)
         row = self.repo.insert(table_name, values)
+        self._invalidate_views()
         pk = self.config.tables[table_name].primary_key
         self._audit(table_name, row.get(pk), "create", after=row, actor=actor)
         return row
@@ -100,6 +113,7 @@ class CrudService:
         row = self.repo.update(table_name, record_id, values)
         if row is None:
             raise RecordNotFoundError(f"id={record_id} のレコードが見つかりません")
+        self._invalidate_views()
         self._audit(
             table_name, record_id, "update", before=before, after=row, actor=actor
         )
@@ -112,6 +126,7 @@ class CrudService:
         before = self.repo.get(table_name, record_id)
         if not self.repo.delete(table_name, record_id):
             raise RecordNotFoundError(f"id={record_id} のレコードが見つかりません")
+        self._invalidate_views()
         self._audit(table_name, record_id, "delete", before=before, actor=actor)
 
     def schema(self) -> Dict[str, Any]:
