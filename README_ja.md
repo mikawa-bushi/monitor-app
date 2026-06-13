@@ -30,6 +30,9 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 | 閾値アラート | 画面バナー+音、Webhook(Slack/Teams)・LINE・メール通知。エッジ検出で連続通知を抑制 | `alerts=[AlertRule(...)]` |
 | Andon 大型表示 | `/kiosk` で複数ビューを自動ローテーション、緑/黄/赤の信号灯 | `kiosk=KioskConfig(...)` |
 | トレンド / SPC グラフ | UCL/LCL/目標線つき折れ線・棒グラフ、管理限界外の点を強調 | `ViewDef(chart=ChartDef(...))` |
+| ダッシュボード | ホームをミニチャートグリッド(列数 1〜4)主体に刷新。グラフなしビューはリンク一覧として下部に表示 | `dashboard=DashboardConfig(columns=2)` |
+| グループナビ | サイドバーとビュー一覧でグループ見出しを表示 | `ViewDef(group="...")` |
+| ダークテーマ | ヘッダーのトグルボタン(🌙/☀️)でライト/ダーク切替。`localStorage["monitor-theme"]` に保存 | テーマトグルボタン |
 | KPI カード | 生産数・良品率・OEE などをホーム上部に色分け表示 | `kpis={...}` |
 | 作業者入力フォーム | スキーマから自動生成するタッチ向け入力画面 `/form/{table}` | `TableDef(form=FormDef(...))` |
 | 監査ログ | 全書き込みの変更履歴(誰が・いつ・何を) | `MONITOR_AUDIT_ENABLED` |
@@ -127,7 +130,7 @@ MONITOR_WEBHOOK_URL=https://hooks.slack.com/services/...
 
 | パス | 説明 |
 |---|---|
-| `/` | ホーム: KPI カード + ビュー一覧 |
+| `/` | ホーム: ミニチャートダッシュボード、KPI カード、ビュー一覧 |
 | `/table/{view}` | リアルタイム表 / グラフ |
 | `/kiosk` | Andon 大型表示(全画面・自動ローテーション) |
 | `/form/{table}` | 作業者入力フォーム |
@@ -136,6 +139,24 @@ MONITOR_WEBHOOK_URL=https://hooks.slack.com/services/...
 | `/api/ingest/{table}` | センサ/PLC 向けバルク取り込み |
 | `/api/views/{view}` | ビューデータ(`/stream` で SSE、`/export` で CSV/Excel) |
 | `/api/kpis`, `/api/alerts`, `/api/audit`, `/api/schema`, `/api/health` | KPI・アラート・監査ログ・スキーマ・死活監視 |
+
+## 🔌 外部ツール連携(integrations、v2.2)
+
+procdiag・netdiag・network-checker を数行で Monitor App に接続できます。外部ツール側の変更は不要です(読み取り専用・pull 型)。
+
+```python
+from monitor_app.integrations import procdiag, netdiag, network_checker
+
+config = procdiag.attach(config, db_path="/opt/procdiag/data/procdiag.db")
+config = netdiag.attach(config)
+config = network_checker.attach(config, hosts=["plc-01", "gateway"])
+```
+
+各 `attach()` は既存の config にテーブル・ビュー・KPI・アラートを合成して返します。`monitor-app sync-sources` で手動同期、`MONITOR_INGEST_WATCH=1` で常時ポーリングが有効になります。
+
+詳細: [docs/integrations_v2_2.md](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/integrations_v2_2.md)
+
+---
 
 ## 🔄 v0.x からの移行
 
@@ -147,7 +168,9 @@ v2 で FastAPI + Pydantic に再構築しました。旧 dict 形式の `config.
 - API パス: `/api/<table>` → `/api/tables/{table}`、`/api/view/<v>` → `/api/views/{view}`
 
 詳細: [再設計ドキュメント](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/redesign_v2.md) ·
-[v2.1 機能設計](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/feature_expansion_v2.1.md)
+[v2.1 機能設計](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/feature_expansion_v2.1.md) ·
+[v2.2 外部連携](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/integrations_v2_2.md) ·
+[v2.3 UI 刷新](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/ui_redesign_v2_3.md)
 
 ## 🐳 Docker
 

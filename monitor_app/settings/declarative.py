@@ -7,9 +7,13 @@ dict を直接書いていた v1 と異なり、typo や矛盾は ``MonitorConfi
 
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+#: 識別子として許可するパターン(SQL に組み込むフィールドのみ)
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 #: 列の論理型。CREATE TABLE 時の SQL 型と、CSV 取り込み時の値変換に使う。
 ColumnType = Literal["int", "float", "str", "bool", "date"]
@@ -55,6 +59,8 @@ class ChartDef(BaseModel):
     type: Literal["line", "bar"] = "line"
     x: str  # 横軸の列(時刻・連番)
     y: Union[str, List[str]]  # 縦軸の列(複数系列可)
+    x_label: str | None = None  # 横軸タイトル(未指定なら列名 x を使う)
+    y_label: str | None = None  # 縦軸タイトル・単位(例: "%", "MB", "応答時間 (ms)")
     ucl: float | None = None  # 管理上限線(SPC)
     lcl: float | None = None  # 管理下限線(SPC)
     target: float | None = None  # 目標線
@@ -110,8 +116,12 @@ class ViewDef(BaseModel):
     query: str
     title: str = ""
     description: str = ""
+    labels: Dict[str, str] = Field(
+        default_factory=dict
+    )  # 列名 → 表示見出し(単位込み可)
     styles: Dict[str, CellStyle] = Field(default_factory=dict)
     chart: ChartDef | None = None  # 設定するとグラフ表示になる(フェーズ2)
+    group: str = ""  # ナビ・一覧でのセクション名(空は「その他」扱い)
 
     @model_validator(mode="after")
     def _validate_query(self) -> "ViewDef":
@@ -149,6 +159,7 @@ class KpiCard(BaseModel):
     target: float | None = None
     higher_is_better: bool = True
     format: str = "{:.0f}"
+    link_view: str | None = None  # クリックで遷移するビュー(views のキー)
 
     @model_validator(mode="after")
     def _validate_query(self) -> "KpiCard":
@@ -168,6 +179,65 @@ class KioskConfig(BaseModel):
     theme: Literal["dark", "light"] = "dark"
 
 
+class SourceDef(BaseModel):
+    """外部データソース宣言。MonitorConfig.sources の値。"""
+
+    kind: Literal["sqlite", "jsonl", "json"]
+    path: str  # 対象ファイル。~ はコネクタ側で展開
+    table: str  # 取り込み先テーブル(tables に必須)
+    # --- kind="sqlite" ---
+    source_table: str | None = None  # 取得元テーブル(query 省略時は必須)
+    query: str | None = None  # カスタム SELECT。:wm 名前付きパラメータ可
+    watermark_column: str | None = None  # 増分取り込みキー列
+    # --- kind="json" ---
+    record_path: str | None = None  # レコード配列までのドット区切りパス
+    # --- 共通 ---
+    mapping: Dict[str, str] = Field(default_factory=dict)  # ソースキー → 列名
+    mode: Literal["append", "replace"] = "append"
+
+    @model_validator(mode="after")
+    def _validate_source_def(self) -> "SourceDef":
+        if self.kind == "sqlite":
+            if self.source_table is None and self.query is None:
+                raise ValueError(
+                    "kind='sqlite' では source_table か query のどちらか必須です"
+                )
+            if self.source_table is not None and not _IDENTIFIER_RE.match(
+                self.source_table
+            ):
+                raise ValueError(
+                    f"source_table '{self.source_table}' は識別子"
+                    f"(^[A-Za-z_][A-Za-z0-9_]*$)のみ許可されます"
+                )
+            if self.watermark_column is not None and not _IDENTIFIER_RE.match(
+                self.watermark_column
+            ):
+                raise ValueError(
+                    f"watermark_column '{self.watermark_column}' は識別子"
+                    f"(^[A-Za-z_][A-Za-z0-9_]*$)のみ許可されます"
+                )
+        if self.kind == "jsonl":
+            if self.mode != "append":
+                raise ValueError("kind='jsonl' では mode='append' のみ許可されます")
+            if self.watermark_column is not None:
+                raise ValueError("kind='jsonl' では watermark_column は使用できません")
+        if self.kind == "json":
+            if self.watermark_column is not None:
+                raise ValueError("kind='json' では watermark_column は使用できません")
+        if self.watermark_column is not None and self.mode != "append":
+            raise ValueError(
+                "watermark_column を指定する場合は mode='append' のみ許可されます"
+            )
+        return self
+
+
+class DashboardConfig(BaseModel):
+    """トップページのミニチャートグリッド設定。"""
+
+    views: List[str] = Field(default_factory=list)  # 空なら chart 付き全ビュー
+    columns: int = Field(default=3, ge=1, le=4)  # 1〜4
+
+
 class MonitorConfig(BaseModel):
     """アプリ全体の宣言的設定。"""
 
@@ -182,6 +252,8 @@ class MonitorConfig(BaseModel):
     alerts: List[AlertRule] = Field(default_factory=list)  # フェーズ1
     kpis: Dict[str, KpiCard] = Field(default_factory=dict)  # フェーズ2
     kiosk: KioskConfig | None = None  # フェーズ1
+    sources: Dict[str, SourceDef] = Field(default_factory=dict)  # 外部データソース
+    dashboard: DashboardConfig = Field(default_factory=DashboardConfig)  # フェーズ2
 
     @model_validator(mode="after")
     def _validate_relations(self) -> "MonitorConfig":
@@ -209,6 +281,27 @@ class MonitorConfig(BaseModel):
                     raise ValueError(
                         f"kiosk.views: ビュー '{v}' が views に存在しません"
                     )
+        for sname, sdef in self.sources.items():
+            if sdef.table not in self.tables:
+                raise ValueError(
+                    f"sources['{sname}']: 取り込み先テーブル '{sdef.table}' が"
+                    f" tables に存在しません"
+                )
+        for vname in self.dashboard.views:
+            if vname not in self.views:
+                raise ValueError(
+                    f"dashboard.views: ビュー '{vname}' が views に存在しません"
+                )
+            if self.views[vname].chart is None:
+                raise ValueError(
+                    f"dashboard.views: ビュー '{vname}' は chart を持ちません"
+                )
+        for kname, card in self.kpis.items():
+            if card.link_view is not None and card.link_view not in self.views:
+                raise ValueError(
+                    f"kpis['{kname}']: link_view '{card.link_view}' が"
+                    f" views に存在しません"
+                )
         return self
 
     def kiosk_views(self) -> List[str]:

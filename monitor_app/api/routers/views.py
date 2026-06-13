@@ -1,7 +1,8 @@
 """ビュー表示エンドポイント。一括取得と SSE ストリーム。
 
 データ取得のたびにアラートエンジンで閾値を評価し(フェーズ1・A)、現在アクティブな
-アラートを payload に付与する。常時表示の Kiosk / ダッシュボードがこの評価を駆動する。
+アラートを payload に付与する。常時表示の Kiosk / ダッシュボードがこの評価を駆動する
+(誰も見ていないビューはバックグラウンドの AlertScheduler が評価する — #13)。
 """
 
 from __future__ import annotations
@@ -9,9 +10,10 @@ from __future__ import annotations
 import csv
 import io
 import json
+from typing import Optional
 
 import anyio
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
@@ -23,23 +25,57 @@ from ...settings.declarative import MonitorConfig
 router = APIRouter(prefix="/api/views", tags=["Views"])
 
 
-def _build_payload(service: ViewService, engine, view_name: str) -> dict:
+def _build_payload(
+    service: ViewService,
+    engine,
+    view_name: str,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> dict:
     """ビューデータを取得し、アラートを評価して付与する。"""
-    payload = service.get_view(view_name)
+    payload = service.get_view(view_name, limit=limit, offset=offset)
     engine.evaluate_view(view_name, payload["data"])
     payload["alerts"] = engine.active_alerts()
     return payload
 
 
+@router.get("/batch")
+def get_views_batch(
+    names: str = Query(..., description="カンマ区切りのビュー名"),
+    service: ViewService = Depends(get_view_service),
+    engine=Depends(get_alert_engine),
+    _: None = Depends(require_read_auth),
+):
+    """複数ビューを 1 リクエストでまとめて返す(ダッシュボード用 — #19)。
+
+    存在しないビュー名は黙って無視する。共有キャッシュ(#18)を通すため、
+    同一ビューを各カードが個別取得するより DB 負荷が下がる。
+    """
+    from ...exceptions import ViewNotFoundError
+
+    out: dict = {}
+    for raw in names.split(","):
+        name = raw.strip()
+        if not name:
+            continue
+        try:
+            out[name] = _build_payload(service, engine, name)
+        except ViewNotFoundError:
+            continue
+    return {"views": out}
+
+
 @router.get("/{view_name}", response_model=ViewDataResponse)
 def get_view(
     view_name: str,
+    limit: Optional[int] = Query(None, ge=1, description="返す最大行数(#17)"),
+    offset: int = Query(0, ge=0, description="先頭からのスキップ行数(#17)"),
     service: ViewService = Depends(get_view_service),
     engine=Depends(get_alert_engine),
     _: None = Depends(require_read_auth),
 ):
     """ビューを一度だけ取得する(ポーリング用)。"""
-    return _build_payload(service, engine, view_name)
+    return _build_payload(service, engine, view_name, limit=limit, offset=offset)
 
 
 @router.get("/{view_name}/export")
@@ -105,19 +141,23 @@ async def stream_view(
     """ビューデータを Server-Sent Events で配信する。
 
     ``refresh_interval_ms`` ごとに再クエリし、内容のハッシュが変化したときだけ
-    ``message`` イベントを送る。差分がなければ送信しない。
+    ``message`` イベントを送る。差分がなければ送信しない。共有キャッシュ(#18)に
+    より、複数クライアントが同じビューを購読してもクエリ・ハッシュは 1 回。
     """
     interval = max(config.refresh_interval_ms, 250) / 1000.0
+
+    def _payload_and_hash() -> tuple[dict, str]:
+        payload, digest = service.get_view_hashed(view_name)
+        engine.evaluate_view(view_name, payload["data"])
+        payload["alerts"] = engine.active_alerts()
+        return payload, digest
 
     async def event_generator():
         last_hash: str | None = None
         while True:
             if await request.is_disconnected():
                 break
-            payload = await anyio.to_thread.run_sync(
-                _build_payload, service, engine, view_name
-            )
-            current = ViewService.data_hash(payload)
+            payload, current = await anyio.to_thread.run_sync(_payload_and_hash)
             if current != last_hash:
                 last_hash = current
                 yield {"event": "message", "data": json.dumps(payload, default=str)}

@@ -11,15 +11,21 @@
      使っていない。このファイルが bootstrap の後に読み込まれ、上書きする。
 
    セクション目次:
-     1. テーマ変数(:root)
+     1. テーマ変数(:root / [data-theme="dark"])
      2. 土台(reset, body)
-     3. ヘッダー / フッター
-     4. ページレイアウト(container, page-head)
-     5. カード
-     6. テーブル
-     7. ビュー一覧
-     8. 状態インジケータ
-     9. 補助クラス
+     3. サイドバーレイアウト
+     4. ヘッダー / フッター
+     5. ページレイアウト(container, page-head)
+     6. カード
+     7. テーブル
+     8. ビュー一覧
+     9. 状態インジケータ
+    10. アラートバナー
+    11. グラフ
+    12. KPIカード
+    13. 入力フォーム
+    14. table-collapse
+    15. 補助クラス
    ============================================================================ */
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
@@ -34,6 +40,24 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  /* グラフ用変数(U00 §3 契約) */
+  --chart-grid: rgba(100, 116, 139, 0.18);
+  --chart-tick: #475569;
+  /* サイドバー幅 */
+  --sidebar-width: 220px;
+}
+
+/* ダークテーマ(U00 §3 契約: [data-theme="dark"] で :root 変数を上書き) */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #334155;
+  --accent: #60a5fa;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --chart-grid: rgba(148, 163, 184, 0.15);
+  --chart-tick: #94a3b8;
 }
 
 /* --- 2. 土台 ------------------------------------------------------------- */
@@ -49,7 +73,161 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* --- 3. ヘッダー / フッター --------------------------------------------- */
+/* --- 3. サイドバーレイアウト --------------------------------------------- */
+/* 900px 以上: サイドバー常設(左固定) */
+body {
+  display: flex;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  transition: transform 0.25s ease;
+  z-index: 20;
+}
+
+.sidebar-brand {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-brand a {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  display: block;
+}
+
+.sidebar-nav {
+  padding: 0.75rem 0;
+  flex: 1;
+}
+
+.nav-group-label {
+  padding: 0.5rem 1.25rem 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.5rem 1.25rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  border-left: 3px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.nav-link:hover {
+  background: var(--bg);
+  border-left-color: var(--border);
+}
+
+.nav-link.active,
+.nav-link[aria-current="page"] {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+  background: var(--bg);
+}
+
+.nav-section-divider {
+  margin: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.nav-link--kiosk {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+.main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ハンバーガーボタン(デスクトップでは非表示) */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+}
+
+/* 900px 未満: サイドバーをオフキャンバスに */
+@media (max-width: 899px) {
+  body {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+}
+
+/* --- 4. ヘッダー / フッター --------------------------------------------- */
 .site-header {
   position: sticky;
   top: 0;
@@ -59,8 +237,7 @@ body {
   gap: 0.75rem;
   height: 56px;
   padding: 0 1.5rem;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: saturate(180%) blur(8px);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
@@ -71,15 +248,48 @@ body {
   text-decoration: none;
 }
 
+.site-header__title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* テーマトグルボタン */
+.theme-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--bg);
+}
+
 .site-footer {
-  max-width: 960px;
-  margin: 0 auto;
   padding: 0 1.5rem 2rem;
   color: var(--muted);
   font-size: 0.8rem;
 }
 
-/* --- 4. ページレイアウト ------------------------------------------------ */
+/* --- 5. ページレイアウト ------------------------------------------------ */
 .container {
   max-width: 960px;
   margin: 0 auto;
@@ -110,7 +320,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* --- 5. カード ----------------------------------------------------------- */
+/* --- 6. カード ----------------------------------------------------------- */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -119,7 +329,7 @@ body {
   overflow: hidden;
 }
 
-/* --- 6. テーブル --------------------------------------------------------- */
+/* --- 7. テーブル --------------------------------------------------------- */
 .table-wrap { max-height: 72vh; overflow: auto; }
 
 table.data {
@@ -128,10 +338,15 @@ table.data {
   font-variant-numeric: tabular-nums;
 }
 
+td, th {
+  font-variant-numeric: tabular-nums;
+}
+
 table.data thead th {
   position: sticky;
   top: 0;
-  background: #fbfbfd;
+  background: var(--surface);
+  filter: brightness(0.96);
   text-align: left;
   font-weight: 600;
   font-size: 0.8rem;
@@ -143,15 +358,20 @@ table.data thead th {
   white-space: nowrap;
 }
 
+[data-theme="dark"] table.data thead th {
+  background: var(--surface);
+  filter: brightness(1.1);
+}
+
 table.data tbody td {
   padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--border);
 }
 
 table.data tbody tr:last-child td { border-bottom: none; }
-table.data tbody tr:hover { background: #f9fafb; }
+table.data tbody tr:hover { background: var(--bg); }
 
-/* --- 7. ビュー一覧 ------------------------------------------------------- */
+/* --- 8. ビュー一覧 ------------------------------------------------------- */
 .view-list { display: flex; flex-direction: column; }
 
 .view-list a {
@@ -165,10 +385,10 @@ table.data tbody tr:hover { background: #f9fafb; }
 }
 
 .view-list a:last-child { border-bottom: none; }
-.view-list a:hover { background: #f9fafb; }
+.view-list a:hover { background: var(--bg); }
 .view-list a::after { content: "→"; color: var(--muted); }
 
-/* --- 8. 状態インジケータ ------------------------------------------------ */
+/* --- 9. 状態インジケータ ------------------------------------------------ */
 /* JS が status 要素の class を "status live" / "status error" に切り替える。 */
 .status {
   display: inline-flex;
@@ -189,7 +409,7 @@ table.data tbody tr:hover { background: #f9fafb; }
 .status.live .dot { background: #22c55e; }   /* 取得成功 */
 .status.error .dot { background: #ef4444; }  /* 取得失敗 */
 
-/* --- 9. アラートバナー(フェーズ1・A)----------------------------------- */
+/* --- 10. アラートバナー(フェーズ1・A)----------------------------------- */
 /* level-info / level-warning / level-critical で色が変わる。 */
 .alert-banner {
   margin-bottom: 1.25rem;
@@ -211,11 +431,11 @@ table.data tbody tr:hover { background: #f9fafb; }
   50% { border-color: #ef4444; }
 }
 
-/* --- 10. グラフ(フェーズ2・D)------------------------------------------ */
-.chart-card { padding: 1rem; height: 360px; margin-bottom: 1.25rem; }
+/* --- 11. グラフ(フェーズ2・D)------------------------------------------ */
+.chart-card { padding: 1rem; height: 440px; margin-bottom: 1.25rem; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
 
-/* --- 11. KPIカード(フェーズ2・E)-------------------------------------- */
+/* --- 12. KPIカード(フェーズ2・E)-------------------------------------- */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -225,18 +445,34 @@ table.data tbody tr:hover { background: #f9fafb; }
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
+  border-left: 4px solid var(--accent);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1rem 1.1rem;
 }
 .kpi-card .kpi-title { color: var(--muted); font-size: 0.85rem; }
-.kpi-card .kpi-value { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
-.kpi-card .kpi-unit { font-size: 0.9rem; color: var(--muted); margin-left: 0.2rem; }
-.kpi-card.good { border-left-color: #22c55e; }
-.kpi-card.bad { border-left-color: #ef4444; }
+.kpi-card .kpi-value { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+.kpi-card .kpi-unit { font-size: 0.8rem; color: var(--muted); margin-left: 0.2rem; }
 
-/* --- 12. 入力フォーム(フェーズ3・F)----------------------------------- */
+/* kpis.js が付与する status クラス(API は good / bad / neutral を返す)*/
+.kpi-card.good,
+.kpi-card.ok { border-left-color: #22c55e; }
+.kpi-card.bad { border-left-color: #ef4444; }
+.kpi-card.neutral { border-left-color: var(--accent); }
+
+/* link_view 付き KPI(<a> として描画される)。クリックで関連ビューへ */
+a.kpi-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+a.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.12);
+}
+
+/* --- 13. 入力フォーム(フェーズ3・F)----------------------------------- */
 /* タッチ操作向けに入力欄・ボタンを大きめにする。 */
 .form-card { padding: 1.5rem; }
 .form-row { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
@@ -249,7 +485,8 @@ table.data tbody tr:hover { background: #f9fafb; }
   font-size: 1.1rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
 }
 .form-row input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
 .btn-submit {
@@ -268,7 +505,42 @@ table.data tbody tr:hover { background: #f9fafb; }
 .form-message.ok { color: #16a34a; }
 .form-message.error { color: #ef4444; }
 
-/* --- 13. 補助クラス ------------------------------------------------------ */
+/* --- 14. table-collapse(U04 が使う) ------------------------------------- */
+details.table-collapse {
+  margin-bottom: 1rem;
+}
+
+details.table-collapse > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 0;
+  user-select: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+details.table-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.table-collapse > summary::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.15s;
+  color: var(--muted);
+}
+
+details.table-collapse[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* --- 15. 補助クラス ------------------------------------------------------ */
 .muted { color: var(--muted); }
 
 .empty {

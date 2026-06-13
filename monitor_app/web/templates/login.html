@@ -1,0 +1,49 @@
+{#
+  login.html — UI セッションログイン(#11)。
+
+  protect_reads + api_key 有効時、未認証で HTML ページにアクセスすると
+  page_auth_guard がここへ誘導する。キーを送ると /api/login が検証し、
+  成功で HttpOnly セッション Cookie を発行する。base.html は継承しない
+  (ナビ不要・自己完結のため)。
+
+  コンテキスト(pages.py の login_page() が渡す):
+    app_title / header_text / favicon_path / error(bool)
+#}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - {{ app_title }}</title>
+    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
+    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', path='js/theme.js') }}"></script>
+    <style>
+        /* 中央寄せの自己完結レイアウト(app.css の sidebar flex を打ち消す) */
+        body.login-body { display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 1rem; }
+        .login-card { width: 100%; max-width: 360px; padding: 2rem; }
+        .login-title { margin: 0 0 .25rem; font-size: 1.25rem; }
+        .login-sub { margin: 0 0 1.25rem; color: var(--muted); font-size: .9rem; }
+        .login-card .btn-submit { width: 100%; margin-top: .5rem; }
+    </style>
+</head>
+<body class="login-body">
+    <main class="card login-card">
+        <h1 class="login-title">{{ header_text }}</h1>
+        <p class="login-sub">続けるには API キーを入力してください</p>
+        {% if error %}
+        <p class="form-message error">API キーが正しくありません</p>
+        {% endif %}
+        <form method="post" action="/api/login">
+            <div class="form-row">
+                <label for="key">API キー</label>
+                <input type="password" id="key" name="key" required autofocus
+                       autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-submit">ログイン</button>
+        </form>
+    </main>
+</body>
+</html>

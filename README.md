@@ -27,9 +27,12 @@ Monitor App is a FastAPI-based data monitoring tool designed for shop floors, la
 | Feature | What it does | How to enable |
 |---|---|---|
 | Auto data ingest | Watches `csv/` for changes; `POST /api/ingest/{table}` for sensors/PLC/MES | `MONITOR_INGEST_WATCH` / always on |
-| Threshold alerts | On-screen banner + beep, Webhook (Slack/Teams), LINE, e-mail; edge-triggered | `alerts=[AlertRule(...)]` |
+| Threshold alerts | On-screen banner + browser notification, Webhook (Slack/Teams), LINE, e-mail; edge-triggered | `alerts=[AlertRule(...)]` |
 | Andon wallboard | Full-screen rotating views with a green/amber/red status light at `/kiosk` | `kiosk=KioskConfig(...)` |
 | Trend / SPC charts | Line & bar charts with UCL/LCL/target lines, out-of-control points highlighted | `ViewDef(chart=ChartDef(...))` |
+| Dashboard | Home page shows mini-chart grid (columns=1–4) for chart-enabled views; non-chart views listed below | `dashboard=DashboardConfig(columns=2)` |
+| Group navigation | Sidebar and view list support named groups; `ViewDef(group="...")` | `ViewDef(group=...)` |
+| Dark theme | Toggle between light and dark; persisted in `localStorage["monitor-theme"]`; `<html data-theme="dark">` | theme-toggle button (☀️/🌙) |
 | KPI cards | Scalar SQL (counts, rates, OEE) as color-coded cards on the home page | `kpis={...}` |
 | Operator entry forms | Touch-friendly forms generated from your table schema at `/form/{table}` | `TableDef(form=FormDef(...))` |
 | Audit log | Who changed what and when, for every write | `MONITOR_AUDIT_ENABLED` |
@@ -127,7 +130,7 @@ MONITOR_WEBHOOK_URL=https://hooks.slack.com/services/...
 
 | Path | Description |
 |---|---|
-| `/` | Home: KPI cards + view list |
+| `/` | Home: dashboard with mini-charts, KPI cards, and view list |
 | `/table/{view}` | Live table / chart page |
 | `/kiosk` | Andon wallboard (full screen, auto-rotating) |
 | `/form/{table}` | Operator entry form |
@@ -136,6 +139,24 @@ MONITOR_WEBHOOK_URL=https://hooks.slack.com/services/...
 | `/api/ingest/{table}` | Bulk ingest for sensors/PLC |
 | `/api/views/{view}` | View data (+ `/stream` for SSE, `/export` for CSV/Excel) |
 | `/api/kpis`, `/api/alerts`, `/api/audit`, `/api/schema`, `/api/health` | KPIs, active alerts, audit log, schema, health |
+
+## 🔌 External tool integrations (v2.2)
+
+Connect procdiag, netdiag, and network-checker to Monitor App with a few lines — no changes to the external tools required (read-only, pull-based).
+
+```python
+from monitor_app.integrations import procdiag, netdiag, network_checker
+
+config = procdiag.attach(config, db_path="/opt/procdiag/data/procdiag.db")
+config = netdiag.attach(config)
+config = network_checker.attach(config, hosts=["plc-01", "gateway"])
+```
+
+Each `attach()` call merges tables, views, KPIs, and alert rules into your existing config. Run `monitor-app sync-sources` to ingest on demand, or set `MONITOR_INGEST_WATCH=1` for continuous polling.
+
+Full reference: [docs/integrations_v2_2.md](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/integrations_v2_2.md)
+
+---
 
 ## 🔄 Migrating from v0.x
 
@@ -148,7 +169,9 @@ compatibility shim, but new projects should use `MonitorConfig`. Key changes:
 - API paths: `/api/<table>` → `/api/tables/{table}`, `/api/view/<v>` → `/api/views/{view}`
 
 Details: [redesign notes](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/redesign_v2.md) ·
-[v2.1 feature design](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/feature_expansion_v2.1.md)
+[v2.1 feature design](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/feature_expansion_v2.1.md) ·
+[v2.2 integrations](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/integrations_v2_2.md) ·
+[v2.3 UI redesign](https://github.com/mikawa-bushi/monitor-app/blob/main/docs/ui_redesign_v2_3.md)
 
 ## 🐳 Docker
 
