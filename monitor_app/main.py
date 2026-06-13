@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
 
 from .api.errors import register_exception_handlers
-from .api.routers import alerts, audit, crud, ingest, meta, pages, views
+from .api.routers import alerts, audit, auth, crud, ingest, meta, pages, views
 from .db.engine import Database
 from .db.ingest_state import IngestStateStore
 from .db.registry import TableRegistry
@@ -143,6 +143,7 @@ def create_app(
     app.include_router(ingest.router)
     app.include_router(alerts.router)
     app.include_router(audit.router)
+    app.include_router(auth.router)
     app.include_router(meta.router)
     app.include_router(pages.router)
 
