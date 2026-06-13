@@ -153,10 +153,17 @@ class SourceConnector(ABC):
                 rows.append(record)
 
         with self.db.connect() as conn:
-            if replace:
-                conn.execute(delete(table))
-            if rows:
-                conn.execute(insert(table), rows)
+            if replace and not rows:
+                # 有効行 0 件での置換は既存データの全消去になるため中止する(#16)。
+                logger.warning(
+                    "source '%s': 有効行 0 件のため置換を中止(既存データを保持)",
+                    self.name,
+                )
+            else:
+                if replace:
+                    conn.execute(delete(table))
+                if rows:
+                    conn.execute(insert(table), rows)
 
         logger.info(
             "source '%s': %d 行取り込み (replace=%s)",

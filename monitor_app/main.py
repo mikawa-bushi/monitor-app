@@ -23,6 +23,7 @@ from .db.engine import Database
 from .db.ingest_state import IngestStateStore
 from .db.registry import TableRegistry
 from .db.repository import TableRepository
+from .services.alert_scheduler import AlertScheduler
 from .services.alert_service import AlertEngine
 from .services.audit_service import AuditService
 from .services.connectors import build_connectors
@@ -30,6 +31,7 @@ from .services.crud_service import CrudService
 from .services.importer import CsvImporter
 from .services.ingest_watcher import IngestWatcher
 from .services.kpi_service import KpiService
+from .services.view_cache import ViewCache
 from .services.view_service import ViewService
 from .settings.declarative import MonitorConfig
 from .settings.runtime import AppSettings
@@ -60,10 +62,17 @@ def create_app(
         state.create()
         connectors = build_connectors(config, registry, db, state)
 
+    # 共有サービス(lifespan のスケジューラからも参照するため先に生成する)。
+    view_cache = ViewCache(settings.view_cache_ttl_ms)
+    view_service = ViewService(config, db, cache=view_cache)
+    alert_engine = AlertEngine(config, settings)
+
     # フォルダ監視(フェーズ1・C)。lifespan で起動/停止する。
     watcher: Optional[IngestWatcher] = None
     if settings.ingest_watch:
-        importer = CsvImporter(config, registry, db, settings.csv_dir)
+        importer = CsvImporter(
+            config, registry, db, settings.csv_dir, encoding=settings.csv_encoding
+        )
         watcher = IngestWatcher(
             importer,
             settings.ingest_interval,
@@ -71,15 +80,26 @@ def create_app(
             connectors=connectors,
         )
 
+    # アラートのバックグラウンド評価(#13)。alerts があれば常に起動し、
+    # 画面を誰も開いていなくても閾値を評価・通知する。
+    alert_scheduler: Optional[AlertScheduler] = None
+    if config.alerts:
+        interval_s = max(config.refresh_interval_ms, 1000) / 1000.0
+        alert_scheduler = AlertScheduler(alert_engine, view_service, interval_s)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         if watcher:
             watcher.start()
+        if alert_scheduler:
+            alert_scheduler.start()
         try:
             yield
         finally:
             if watcher:
                 await watcher.stop()
+            if alert_scheduler:
+                await alert_scheduler.stop()
 
     app = FastAPI(
         title=config.app_title,
@@ -96,9 +116,12 @@ def create_app(
     app.state.connectors = connectors
     audit_svc = AuditService(db, settings.audit_enabled)
     app.state.audit_service = audit_svc
-    app.state.crud_service = CrudService(config, registry, repository, audit_svc)
-    app.state.view_service = ViewService(config, db)
-    app.state.alert_engine = AlertEngine(config, settings)
+    app.state.view_cache = view_cache
+    app.state.crud_service = CrudService(
+        config, registry, repository, audit_svc, view_cache=view_cache
+    )
+    app.state.view_service = view_service
+    app.state.alert_engine = alert_engine
     app.state.kpi_service = KpiService(config, db)
 
     # --- ビュー(HTML)とアセット ---

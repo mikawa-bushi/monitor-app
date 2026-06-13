@@ -100,6 +100,9 @@
     // CSS Grid の列数設定
     grid.style.setProperty("--dash-columns", String(cfg.columns || 3));
 
+    var charts = {}; // name -> chart
+    var names = [];
+
     cfg.views.forEach(function (view) {
       var card = document.createElement("div");
       card.className = "dash-card card";
@@ -122,25 +125,30 @@
 
       // MonitorChart が利用可能なら作成
       if (window.MonitorChart) {
-        var chart = MonitorChart.create(canvas, view.chart, { compact: true });
-
-        // 初回データ投入
-        fetchAndUpdate(view.name, chart);
-
-        // 定期更新
-        setInterval(function () {
-          fetchAndUpdate(view.name, chart);
-        }, interval);
+        charts[view.name] = MonitorChart.create(canvas, view.chart, { compact: true });
+        names.push(view.name);
       }
     });
+
+    if (names.length === 0) return;
+
+    // 全カードを 1 リクエストでまとめて更新(カード毎ポーリングを避ける — #19)
+    function refresh() {
+      fetchBatch(names, charts);
+    }
+    refresh();
+    setInterval(refresh, interval);
   }
 
-  async function fetchAndUpdate(name, chart) {
+  async function fetchBatch(names, charts) {
     try {
-      var res = await fetch("/api/views/" + encodeURIComponent(name));
+      var qs = names.map(encodeURIComponent).join(",");
+      var res = await fetch("/api/views/batch?names=" + qs);
       if (!res.ok) return;
-      var payload = await res.json();
-      chart.update(payload);
+      var views = (await res.json()).views || {};
+      names.forEach(function (name) {
+        if (views[name]) charts[name].update(views[name]);
+      });
     } catch (e) {
       /* 取得失敗時は前回表示を維持 */
     }

@@ -94,7 +94,9 @@ def import_csv(
 
     db = Database(settings.database_url)
     registry = TableRegistry(cfg)
-    importer = CsvImporter(cfg, registry, db, settings.csv_dir)
+    importer = CsvImporter(
+        cfg, registry, db, settings.csv_dir, encoding=settings.csv_encoding
+    )
     report = importer.import_all(keep=keep)
 
     for r in report.results:
@@ -176,7 +178,9 @@ def runserver(
 
         cfg = load_config(path)
         db = Database(settings.database_url)
-        CsvImporter(cfg, TableRegistry(cfg), db, settings.csv_dir).import_all()
+        CsvImporter(
+            cfg, TableRegistry(cfg), db, settings.csv_dir, encoding=settings.csv_encoding
+        ).import_all()
 
     # app_factory が読む環境変数に設定パスを渡す。
     os.environ["MONITOR_CONFIG_PATH"] = str(path)
