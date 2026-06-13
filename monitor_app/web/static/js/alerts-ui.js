@@ -10,27 +10,6 @@
 (function () {
   "use strict";
 
-  // 短いビープ音(Web Audio)。新規アラート発生時に鳴らす。
-  function beep() {
-    try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "square";
-      osc.frequency.value = 880;
-      gain.gain.value = 0.1;
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
-      osc.onended = function () { ctx.close(); };
-    } catch (e) {
-      /* 音が出せない環境では黙って無視 */
-    }
-  }
-
   // ブラウザ通知(許可済みのときだけ)。
   function notify(alerts) {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -50,7 +29,9 @@
   }
 
   function create(bannerEl) {
-    let prevKeys = [];
+    // null = 初回描画前。ページを開いた時点で既に継続中のアラートはバナー表示のみとし、
+    // 表示後に「増えた」アラートだけをブラウザ通知の対象にする。
+    let prevKeys = null;
 
     function update(alerts) {
       alerts = alerts || [];
@@ -70,11 +51,12 @@
         bannerEl.appendChild(item);
       });
 
-      // 新規アラートが増えていれば通知音 + ブラウザ通知
+      // 新規アラートが増えていればブラウザ通知(初回描画は対象外)。
+      // 音は鳴らさない(現場の要望によりアラーム音は廃止。表示と通知のみ)。
       const keys = keyset(alerts);
-      const isNew = keys.some(function (k) { return prevKeys.indexOf(k) === -1; });
+      const isNew = prevKeys !== null &&
+        keys.some(function (k) { return prevKeys.indexOf(k) === -1; });
       if (isNew) {
-        beep();
         notify(alerts);
       }
       prevKeys = keys;
@@ -90,5 +72,5 @@
     }
   }
 
-  window.MonitorAlerts = { create: create, beep: beep, requestPermission: requestPermission };
+  window.MonitorAlerts = { create: create, requestPermission: requestPermission };
 })();

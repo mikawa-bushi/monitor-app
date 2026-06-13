@@ -1,16 +1,18 @@
 {#
-  kiosk.html — Andon / 大型表示モード(フェーズ1・B)。
+  kiosk.html — Andon / 大型表示モード(フェーズ1・B、v2.3 で拡充)。
 
   base.html は継承しない(全画面・独自テーマのため独立した HTML)。
   受け取るコンテキスト(api/routers/pages.py の kiosk() が渡す):
     app_title          : str
-    kiosk_views        : list[str] — ローテーション対象のビュー名
-    rotate_seconds     : int       — 切替間隔(秒)
+    kiosk_json         : str  — {"views": [{name, title, chart|null}]} の JSON
+    has_kiosk_charts   : bool — chart 付きビューが 1 つでもあるか(Chart.js 読込判定)
+    has_kpis           : bool — KPI ストリップを表示するか
+    rotate_seconds     : int  — 切替間隔(秒)
     theme              : "dark"|"light"
-    refresh_interval_ms: int        — データ再取得間隔
+    refresh_interval_ms: int  — データ再取得間隔
 
-  kiosk.js への受け渡しは #kiosk[data-*] 属性で行う。実データは kiosk.js が
-  /api/views/<name> から取得する。
+  kiosk.js への受け渡しは #kiosk[data-*] 属性と #kiosk-config JSON で行う。
+  実データは kiosk.js が /api/views/<name> と /api/kpis から取得する。
 #}
 <!DOCTYPE html>
 <html lang="ja" data-theme="{{ theme }}">
@@ -25,29 +27,48 @@
 </head>
 <body class="kiosk">
     <div id="kiosk"
-         data-views="{{ kiosk_views | join(',') }}"
          data-rotate-seconds="{{ rotate_seconds }}"
          data-refresh-interval="{{ refresh_interval_ms }}">
 
         <header class="kiosk-header">
             <span id="status-light" class="status-light"></span>
-            <h1 id="kiosk-title">{{ app_title }}</h1>
+            <div class="kiosk-titles">
+                <span class="kiosk-brand">{{ header_text }}</span>
+                <h1 id="kiosk-title">{{ app_title }}</h1>
+            </div>
             <span id="kiosk-clock" class="kiosk-clock"></span>
         </header>
 
+        {# ローテーション進行バー(次の切替までの残り時間を可視化) #}
+        <div class="kiosk-progress"><div id="kiosk-progress-fill"></div></div>
+
         <div id="alert-banner" class="alert-banner" hidden></div>
 
+        {% if has_kpis %}
+        <div id="kiosk-kpis" class="kiosk-kpis"></div>
+        {% endif %}
+
         <main class="kiosk-main">
-            <table class="data kiosk-table">
-                <thead><tr id="thead-row"></tr></thead>
-                <tbody id="tbody"></tbody>
-            </table>
+            {# chart 付きビュー用。kiosk.js がビューごとの canvas を生成して切り替える #}
+            <div id="kiosk-charts" class="kiosk-charts" hidden></div>
+
+            <div id="kiosk-table-wrap" class="kiosk-table-wrap">
+                <table class="data kiosk-table">
+                    <thead><tr id="thead-row"></tr></thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
         </main>
 
         <footer class="kiosk-dots" id="kiosk-dots"></footer>
     </div>
 
+    <script id="kiosk-config" type="application/json">{{ kiosk_json | safe }}</script>
     <script src="{{ url_for('static', path='js/alerts-ui.js') }}"></script>
+    {% if has_kiosk_charts %}
+    <script src="{{ url_for('static', path='js/chart.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', path='js/chart-view.js') }}"></script>
+    {% endif %}
     <script src="{{ url_for('static', path='js/kiosk.js') }}"></script>
 </body>
 </html>

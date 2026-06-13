@@ -106,6 +106,48 @@ def import_csv(
     )
 
 
+@app.command("sync-sources")
+def sync_sources(
+    config: str = typer.Option("config.py", help="設定ファイルのパス"),
+):
+    """全ソースを 1 回同期する(sources が定義されていない場合は何もしない)。"""
+    path = _resolve_config(config)
+    settings = AppSettings()
+    configure_logging(settings.log_level)
+    try:
+        cfg = load_config(path)
+    except ConfigError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1)
+
+    if not cfg.sources:
+        typer.echo("sources が定義されていません")
+        return
+
+    from .db.engine import Database
+    from .db.ingest_state import IngestStateStore
+    from .db.registry import TableRegistry
+    from .services.connectors import build_connectors
+
+    db = Database(settings.database_url)
+    registry = TableRegistry(cfg)
+    registry.create_all(db)
+    state = IngestStateStore(db)
+    state.create()
+    connectors = build_connectors(cfg, registry, db, state)
+
+    total = 0
+    for name, connector in connectors.items():
+        try:
+            n = connector.poll_once()
+            typer.echo(f"  {name}: {n} 行")
+            total += n
+        except Exception as exc:  # noqa: BLE001
+            typer.secho(f"  {name}: エラー — {exc}", fg=typer.colors.RED)
+
+    typer.secho(f"✅ 同期完了: 合計 {total} 行", fg=typer.colors.GREEN)
+
+
 @app.command()
 def runserver(
     config: str = typer.Option("config.py", help="設定ファイルのパス"),

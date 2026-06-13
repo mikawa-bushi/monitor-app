@@ -9,21 +9,31 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .importer import CsvImporter
+
+if TYPE_CHECKING:
+    from .connectors import SourceConnector
 
 logger = logging.getLogger("monitor_app.ingest")
 
 
 class IngestWatcher:
-    def __init__(self, importer: CsvImporter, interval: float, keep: bool) -> None:
+    def __init__(
+        self,
+        importer: CsvImporter,
+        interval: float,
+        keep: bool,
+        connectors: Optional[Dict[str, "SourceConnector"]] = None,
+    ) -> None:
         self.importer = importer
         self.interval = max(interval, 0.5)
         self.keep = keep
         self.csv_dir: Path = importer.csv_dir
         self._mtimes: Dict[str, float] = {}
         self._task: asyncio.Task | None = None
+        self.connectors = connectors
 
     def _changed_tables(self) -> list[str]:
         """前回チェック以降に mtime が変わった CSV のテーブル名を返す。"""
@@ -38,14 +48,26 @@ class IngestWatcher:
                 changed.append(table_name)
         return changed
 
-    def poll_once(self, *, import_on_change: bool = True) -> list[str]:
-        """1 回だけ変更を検出する。テスト用に同期で呼べる。"""
+    def poll_once(self, *, import_on_change: bool = True) -> List[str]:
+        """変更を検出した CSV テーブル+取り込みが発生したソース名のリストを返す。"""
         changed = self._changed_tables()
         if changed and import_on_change:
             for table_name in changed:
                 path = self.csv_dir / f"{table_name}.csv"
                 self.importer._import_one(table_name, path, keep=self.keep)
             logger.info("auto-imported changed tables: %s", ", ".join(changed))
+
+        # 各コネクタを呼び出し、取り込みがあったソース名を結果に加える
+        if self.connectors:
+            for name, connector in self.connectors.items():
+                try:
+                    n = connector.poll_once()
+                    if n > 0:
+                        changed.append(name)
+                        logger.info("source '%s': %d 行取り込み", name, n)
+                except Exception as exc:
+                    logger.warning("source '%s': poll_once 失敗: %s", name, exc)
+
         return changed
 
     async def _run(self) -> None:

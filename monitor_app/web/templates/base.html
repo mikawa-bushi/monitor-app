@@ -7,6 +7,8 @@
     header_text  : str  — 画面上部バーに表示するブランド名
     footer_text  : str  — 画面下部に表示する文言
     favicon_path : str  — favicon の static パス(例 "img/favicon.ico")
+    nav_groups   : list[dict]  — [{group: str, views: [{name, title}, ...]}]
+    current_view : str  — 現在表示中のビュー名(強調に使う)
 
   子テンプレートが上書きできるブロック:
     title   — <title> の中身(既定は app_title)
@@ -27,17 +29,81 @@
     <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
     <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
+    {# theme.js は <head> 内で同期読み込みして FOUC を防ぐ #}
+    <script src="{{ url_for('static', path='js/theme.js') }}"></script>
 </head>
 <body>
-    <header class="site-header">
-        <a class="brand" href="{{ url_for('index') }}">{{ header_text }}</a>
-    </header>
+    {# ハンバーガーメニュー用オーバーレイ(モバイル) #}
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+    {# 左サイドバー #}
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-brand">
+            <a href="{{ url_for('index') }}">{{ header_text }}</a>
+        </div>
+        <nav class="sidebar-nav">
+            {% for group in nav_groups | default([]) %}
+                {% if group.group and (nav_groups | length > 1 or group.group != "") %}
+                <div class="nav-group-label">{{ group.group }}</div>
+                {% elif not group.group and (nav_groups | length > 1) %}
+                <div class="nav-group-label">その他</div>
+                {% endif %}
+                {% for view in group.views %}
+                <a href="{{ url_for('show_table', view_name=view.name) }}"
+                   class="nav-link{% if view.name == current_view | default('') %} active{% endif %}"
+                   {% if view.name == current_view | default('') %}aria-current="page"{% endif %}>
+                    {{ view.title or view.name }}
+                </a>
+                {% endfor %}
+            {% endfor %}
+            <div class="nav-section-divider"></div>
+            <a href="{{ url_for('kiosk') }}" class="nav-link nav-link--kiosk">📺 大型表示</a>
+        </nav>
+    </aside>
 
-    <footer class="site-footer">{{ footer_text }}</footer>
+    {# メインカラム #}
+    <div class="main-column">
+        <header class="site-header">
+            {# ハンバーガーボタン(900px 未満で表示) #}
+            <button id="hamburger" class="hamburger-btn" aria-label="メニューを開く" onclick="openSidebar()">
+                <span></span><span></span><span></span>
+            </button>
+            <span class="site-header__title">{% block title_text %}{{ app_title }}{% endblock %}</span>
+            <div class="site-header__actions">
+                <button id="theme-toggle" class="theme-toggle-btn" onclick="window.MonitorTheme.toggle()" aria-label="テーマ切替">🌙</button>
+            </div>
+        </header>
+
+        <main class="container">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="site-footer">{{ footer_text }}</footer>
+    </div>
+
+    {# サイドバー開閉インラインスクリプト #}
+    <script>
+    (function () {
+      "use strict";
+      function openSidebar() {
+        document.getElementById("sidebar").classList.add("is-open");
+        document.getElementById("sidebar-overlay").classList.add("is-visible");
+      }
+      function closeSidebar() {
+        document.getElementById("sidebar").classList.remove("is-open");
+        document.getElementById("sidebar-overlay").classList.remove("is-visible");
+      }
+      window.openSidebar = openSidebar;
+      window.closeSidebar = closeSidebar;
+
+      // テーマトグルボタンの初期アイコン設定
+      var btn = document.getElementById("theme-toggle");
+      if (btn) {
+        var theme = document.documentElement.getAttribute("data-theme");
+        btn.textContent = theme === "dark" ? "☀️" : "🌙";
+      }
+    })();
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>

@@ -42,6 +42,7 @@ def feature_config() -> MonitorConfig:
             "products_view": ViewDef(
                 query="SELECT id, name, price FROM products",
                 title="商品",
+                labels={"name": "商品名", "price": "単価 (円)"},
                 chart=ChartDef(type="line", x="name", y="price", ucl=5000),
             ),
         },
@@ -128,12 +129,17 @@ class TestKpiChart:
         html = fclient.get("/table/products_view").text
         assert 'id="chart"' in html and "chart-config" in html
 
+    def test_view_payload_includes_column_labels(self, fclient):
+        # テーブルヘッダーの単位付き見出し。labels 未設定の列はキーに現れない。
+        data = fclient.get("/api/views/products_view").json()
+        assert data["column_labels"] == {"name": "商品名", "price": "単価 (円)"}
+
 
 # --- B Kiosk --------------------------------------------------------------
 class TestKiosk:
     def test_kiosk_page(self, fclient):
         html = fclient.get("/kiosk").text
-        assert 'data-views="products_view"' in html
+        assert 'id="kiosk-config"' in html and "products_view" in html
         assert 'data-theme="dark"' in html
 
 

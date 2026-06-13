@@ -1,33 +1,62 @@
 {#
-  index.html — ホームページ。利用可能なビューを一覧表示する。
+  index.html — ダッシュボードホームページ。
 
   base.html を継承する。base.html の共通コンテキストに加えて受け取る変数:
-    views : list[str] — ビュー名の一覧(config.py の views のキー)
-
-  各リンクの遷移先は show_table ルート(/table/<view_name>)。
+    dashboard_json      : str  — JSON文字列。{columns, views:[{name,title,chart}]}
+    list_views          : list — chart なしビューの nav_groups と同形式
+    nav_groups          : list — 全ビューのグループ一覧
+    has_kiosk           : bool
+    has_kpis            : bool
+    refresh_interval_ms : int
+    form_tables         : list[str]
 #}
 {% extends "base.html" %}
 
 {% block content %}
-{# KPIサマリーカード(フェーズ2・E)。kpis.js が /api/kpis を流し込む。 #}
+{# ステータスサマリー行(U00 §6 の契約どおり。dashboard.js が /api/alerts を描画) #}
+<div id="status-bar" class="status-bar" data-refresh-interval="{{ refresh_interval_ms }}"></div>
+
+{# KPIサマリーカード(フェーズ2・E)。has_kpis 時のみ #}
 {% if has_kpis %}
 <div id="kpi-grid" class="kpi-grid" data-refresh-interval="{{ refresh_interval_ms }}"></div>
 {% endif %}
 
 <div class="page-head">
-    <h1>ビュー一覧</h1>
+    <h1>ダッシュボード</h1>
     {% if has_kiosk %}
     <a class="back-link" href="{{ url_for('kiosk') }}">📺 大型表示(Andon)</a>
     {% endif %}
 </div>
 
-{% if views %}
+{# ミニチャートグリッド。dashboard_json に chart 付きビューがある場合のみ表示 #}
+<script id="dashboard-config" type="application/json">{{ dashboard_json | safe }}</script>
+<div id="dashboard-grid"
+     class="dashboard-grid"
+     data-refresh-interval="{{ refresh_interval_ms }}">
+</div>
+
+{# chart なしビューのリンク一覧(グループ見出し付き) #}
+{% set has_list_views = list_views | selectattr("views") | list | length > 0 %}
+{% if has_list_views %}
+<div class="page-head" style="margin-top:2rem;">
+    <h1>ビュー一覧</h1>
+</div>
+{% for group in list_views %}
+{% if group.views %}
+{% if group.group %}
+<h2 class="view-group-heading">{{ group.group }}</h2>
+{% endif %}
 <nav class="card view-list">
-    {% for view in views %}
-    <a href="{{ url_for('show_table', view_name=view) }}">{{ view }}</a>
+    {% for view in group.views %}
+    <a href="{{ url_for('show_table', view_name=view.name) }}">{{ view.title }}</a>
     {% endfor %}
 </nav>
-{% else %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# ビューが 1 つもない場合は config 誘導を表示 #}
+{% if not views %}
 <div class="card">
     <p class="empty">
         表示できるビューがありません。config.py の <code>views</code> を定義してください。
@@ -35,7 +64,7 @@
 </div>
 {% endif %}
 
-{# 入力フォーム(フェーズ3・F)。form を定義したテーブルだけリンクを出す。 #}
+{# データ入力(フェーズ3・F)。既存のまま維持 #}
 {% if form_tables %}
 <div class="page-head" style="margin-top:2rem;">
     <h1>データ入力</h1>
@@ -52,4 +81,36 @@
 {% if has_kpis %}
 <script src="{{ url_for('static', path='js/kpis.js') }}"></script>
 {% endif %}
+{# dashboard-config の views が 1 件以上あるときだけ Chart.js と chart-view.js を読み込む #}
+<script>
+(function () {
+  try {
+    var cfg = JSON.parse(document.getElementById("dashboard-config").textContent);
+    if (cfg && cfg.views && cfg.views.length > 0) {
+      var s1 = document.createElement("script");
+      s1.src = "{{ url_for('static', path='js/chart.umd.min.js') }}";
+      s1.onload = function () {
+        var s2 = document.createElement("script");
+        s2.src = "{{ url_for('static', path='js/chart-view.js') }}";
+        s2.onload = function () {
+          var s3 = document.createElement("script");
+          s3.src = "{{ url_for('static', path='js/dashboard.js') }}";
+          document.body.appendChild(s3);
+        };
+        document.body.appendChild(s2);
+      };
+      document.body.appendChild(s1);
+    } else {
+      var s = document.createElement("script");
+      s.src = "{{ url_for('static', path='js/dashboard.js') }}";
+      document.body.appendChild(s);
+    }
+  } catch (e) {
+    var s = document.createElement("script");
+    s.src = "{{ url_for('static', path='js/dashboard.js') }}";
+    document.body.appendChild(s);
+  }
+})();
+</script>
+<link href="{{ url_for('static', path='css/dashboard.css') }}" rel="stylesheet">
 {% endblock %}

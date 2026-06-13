@@ -7,12 +7,17 @@
 //   #view-title                         … 見出しの差し替え先
 //   #status / #status-text              … 接続状態インジケータ(class を live/error に変える)
 //   #thead-row / #tbody                 … テーブルの見出し行 / データ行の挿入先
+//   #row-count (任意)                   … データテーブル summary の行数バッジ
 //
 // 消費する API ペイロード(GET /api/views/<name> と SSE が返す JSON):
-//   { title, columns: string[], data: object[],
+//   { title, columns: string[], column_labels: { <col>: string }, data: object[],
+//     alerts: object[] | undefined,
 //     cell_styles: { <col>: { greater_than|less_than|equal_to: {value, class},
 //                             width, font_size, align, bold } } }
 //   cell_styles のルールは config.py の CellStyle に対応する。
+//   column_labels は見出しの表示名(単位込み)。無い列は列名をそのまま表示する。
+//   data の各行は { <col>: number|string|null } のオブジェクト。
+//   number かつ非整数の値は toLocaleString("ja-JP", {maximumFractionDigits: 2}) で整形する。
 
 (function () {
   "use strict";
@@ -28,6 +33,7 @@
   const statusEl = document.getElementById("status");
   const statusText = document.getElementById("status-text");
   const bannerEl = document.getElementById("alert-banner");
+  const rowCountEl = document.getElementById("row-count");
 
   // アラート表示(alerts-ui.js)。要素が無い場合も動くようにフォールバック。
   const alertUi =
@@ -72,13 +78,23 @@
     if (rules.bold) td.style.fontWeight = "bold";
   }
 
-  function renderHead(cols) {
+  function renderHead(cols, labels) {
+    labels = labels || {};
     theadRow.replaceChildren();
     cols.forEach(function (col) {
       const th = document.createElement("th");
-      th.textContent = col;
+      // config の labels に表示名(単位込み)があればそれを、なければ列名をそのまま
+      th.textContent = labels[col] || col;
       theadRow.appendChild(th);
     });
+  }
+
+  // §7: number かつ非整数のみ ja-JP ロケールで整形。整数・文字列・null は不変。
+  function formatCell(value) {
+    if (typeof value === "number" && !Number.isInteger(value)) {
+      return value.toLocaleString("ja-JP", { maximumFractionDigits: 2 });
+    }
+    return value === null || value === undefined ? "" : String(value);
   }
 
   function renderBody(rows, cols, cellStyles) {
@@ -88,7 +104,9 @@
       const td = document.createElement("td");
       td.className = "empty";
       td.colSpan = cols.length || 1;
-      td.textContent = "データがありません";
+      td.textContent =
+        "データがありません — " +
+        "ソース同期(monitor-app sync-sources)またはツールの稼働状況を確認してください";
       tr.appendChild(td);
       frag.appendChild(tr);
     } else {
@@ -97,7 +115,7 @@
         cols.forEach(function (col) {
           const td = document.createElement("td");
           const value = row[col];
-          td.textContent = value === null || value === undefined ? "" : value;
+          td.textContent = formatCell(value);
           const rules = cellStyles[col];
           const cls = cellClass(value, rules);
           if (cls) td.className = cls;
@@ -108,6 +126,10 @@
       });
     }
     tbody.replaceChildren(frag);
+    // #row-count バッジを更新(chart 付きビューの <details> summary に表示)
+    if (rowCountEl) {
+      rowCountEl.textContent = "全 " + rows.length + " 行";
+    }
   }
 
   function render(payload) {
@@ -115,7 +137,7 @@
     const cols = payload.columns || [];
     if (cols.join("|") !== columns.join("|")) {
       columns = cols;
-      renderHead(cols);
+      renderHead(cols, payload.column_labels);
     }
     renderBody(payload.data || [], cols, payload.cell_styles || {});
     alertUi.update(payload.alerts);

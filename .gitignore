@@ -42,3 +42,5 @@ instances/*.db
 
 # 📂 Claude Code 設定ファイル
 CLAUDE.md
+# ハーネスが生成する一時ワークツリー(埋め込み git リポジトリ)。リポジトリには含めない。
+.claude/worktrees/
