@@ -15,9 +15,7 @@ from monitor_app.services.ingest_watcher import IngestWatcher
 def _env(tmp_path):
     config = MonitorConfig(
         tables={
-            "events": TableDef(
-                columns={"id": "int", "name": "str"}, primary_key="id"
-            ),
+            "events": TableDef(columns={"id": "int", "name": "str"}, primary_key="id"),
         },
     )
     db = Database(f"sqlite:///{tmp_path / 'app.db'}")

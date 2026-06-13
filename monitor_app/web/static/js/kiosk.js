@@ -81,60 +81,16 @@
     return level;
   }
 
-  // 非整数の number のみ ja-JP で整形(app.js と同じ規則)
-  function formatCell(value) {
-    if (typeof value === "number" && !Number.isInteger(value)) {
-      return value.toLocaleString("ja-JP", { maximumFractionDigits: 2 });
-    }
-    return value === null || value === undefined ? "" : String(value);
-  }
-
+  // テーブル描画は MonitorTable(table-render.js)に集約(#20)。
   function renderTable(payload) {
     const cols = payload.columns || [];
-    const labels = payload.column_labels || {};
     if (cols.join("|") !== columns.join("|")) {
       columns = cols;
-      theadRow.replaceChildren();
-      cols.forEach(function (col) {
-        const th = document.createElement("th");
-        th.textContent = labels[col] || col;
-        theadRow.appendChild(th);
-      });
+      MonitorTable.renderHead(theadRow, cols, payload.column_labels || {});
     }
-    const frag = document.createDocumentFragment();
-    if ((payload.data || []).length === 0) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.className = "empty";
-      td.colSpan = cols.length || 1;
-      td.textContent = "データがありません";
-      tr.appendChild(td);
-      frag.appendChild(tr);
-    }
-    (payload.data || []).forEach(function (row) {
-      const tr = document.createElement("tr");
-      cols.forEach(function (col) {
-        const td = document.createElement("td");
-        const styles = (payload.cell_styles || {})[col];
-        const value = row[col];
-        td.textContent = formatCell(value);
-        if (styles) applyStyle(td, value, styles);
-        tr.appendChild(td);
-      });
-      frag.appendChild(tr);
+    MonitorTable.renderBody(tbody, payload.data || [], cols, payload.cell_styles || {}, {
+      emptyText: "データがありません",
     });
-    tbody.replaceChildren(frag);
-  }
-
-  function applyStyle(td, value, rules) {
-    const num = parseFloat(value);
-    let cls = "";
-    if (rules.greater_than && num > rules.greater_than.value) cls = rules.greater_than.class;
-    else if (rules.less_than && num < rules.less_than.value) cls = rules.less_than.class;
-    else if (rules.equal_to && num === rules.equal_to.value) cls = rules.equal_to.class;
-    if (cls) td.className = cls;
-    if (rules.align) td.style.textAlign = rules.align;
-    if (rules.bold) td.style.fontWeight = "bold";
   }
 
   // チャートビューかテーブルビューかで表示領域を切り替える

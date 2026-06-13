@@ -179,7 +179,11 @@ def runserver(
         cfg = load_config(path)
         db = Database(settings.database_url)
         CsvImporter(
-            cfg, TableRegistry(cfg), db, settings.csv_dir, encoding=settings.csv_encoding
+            cfg,
+            TableRegistry(cfg),
+            db,
+            settings.csv_dir,
+            encoding=settings.csv_encoding,
         ).import_all()
 
     # app_factory が読む環境変数に設定パスを渡す。
