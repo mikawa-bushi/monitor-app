@@ -7,7 +7,7 @@ import json
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from ..deps import get_config
+from ..deps import get_config, page_auth_guard
 from ...exceptions import TableNotFoundError, ViewNotFoundError
 from ...settings.declarative import MonitorConfig
 
@@ -89,7 +89,11 @@ def _ctx(config: MonitorConfig, **extra) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, config: MonitorConfig = Depends(get_config)):
+def index(
+    request: Request,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
+):
     """ビュー一覧を表示するホームページ。"""
     templates = request.app.state.templates
 
@@ -141,7 +145,10 @@ def index(request: Request, config: MonitorConfig = Depends(get_config)):
 
 @router.get("/form/{table_name}", response_class=HTMLResponse)
 def show_form(
-    request: Request, table_name: str, config: MonitorConfig = Depends(get_config)
+    request: Request,
+    table_name: str,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
 ):
     """作業者向け入力フォーム(フェーズ3・F)。
 
@@ -161,7 +168,11 @@ def show_form(
 
 
 @router.get("/kiosk", response_class=HTMLResponse)
-def kiosk(request: Request, config: MonitorConfig = Depends(get_config)):
+def kiosk(
+    request: Request,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
+):
     """Andon / 大型表示モード(フェーズ1・B)。
 
     複数ビューを一定間隔で自動ローテーションし、アラートを大きく表示する。
@@ -197,9 +208,32 @@ def kiosk(request: Request, config: MonitorConfig = Depends(get_config)):
     )
 
 
+@router.get("/login", response_class=HTMLResponse)
+def login_page(
+    request: Request,
+    error: int = 0,
+    config: MonitorConfig = Depends(get_config),
+):
+    """ログインページ(#11)。protect_reads 有効時に未認証だと誘導される。"""
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "app_title": config.app_title,
+            "header_text": config.header_text,
+            "favicon_path": config.favicon_path,
+            "error": bool(error),
+        },
+    )
+
+
 @router.get("/table/{view_name}", response_class=HTMLResponse)
 def show_table(
-    request: Request, view_name: str, config: MonitorConfig = Depends(get_config)
+    request: Request,
+    view_name: str,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
 ):
     """1 つのビューを表示するページ。データは JS が API から取得する。"""
     if view_name not in config.views:

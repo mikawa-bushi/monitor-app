@@ -6,9 +6,10 @@ import logging
 import uuid
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..exceptions import MonitorAppError
+from .deps import RedirectToLogin
 
 logger = logging.getLogger("monitor_app.api")
 
@@ -31,3 +32,8 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code, content=_body(exc.code, exc.message)
         )
+
+    @app.exception_handler(RedirectToLogin)
+    async def _handle_login_redirect(_request: Request, _exc: RedirectToLogin):
+        # 未認証の HTML ページアクセスはログインページへ誘導する(#11)。
+        return RedirectResponse(url="/login", status_code=303)
