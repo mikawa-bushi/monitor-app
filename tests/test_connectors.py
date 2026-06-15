@@ -19,7 +19,6 @@ from monitor_app.services.connectors import (
 )
 from monitor_app.settings.declarative import MonitorConfig, SourceDef, TableDef
 
-
 # ---------------------------------------------------------------------------
 # ヘルパ: MonitorConfig + TableRegistry + DB を組み立てる
 # ---------------------------------------------------------------------------

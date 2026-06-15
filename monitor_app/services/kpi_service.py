@@ -12,8 +12,8 @@ from typing import Any, Dict, List
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..settings.declarative import KpiCard, MonitorConfig
 from ..db.engine import Database
+from ..settings.declarative import KpiCard, MonitorConfig
 
 logger = logging.getLogger("monitor_app.kpi")
 

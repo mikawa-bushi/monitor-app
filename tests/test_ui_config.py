@@ -15,10 +15,9 @@ import pytest
 from pydantic import ValidationError
 
 from monitor_app import MonitorConfig, ViewDef
+from monitor_app.api.routers.pages import _nav_groups
 from monitor_app.integrations import netdiag, network_checker, procdiag
 from monitor_app.settings.declarative import ChartDef, DashboardConfig
-from monitor_app.api.routers.pages import _nav_groups
-
 
 # ---------------------------------------------------------------------------
 # DashboardConfig — バリデーション

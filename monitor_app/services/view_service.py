@@ -14,9 +14,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from ..db.engine import Database
 from ..exceptions import QueryExecutionError, ViewNotFoundError
 from ..settings.declarative import MonitorConfig
-from ..db.engine import Database
 from .view_cache import ViewCache
 
 

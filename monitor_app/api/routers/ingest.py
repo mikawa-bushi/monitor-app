@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Union
 
 from fastapi import APIRouter, Body, Depends
 
-from ..deps import get_crud_service, require_write_auth
 from ...services.crud_service import CrudService
+from ..deps import get_crud_service, require_write_auth
 
 router = APIRouter(prefix="/api/ingest", tags=["Ingest"])
 

@@ -16,7 +16,6 @@ from monitor_app.services.kpi_service import KpiService
 from monitor_app.services.view_service import ViewService
 from monitor_app.settings.runtime import AppSettings
 
-
 # ---------------------------------------------------------------------------
 # attach() が返す config の構造検証
 # ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
 
+from ...services.crud_service import CrudService
 from ..deps import (
     get_actor,
     get_crud_service,
@@ -13,7 +14,6 @@ from ..deps import (
     require_write_auth,
 )
 from ..schemas import MessageResponse, RecordResponse, TableDataResponse
-from ...services.crud_service import CrudService
 
 router = APIRouter(prefix="/api/tables", tags=["CRUD"])
 

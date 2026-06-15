@@ -18,7 +18,6 @@ from monitor_app.services.alert_service import AlertEngine
 from monitor_app.settings.declarative import AlertRule, ViewDef
 from monitor_app.settings.runtime import AppSettings
 
-
 # ---------------------------------------------------------------------------
 # ヘルパー
 # ---------------------------------------------------------------------------

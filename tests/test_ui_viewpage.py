@@ -3,15 +3,15 @@
 chart 付き/なしの分岐・data-view 属性維持・chart-config 埋め込みを検証する。
 """
 
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from monitor_app import ChartDef, MonitorConfig, TableDef, ViewDef
 from monitor_app.main import create_app
 from monitor_app.services.importer import CsvImporter
 from monitor_app.settings.runtime import AppSettings
-
-import pytest
-from pathlib import Path
 
 SCAFFOLD_CSV = Path(__file__).parent.parent / "monitor_app" / "scaffold" / "csv"
 

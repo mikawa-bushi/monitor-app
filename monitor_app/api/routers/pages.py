@@ -7,9 +7,9 @@ import json
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from ..deps import get_config, page_auth_guard
 from ...exceptions import TableNotFoundError, ViewNotFoundError
 from ...settings.declarative import MonitorConfig
+from ..deps import get_config, page_auth_guard
 
 router = APIRouter(tags=["Pages"], include_in_schema=False)
 

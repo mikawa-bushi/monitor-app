@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import insert, text
 
-from monitor_app import MonitorConfig, KpiCard, TableDef
+from monitor_app import KpiCard, MonitorConfig, TableDef
 from monitor_app.db.engine import Database
 from monitor_app.db.registry import TableRegistry
 from monitor_app.exceptions import RecordNotFoundError

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from typing import Optional
-
-from ..exceptions import InvalidPayloadError, RecordNotFoundError, TableNotFoundError
-from ..settings.declarative import MonitorConfig
 from ..db.registry import TableRegistry
 from ..db.repository import TableRepository
+from ..exceptions import InvalidPayloadError, RecordNotFoundError, TableNotFoundError
+from ..settings.declarative import MonitorConfig
 from .audit_service import AuditService
 from .coercion import CoercionError, coerce
 from .view_cache import ViewCache

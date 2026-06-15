@@ -65,6 +65,7 @@ pytest = "^8.3.4"
 pytest-cov = "^7.0"
 httpx = "^0.27.0"
 black = "^24.0.0"
+ruff = "^0.15"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -84,6 +85,15 @@ line-length = 88
 target-version = ['py310']
 include = '\.pyi?$'
 skip-string-normalization = false
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+# まずは import 整列(isort 相当)のみ。差分ノイズと並び不統一(#M3)を解消する。
+# 段階的にルール(F: pyflakes 等)を追加してゲートを強化できる。
+select = ["I"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

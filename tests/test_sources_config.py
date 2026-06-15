@@ -9,7 +9,6 @@ from monitor_app.db.ingest_state import IngestStateStore
 from monitor_app.integrations import merge
 from monitor_app.settings.declarative import AlertRule, KpiCard, SourceDef
 
-
 # ---------------------------------------------------------------------------
 # SourceDef バリデーション
 # ---------------------------------------------------------------------------

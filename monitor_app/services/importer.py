@@ -15,9 +15,9 @@ from typing import Dict, List, Tuple
 
 from sqlalchemy import delete, insert
 
-from ..settings.declarative import MonitorConfig
 from ..db.engine import Database
 from ..db.registry import TableRegistry
+from ..settings.declarative import MonitorConfig
 from .coercion import CoercionError, coerce
 
 logger = logging.getLogger("monitor_app.importer")
