@@ -1,6 +1,6 @@
 [project]
 name = "monitor-app"
-version = "2.1.0"
+version = "2.3.0"
 description = "Drop in a CSV, write one config file, and get a live-updating Web UI + REST API. FastAPI-based data monitoring for shop floors and small teams."
 authors = [{ name = "hardwork9047", email = "tomatosimple1104@gmail.com" }]
 readme = "README.md"
