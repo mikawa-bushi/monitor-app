@@ -202,6 +202,14 @@ poetry run pre-commit run --all-files  # 任意: いますぐ全ファイルに�
 - **detect-private-key / check-added-large-files / check-merge-conflict**、および **black / ruff**(CI と同一バージョンに固定)
 - **check-commit-identity**(pre-push)— author/committer メールが許可リスト外のコミットを拒否し、社用/別 identity の混入を防止(`scripts/check_commit_identity.py`、`MONITOR_ALLOWED_EMAILS` 環境変数で拡張可)
 
+- **check-ai-traces**(commit + pre-push)— AI エージェントツールの痕跡(設定ディレクトリ・ファイル内容・コミットメタデータ)を検出し、リポジトリへの混入を防止。検出対象は `scripts/check_ai_traces.py` の `TOOLS`(データ駆動・編集可、`MONITOR_AI_TRACE_EXTRA` で追加、`.ai-trace-ignore` で除外)
+
+**ワークツリー全体＋全 git 履歴**をオンデマンドで監査:
+
+```sh
+python3 scripts/check_ai_traces.py --all   # exit 0 = 痕跡なし
+```
+
 > ⚠️ ローカルフックは `git commit/push --no-verify` で回避できます。回避不可の
 > ゲートが必要なら、同じ `gitleaks` を GitHub Actions の必須チェックにも入れてください。
 

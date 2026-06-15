@@ -202,6 +202,13 @@ poetry run pre-commit run --all-files  # optional: run across the repo now
 - **gitleaks** — blocks hard-coded secrets (PyPI/AWS/GCP tokens, GitHub PATs, private keys)
 - **detect-private-key / check-added-large-files / check-merge-conflict**, plus **black / ruff** (pinned to the CI versions)
 - **check-commit-identity** (pre-push) — rejects commits whose author/committer e-mail is off the allowlist, keeping work/other identities out of history (`scripts/check_commit_identity.py`; extend via the `MONITOR_ALLOWED_EMAILS` env var)
+- **check-ai-traces** (commit + pre-push) — flags traces of AI-agent tools (config dirs, file content, commit metadata) so they don't leak into the repo. Tool patterns are data-driven in `scripts/check_ai_traces.py` (extend the `TOOLS` list or `MONITOR_AI_TRACE_EXTRA`; ignore paths via `.ai-trace-ignore`)
+
+Audit the **whole working tree and full git history** on demand:
+
+```sh
+python3 scripts/check_ai_traces.py --all   # exit 0 = no traces found
+```
 
 > ⚠️ Local hooks can be skipped with `git commit/push --no-verify`. For an
 > unbypassable gate, also make `gitleaks` a required GitHub Actions check.

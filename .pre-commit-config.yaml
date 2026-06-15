@@ -47,3 +47,17 @@ repos:
         stages: [pre-push]
         pass_filenames: false
         always_run: true
+
+      # --- AI エージェントツールの痕跡検出（openclaw/nemoclaw/hermes-agent 等） ---
+      - id: check-ai-traces
+        name: scan staged files for AI-agent tool traces
+        entry: python3 scripts/check_ai_traces.py
+        language: system
+        pass_filenames: true
+      - id: check-ai-traces-commits
+        name: scan outgoing commits for AI-agent tool traces
+        entry: python3 scripts/check_ai_traces.py --pre-push
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
