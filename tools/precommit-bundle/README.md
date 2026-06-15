@@ -11,8 +11,16 @@ monitor-app で使っている **push 前のローカルゲート**を、他の 
 | `scripts/check_commit_identity.py` | author/committer メールの許可リスト検査（pre-push） |
 | `scripts/check_ai_traces.py` | AI エージェントツールの痕跡検出（commit + pre-push、`--all` 監査） |
 | `install.sh` | 上記を対象リポジトリへ配置し pre-commit を有効化 |
+| `INSTALL_PROMPT.md` | 導入を AI エージェントに任せるための貼り付け用プロンプト |
 
 ## 導入
+
+### A. AI エージェントに任せる
+`INSTALL_PROMPT.md` のプロンプトをコピーし、`{{BUNDLE_PATH}}` を置換して、対象リポジトリで
+起動した Claude Code 等に貼り付けると、導入・バージョン整合・許可リスト調整・検証までを
+行います（commit/push は許可を得てから実施するよう指示済み）。
+
+### B. 手動（`install.sh`）
 
 ```sh
 # 対象リポジトリのルートで（このバンドルを置いた場所から実行）
