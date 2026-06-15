@@ -39,6 +39,20 @@ class CrudService:
         if not self.registry.has(table_name):
             raise TableNotFoundError(f"テーブル '{table_name}' は定義されていません")
 
+    def _coerce_pk(self, table_name: str, record_id: Any) -> Any:
+        """URL 上の主キー(常に文字列)を主キー列の論理型へ変換する(#E8)。
+
+        本文は ``_clean_payload`` で coerce されるのに主キーだけ未変換だと、
+        SQLite 以外(PostgreSQL/MySQL)で ``integer = '5'(text)`` の型不一致に
+        なり得る。型に合わない id は該当レコードが存在し得ないため、見つからな
+        かったものとして扱う。
+        """
+        tdef = self.config.tables[table_name]
+        try:
+            return coerce(record_id, tdef.column_type(tdef.primary_key))
+        except CoercionError:
+            raise RecordNotFoundError(f"id={record_id} のレコードが見つかりません")
+
     def _clean_payload(self, table_name: str, data: Dict[str, Any], *, drop_pk: bool):
         """設定の列だけ残し、論理型に変換する。未知の列は捨てる。"""
         tdef = self.config.tables[table_name]
@@ -80,6 +94,7 @@ class CrudService:
 
     def get_record(self, table_name: str, record_id: Any) -> Dict[str, Any]:
         self._require_table(table_name)
+        record_id = self._coerce_pk(table_name, record_id)
         row = self.repo.get(table_name, record_id)
         if row is None:
             raise RecordNotFoundError(f"id={record_id} のレコードが見つかりません")
@@ -108,6 +123,7 @@ class CrudService:
         actor: str = "system",
     ) -> Dict[str, Any]:
         self._require_table(table_name)
+        record_id = self._coerce_pk(table_name, record_id)
         values = self._clean_payload(table_name, data, drop_pk=True)
         before = self.repo.get(table_name, record_id)
         row = self.repo.update(table_name, record_id, values)
@@ -123,6 +139,7 @@ class CrudService:
         self, table_name: str, record_id: Any, actor: str = "system"
     ) -> None:
         self._require_table(table_name)
+        record_id = self._coerce_pk(table_name, record_id)
         before = self.repo.get(table_name, record_id)
         if not self.repo.delete(table_name, record_id):
             raise RecordNotFoundError(f"id={record_id} のレコードが見つかりません")

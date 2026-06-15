@@ -22,6 +22,16 @@ from .coercion import CoercionError, coerce
 
 logger = logging.getLogger("monitor_app.importer")
 
+#: 一括 INSERT を分割する行数(#V5)。1 文へ全行を束ねるとパラメータ上限
+#: (SQLite は約 999/32766 など)に達したり、巨大な文でメモリを圧迫するため。
+INSERT_CHUNK = 1000
+
+
+def insert_in_chunks(conn, table, rows) -> None:
+    """``rows`` を ``INSERT_CHUNK`` 件ずつに分けて挿入する(#V5)。"""
+    for i in range(0, len(rows), INSERT_CHUNK):
+        conn.execute(insert(table), rows[i : i + INSERT_CHUNK])
+
 
 @dataclass
 class TableImportResult:
@@ -121,10 +131,10 @@ class CsvImporter:
         with self.db.connect() as conn:
             if keep:
                 if rows:
-                    conn.execute(insert(table), rows)
+                    insert_in_chunks(conn, table, rows)
             elif rows:
                 conn.execute(delete(table))
-                conn.execute(insert(table), rows)
+                insert_in_chunks(conn, table, rows)
             else:
                 msg = f"{csv_path.name}: 有効行 0 件のため置換を中止(既存データを保持)"
                 logger.warning(msg)
@@ -160,7 +170,7 @@ class CsvImporter:
         new_rows = rows[start_row:]
         if new_rows:
             with self.db.connect() as conn:
-                conn.execute(insert(table), new_rows)
+                insert_in_chunks(conn, table, new_rows)
             logger.info(
                 "appended %s: %d new rows (total %d)", table_name, len(new_rows), total
             )

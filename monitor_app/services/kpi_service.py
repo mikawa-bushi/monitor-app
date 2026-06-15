@@ -23,15 +23,20 @@ class KpiService:
         self.config = config
         self.db = db
 
-    def _evaluate_one(self, key: str, card: KpiCard) -> Dict[str, Any]:
+    def _evaluate_one(self, conn, key: str, card: KpiCard) -> Dict[str, Any]:
         value: float | None = None
         try:
-            with self.db.readonly() as conn:
-                row = conn.execute(text(card.query)).first()
-                if row is not None and row[0] is not None:
-                    value = float(row[0])
+            row = conn.execute(text(card.query)).first()
+            if row is not None and row[0] is not None:
+                value = float(row[0])
         except (SQLAlchemyError, TypeError, ValueError):
             logger.exception("KPI '%s' の評価に失敗しました", key)
+            # 共有コネクションを後続 KPI のため健全な状態へ戻す(PostgreSQL 等で
+            # 失敗トランザクションが残ると後続クエリが全滅するのを防ぐ)。
+            try:
+                conn.rollback()
+            except SQLAlchemyError:
+                pass
 
         return {
             "key": key,
@@ -62,4 +67,13 @@ class KpiService:
         return "good" if meets else "bad"
 
     def evaluate_all(self) -> List[Dict[str, Any]]:
-        return [self._evaluate_one(key, card) for key, card in self.config.kpis.items()]
+        """全 KPI を 1 本の読み取り専用コネクションで評価する(#V4)。
+
+        以前は KPI ごとにコネクションを開いており、home/kiosk の定期ポーリングで
+        「KPI 枚数 × 頻度」の接続が発生していた。
+        """
+        with self.db.readonly() as conn:
+            return [
+                self._evaluate_one(conn, key, card)
+                for key, card in self.config.kpis.items()
+            ]
