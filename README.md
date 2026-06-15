@@ -189,6 +189,23 @@ poetry install
 poetry run pytest
 ```
 
+### Pre-push security & quality checks
+
+A [pre-commit](https://pre-commit.com/) config scans for **secrets** and enforces
+formatting locally, before code leaves your machine. Enable it once per clone:
+
+```sh
+poetry run pre-commit install          # installs the commit + pre-push hooks
+poetry run pre-commit run --all-files  # optional: run across the repo now
+```
+
+- **gitleaks** — blocks hard-coded secrets (PyPI/AWS/GCP tokens, GitHub PATs, private keys)
+- **detect-private-key / check-added-large-files / check-merge-conflict**, plus **black / ruff** (pinned to the CI versions)
+- **check-commit-identity** (pre-push) — rejects commits whose author/committer e-mail is off the allowlist, keeping work/other identities out of history (`scripts/check_commit_identity.py`; extend via the `MONITOR_ALLOWED_EMAILS` env var)
+
+> ⚠️ Local hooks can be skipped with `git commit/push --no-verify`. For an
+> unbypassable gate, also make `gitleaks` a required GitHub Actions check.
+
 Contributions are welcome — see [CONTRIBUTING.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CONTRIBUTING.md).
 
 ## 📜 License

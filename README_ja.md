@@ -188,6 +188,23 @@ poetry install
 poetry run pytest
 ```
 
+### push 前のセキュリティ / 品質チェック
+
+[pre-commit](https://pre-commit.com/) 設定を同梱しており、**コードが手元を離れる前に**
+秘密情報スキャンと整形を行います。クローンごとに一度だけ有効化してください:
+
+```sh
+poetry run pre-commit install          # commit と pre-push の両フックを設定
+poetry run pre-commit run --all-files  # 任意: いますぐ全ファイルに実行
+```
+
+- **gitleaks** — ハードコードされた秘密情報を検出してブロック(PyPI/AWS/GCP トークン・GitHub PAT・秘密鍵 等)
+- **detect-private-key / check-added-large-files / check-merge-conflict**、および **black / ruff**(CI と同一バージョンに固定)
+- **check-commit-identity**(pre-push)— author/committer メールが許可リスト外のコミットを拒否し、社用/別 identity の混入を防止(`scripts/check_commit_identity.py`、`MONITOR_ALLOWED_EMAILS` 環境変数で拡張可)
+
+> ⚠️ ローカルフックは `git commit/push --no-verify` で回避できます。回避不可の
+> ゲートが必要なら、同じ `gitleaks` を GitHub Actions の必須チェックにも入れてください。
+
 コントリビューションは [CONTRIBUTING.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CONTRIBUTING.md) を参照してください。
 
 ## 📜 ライセンス
