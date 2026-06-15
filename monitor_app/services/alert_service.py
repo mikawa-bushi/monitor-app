@@ -6,7 +6,7 @@
 
 並行性(#12): ``_active`` は AlertScheduler(単一ループ)と複数リクエストスレッド
 から触られるため、``threading.Lock`` で保護する。
-通知(#14): 外部送信(webhook/LINE/SMTP)はブロッキングなため、同期パスからは
+通知(#14): 外部送信(webhook/SMTP)はブロッキングなため、同期パスからは
 キューに積むだけにし、デーモンワーカースレッドで送る。
 """
 
@@ -66,7 +66,7 @@ class AlertEngine:
         self._notify_queue: "queue.Queue[_NotifyItem]" = queue.Queue()
         self._worker: Optional[threading.Thread] = None
         self._worker_lock = threading.Lock()
-        # webhook/LINE/SMTP などブロッキング I/O を伴う通知先がある場合のみ
+        # webhook/SMTP などブロッキング I/O を伴う通知先がある場合のみ
         # 非同期ワーカーを使う。console だけならログ出力のみで即時送る(#14)。
         self._use_async_notify = any(name != "console" for name in self._notifiers)
 

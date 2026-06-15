@@ -66,7 +66,7 @@ class AlertRule(BaseModel):
     value: float
     level: Literal["info", "warning", "critical"] = "warning"
     message: str = ""            # 空ならルールから自動生成
-    notify: list[str] = []       # 通知チャネル名(["webhook","email","line"])
+    notify: list[str] = []       # 通知チャネル名(["webhook","email"])
 ```
 
 **評価**: `services/alert_service.py` の `AlertEngine`
@@ -77,8 +77,8 @@ class AlertRule(BaseModel):
 
 **通知 (`services/notifiers/`)**: 共通インターフェース `Notifier.send(event)`。
 - `console`(既定・ログ出力)、`webhook`(Slack/Teams/汎用 JSON POST)、
-  `email`(SMTP)、`line`(LINE Notify)。
-- 接続情報は `AppSettings`(`webhook_url`, `smtp_*`, `line_token`)。未設定チャネルは無効。
+  `email`(SMTP)。
+- 接続情報は `AppSettings`(`webhook_url`, `smtp_*`)。未設定チャネルは無効。
 
 **API / UI**:
 - `GET /api/alerts` … 現在アクティブなアラート。

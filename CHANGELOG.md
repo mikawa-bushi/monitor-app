@@ -18,6 +18,12 @@
 - **`MonitorChart.create()` compact オプション** — `{ compact: true }` で凡例・軸タイトルを省略し
   目盛りを絞ったミニ表示(ダッシュボードカード用)
 
+### Removed
+- **LINE Notify 通知チャネルを削除** — LINE Notify は 2025-03-31 にサービス終了済みで、
+  常に失敗する死んだ統合だったため除去。`notify=["line"]` チャネル・`MONITOR_LINE_TOKEN`
+  設定・`LineNotifier` を削除した。現場スマホへのプッシュが必要な場合は `webhook`
+  (汎用 JSON POST)経由を推奨
+
 ## [Unreleased] — v2.2
 
 ### Added (external tool integrations)

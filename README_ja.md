@@ -27,7 +27,7 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 | 機能 | 内容 | 有効化 |
 |---|---|---|
 | 自動データ取り込み | `csv/` の変更を監視、センサ/PLC/MES からは `POST /api/ingest/{table}` | `MONITOR_INGEST_WATCH` / API は常時 |
-| 閾値アラート | 画面バナー+音、Webhook(Slack/Teams)・LINE・メール通知。エッジ検出で連続通知を抑制 | `alerts=[AlertRule(...)]` |
+| 閾値アラート | 画面バナー+音、Webhook(Slack/Teams)・メール通知。エッジ検出で連続通知を抑制 | `alerts=[AlertRule(...)]` |
 | Andon 大型表示 | `/kiosk` で複数ビューを自動ローテーション、緑/黄/赤の信号灯 | `kiosk=KioskConfig(...)` |
 | トレンド / SPC グラフ | UCL/LCL/目標線つき折れ線・棒グラフ、管理限界外の点を強調 | `ViewDef(chart=ChartDef(...))` |
 | ダッシュボード | ホームをミニチャートグリッド(列数 1〜4)主体に刷新。グラフなしビューはリンク一覧として下部に表示 | `dashboard=DashboardConfig(columns=2)` |

@@ -60,7 +60,6 @@ class AppSettings(BaseSettings):
 
     # --- 通知チャネル(フェーズ1・A)。未設定のチャネルは無効 ---
     webhook_url: str | None = None  # Slack/Teams/汎用 JSON POST
-    line_token: str | None = None  # LINE Notify トークン
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None

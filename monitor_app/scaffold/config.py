@@ -99,7 +99,7 @@ config = MonitorConfig(
         ),
     },
     # ---- 閾値アラート(違反すると画面に赤バナー + 通知)----
-    # notify は ["console"]/["webhook"]/["line"]/["email"](.env で接続情報を設定)。
+    # notify は ["console"]/["webhook"]/["email"](.env で接続情報を設定)。
     alerts=[
         AlertRule(
             view="orders_summary",
