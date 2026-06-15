@@ -137,6 +137,21 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+    @app.middleware("http")
+    async def _security_headers(request, call_next):
+        """基本的なセキュリティヘッダを全レスポンスへ付与する(#S2)。
+
+        ``nosniff`` は MIME スニッフィングによる XSS を防ぐ。``X-Frame-Options`` は
+        クリックジャッキング対策(同梱 UI は同一オリジン構成)。厳格な CSP は
+        base.html のインラインハンドラ除去とセットのため将来対応とする。
+        """
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        return response
+
     register_exception_handlers(app)
     app.include_router(crud.router)
     app.include_router(views.router)

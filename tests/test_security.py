@@ -83,3 +83,17 @@ def test_table_view_escapes_evil_chart_label():
     assert res.status_code == 200
     assert EVIL not in res.text
     assert "\\u003c/script\\u003e" in res.text
+
+
+# ---------------------------------------------------------------------------
+# S2: セキュリティヘッダ
+# ---------------------------------------------------------------------------
+def test_security_headers_present():
+    config = MonitorConfig(
+        tables={"t": TableDef(columns=["id"], primary_key="id")},
+        views={"v1": ViewDef(query="SELECT 1 AS id", title="v1")},
+    )
+    res = _client(config).get("/")
+    assert res.headers["x-content-type-options"] == "nosniff"
+    assert res.headers["x-frame-options"] == "SAMEORIGIN"
+    assert res.headers["referrer-policy"] == "same-origin"
