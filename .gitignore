@@ -46,7 +46,15 @@ coverage.xml
 # 📂 sqlite cache
 instances/*.db
 
-# 📂 Claude Code 設定ファイル
+# 📂 AI コーディングツールの設定（ローカル専用・リポジトリには含めない）
 CLAUDE.md
-# ハーネスが生成する一時ワークツリー(埋め込み git リポジトリ)。リポジトリには含めない。
-.claude/worktrees/
+.claude/
+.agents/
+.codex/
+.cursor/
+.aider*
+.windsurf/
+.continue/
+.gemini/
+.cline/
+.roo/
