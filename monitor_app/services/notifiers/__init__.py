@@ -12,7 +12,6 @@ from typing import Dict, List
 from ...settings.runtime import AppSettings
 from .base import ConsoleNotifier, Notifier
 from .email import EmailNotifier
-from .line import LineNotifier
 from .webhook import WebhookNotifier
 
 logger = logging.getLogger("monitor_app.alerts")
@@ -23,8 +22,6 @@ def build_notifiers(settings: AppSettings) -> Dict[str, Notifier]:
     notifiers: Dict[str, Notifier] = {"console": ConsoleNotifier()}
     if settings.webhook_url:
         notifiers["webhook"] = WebhookNotifier(settings.webhook_url)
-    if settings.line_token:
-        notifiers["line"] = LineNotifier(settings.line_token)
     if settings.smtp_host and settings.alert_email_to:
         notifiers["email"] = EmailNotifier(settings)
     return notifiers

@@ -14,6 +14,24 @@ from ...settings.declarative import MonitorConfig
 router = APIRouter(tags=["Pages"], include_in_schema=False)
 
 
+def _escape_json_for_script(raw: str) -> str:
+    """``<script type="application/json">`` 内へ安全に埋め込める JSON 文字列を返す(#S1)。
+
+    ``json.dumps(ensure_ascii=False)`` / Pydantic の ``model_dump_json`` は ``<`` ``>``
+    ``&`` を素通しするため、ビュータイトル等に ``</script>`` が含まれると script タグを
+    閉じて DOM 破壊・XSS になり得る。HTML で意味を持つ文字と行区切り(JS では文字列を
+    壊す U+2028/U+2029)を ``\\uXXXX`` へ置換する。``JSON.parse`` が元の文字へ復号する
+    ため、埋め込まれるデータの意味は変わらない。
+    """
+    return (
+        raw.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def _nav_groups(config: MonitorConfig) -> list[dict]:
     """ナビゲーション用グループリストを返す。
 
@@ -117,9 +135,11 @@ def index(
             for vname, vdef in config.views.items()
             if vdef.chart is not None
         ]
-    dashboard_json = json.dumps(
-        {"columns": config.dashboard.columns, "views": dash_views},
-        ensure_ascii=False,
+    dashboard_json = _escape_json_for_script(
+        json.dumps(
+            {"columns": config.dashboard.columns, "views": dash_views},
+            ensure_ascii=False,
+        )
     )
 
     # chart を持たないビューのみ nav_groups と同形式で返す(リンク一覧用)
@@ -198,7 +218,9 @@ def kiosk(
         "kiosk.html",
         _ctx(
             config,
-            kiosk_json=json.dumps({"views": kiosk_views}, ensure_ascii=False),
+            kiosk_json=_escape_json_for_script(
+                json.dumps({"views": kiosk_views}, ensure_ascii=False)
+            ),
             has_kiosk_charts=any(v["chart"] for v in kiosk_views),
             has_kpis=bool(config.kpis),
             rotate_seconds=kiosk_cfg.rotate_seconds if kiosk_cfg else 15,
@@ -240,7 +262,9 @@ def show_table(
         raise ViewNotFoundError(f"ビュー '{view_name}' は定義されていません")
     templates = request.app.state.templates
     vdef = config.views[view_name]
-    chart_json = vdef.chart.model_dump_json() if vdef.chart else "null"
+    chart_json = (
+        _escape_json_for_script(vdef.chart.model_dump_json()) if vdef.chart else "null"
+    )
     return templates.TemplateResponse(
         request,
         "table.html",

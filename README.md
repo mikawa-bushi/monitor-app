@@ -27,7 +27,7 @@ Monitor App is a FastAPI-based data monitoring tool designed for shop floors, la
 | Feature | What it does | How to enable |
 |---|---|---|
 | Auto data ingest | Watches `csv/` for changes; `POST /api/ingest/{table}` for sensors/PLC/MES | `MONITOR_INGEST_WATCH` / always on |
-| Threshold alerts | On-screen banner + browser notification, Webhook (Slack/Teams), LINE, e-mail; edge-triggered | `alerts=[AlertRule(...)]` |
+| Threshold alerts | On-screen banner + browser notification, Webhook (Slack/Teams), e-mail; edge-triggered | `alerts=[AlertRule(...)]` |
 | Andon wallboard | Full-screen rotating views with a green/amber/red status light at `/kiosk` | `kiosk=KioskConfig(...)` |
 | Trend / SPC charts | Line & bar charts with UCL/LCL/target lines, out-of-control points highlighted | `ViewDef(chart=ChartDef(...))` |
 | Dashboard | Home page shows mini-chart grid (columns=1–4) for chart-enabled views; non-chart views listed below | `dashboard=DashboardConfig(columns=2)` |

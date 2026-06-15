@@ -15,7 +15,6 @@ import pytest
 from monitor_app.services.notifiers import build_notifiers, dispatch
 from monitor_app.services.notifiers.base import ConsoleNotifier
 from monitor_app.services.notifiers.email import EmailNotifier
-from monitor_app.services.notifiers.line import LineNotifier
 from monitor_app.services.notifiers.webhook import WebhookNotifier
 from monitor_app.settings.runtime import AppSettings
 
@@ -93,28 +92,6 @@ def test_webhook_posts_json_payload(monkeypatch):
     assert captured["timeout"] == 5
     payload = json.loads(captured["data"].decode("utf-8"))
     assert payload["text"] == "[critical] 異常\n本文だよ"
-
-
-# ---------------------------------------------------------------------------
-# LineNotifier
-# ---------------------------------------------------------------------------
-def test_line_posts_with_bearer_auth(monkeypatch):
-    captured = {}
-
-    def fake_urlopen(req, timeout=None):
-        captured["url"] = req.full_url
-        captured["data"] = req.data
-        captured["auth"] = req.get_header("Authorization")
-        return _FakeResp()
-
-    monkeypatch.setattr(
-        "monitor_app.services.notifiers.line.urllib.request.urlopen", fake_urlopen
-    )
-    LineNotifier("tok123").send("異常", "本文", "warning")
-
-    assert captured["url"] == LineNotifier.ENDPOINT
-    assert captured["auth"] == "Bearer tok123"
-    assert b"message=" in captured["data"]
 
 
 # ---------------------------------------------------------------------------
@@ -197,14 +174,12 @@ def test_build_notifiers_console_only_by_default():
 def test_build_notifiers_adds_enabled_channels():
     settings = AppSettings(
         webhook_url="https://hooks.example/x",
-        line_token="tok",
         smtp_host="smtp.example",
         alert_email_to="ops@example",
     )
     notifiers = build_notifiers(settings)
-    assert set(notifiers) == {"console", "webhook", "line", "email"}
+    assert set(notifiers) == {"console", "webhook", "email"}
     assert isinstance(notifiers["webhook"], WebhookNotifier)
-    assert isinstance(notifiers["line"], LineNotifier)
     assert isinstance(notifiers["email"], EmailNotifier)
 
 

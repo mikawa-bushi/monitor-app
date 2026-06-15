@@ -53,6 +53,9 @@
   let columns = [];
   let pollTimer = null;
   let source = null;
+  // SSE の連続再接続失敗カウント。これを超えて初めてポーリングへ降格する(#U2)。
+  let sseErrors = 0;
+  const MAX_SSE_ERRORS = 6;
 
   function setStatus(state, text) {
     statusEl.className = "status" + (state ? " " + state : "");
@@ -98,16 +101,41 @@
     pollTimer = setInterval(fetchOnce, interval);
   }
 
+  function fallbackToPolling() {
+    if (source) {
+      source.close();
+      source = null;
+    }
+    startPolling();
+  }
+
   function startSse() {
+    sseErrors = 0;
     source = new EventSource("/api/views/" + encodeURIComponent(viewName) + "/stream");
+    source.onopen = function () {
+      sseErrors = 0;
+      setStatus("live", "更新中");
+    };
     source.onmessage = function (ev) {
+      sseErrors = 0;
       render(JSON.parse(ev.data));
     };
     source.onerror = function () {
-      // SSE が使えない/切れた場合はポーリングへフォールバック
-      source.close();
-      source = null;
-      startPolling();
+      // EventSource はネットワーク瞬断時、自動で再接続を試みる(readyState=
+      // CONNECTING)。一過性の切断でポーリングへ恒久降格しないよう、連続失敗が
+      // 閾値を超えたときだけフォールバックする(#U2)。成功時に sseErrors は
+      // onopen/onmessage で 0 に戻る。
+      if (source.readyState === EventSource.CLOSED) {
+        // サーバ/プロキシが event-stream を返さない等の致命的失敗 → 即降格。
+        fallbackToPolling();
+        return;
+      }
+      // CONNECTING: ブラウザが自動再接続中。閾値まで待つ。
+      sseErrors += 1;
+      setStatus("error", "再接続中… (" + sseErrors + "/" + MAX_SSE_ERRORS + ")");
+      if (sseErrors >= MAX_SSE_ERRORS) {
+        fallbackToPolling();
+      }
     };
   }
 
