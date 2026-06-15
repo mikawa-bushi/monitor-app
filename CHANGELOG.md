@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased] — v2.3
+## [2.3.0] - 2026-06-15
+
+> 2.1.0 以降の v2.2(外部ツール連携)・v2.3(UI 刷新・ダークテーマ・ダッシュボード)
+> と、コードレビュー起点の堅牢化/高速化/セキュリティ修正をまとめて公開。下の
+> 「2.2.0」節の integrations 機能も本リリースに同梱(PyPI は 2.1.0 → 2.3.0)。
 
 ### Added (UI redesign — dashboard & dark theme)
 - **ダッシュボードホームページ** — ホームを `chart` 付きビューのミニチャートグリッド主体に刷新。
@@ -65,7 +69,7 @@
   設定・`LineNotifier` を削除した。現場スマホへのプッシュが必要な場合は `webhook`
   (汎用 JSON POST)経由を推奨
 
-## [Unreleased] — v2.2
+## [2.2.0] - 2026-06-13 — 2.3.0 に同梱(PyPI 未公開)
 
 ### Added (external tool integrations)
 - **`SourceDef` / declarative sources** — `MonitorConfig.sources` で SQLite / JSONL / JSON
