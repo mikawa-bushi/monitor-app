@@ -333,18 +333,11 @@ def test_kpi_avg_ms_returns_value(netcheck_app):
 # ---------------------------------------------------------------------------
 
 
-def test_host_with_single_quote_does_not_break_view():
-    """ホスト名に ' が含まれてもビューが実行できる。"""
-    cfg = attach(
-        _base_config(),
-        hosts=["host'with'quote"],
-    )
-    settings = AppSettings(database_url="sqlite:///:memory:")
-    app = create_app(cfg, settings)
+def test_host_with_single_quote_is_rejected():
+    """不正なホスト名(引用符等)は早期に弾く(#S3)。
 
-    # ビューが実行できる(行なしでもエラーにならない)
-    view_svc = ViewService(app.state.config, app.state.db)
-    view_name = "netcheck_rt_host_with_quote"
-    assert view_name in cfg.views
-    result = view_svc.get_view(view_name)
-    assert result["data"] == []
+    以前は ' を ''  にエスケープして SQL に埋め込んでいたが、SQL へ直接埋め込む
+    値は手動エスケープ依存にせず、許可文字以外を含むホストは ValueError とする。
+    """
+    with pytest.raises(ValueError):
+        attach(_base_config(), hosts=["host'with'quote"])

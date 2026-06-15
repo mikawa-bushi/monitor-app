@@ -2,6 +2,11 @@
 
 ``attach()`` で procdiag の可視化一式(テーブル・ソース・ビュー・KPI・アラート)を
 既存の MonitorConfig に合成して返す。
+
+注意(#M4): 生成するビュー/KPI は ``strftime('%s','now')`` /
+``datetime(ts_min,'unixepoch','localtime')`` など **SQLite 方言**を使う。アプリ本体
+の DB が SQLite であることを前提とする(MySQL/PostgreSQL では動作しない)。
+時系列列 ``ts_min`` は主キーのため自動で索引が張られる。
 """
 
 from __future__ import annotations
