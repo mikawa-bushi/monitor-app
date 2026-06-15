@@ -77,8 +77,8 @@ source = ["monitor_app"]
 [tool.coverage.report]
 show_missing = true
 # 品質ゲート: ここを下回ると CI が落ちる。テスト追加に合わせて引き上げる
-# ラチェット値(現状の総カバレッジ約 87% に対し、3.10〜3.13 の差を見込んだ下限)。
-fail_under = 85
+# ラチェット値(現状の総カバレッジ約 91% に対し、3.10〜3.13 の差を見込んだ下限)。
+fail_under = 88
 
 [tool.black]
 line-length = 88
