@@ -18,6 +18,13 @@
 - **`MonitorChart.create()` compact オプション** — `{ compact: true }` で凡例・軸タイトルを省略し
   目盛りを絞ったミニ表示(ダッシュボードカード用)
 
+### Security
+- **埋め込み JSON の `</script>` 混入による XSS を防止(#S1)** — `<script
+  type="application/json">` に埋め込む dashboard/kiosk/chart の JSON を、`<` `>`
+  `&` と行区切り(U+2028/U+2029)を `\uXXXX` へ置換して無害化。ビュータイトルや
+  チャートラベル等の config 由来文字列に `</script>` を含めても script タグを
+  閉じられない(`JSON.parse` 後の値は不変)
+
 ### Fixed
 - **SSE が瞬断で恒久的にポーリングへ降格する問題を修正(#U2)** — これまで
   `EventSource.onerror` で即 `close()` していたため、ネットワークの一瞬の切断でも
