@@ -65,11 +65,22 @@
     return { update: update };
   }
 
-  // 起動時にブラウザ通知の許可を促す(任意)。
+  // 通知許可はロード時に勝手に要求せず、ユーザー操作(明示ボタン)を起点にする(#U4)。
+  // ロード直後の許可ダイアログは唐突で拒否されやすく、拒否されると以後通知不可になる。
+  // permission が未決定のときだけ小さな「通知を有効化」ボタンを置き、クリックで要求する。
   function requestPermission() {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
+    if (!("Notification" in window) || Notification.permission !== "default") return;
+    if (document.querySelector(".notify-enable-btn")) return; // 二重設置防止
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "notify-enable-btn";
+    btn.textContent = "🔔 通知を有効化";
+    btn.addEventListener("click", function () {
+      Promise.resolve(Notification.requestPermission()).finally(function () {
+        btn.remove();
+      });
+    });
+    document.body.appendChild(btn);
   }
 
   window.MonitorAlerts = { create: create, requestPermission: requestPermission };

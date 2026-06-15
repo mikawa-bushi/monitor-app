@@ -132,6 +132,12 @@ body.alert-critical #kiosk {
   box-shadow: 0 0 2.5vh #ef4444;
   animation: kiosk-blink 0.8s steps(1) infinite;
 }
+/* 取得失敗(stale): 灰の点滅で「更新されていない」ことを大型表示でも明示(#E9) */
+.status-light.stale {
+  background: #94a3b8;
+  box-shadow: 0 0 2vh #94a3b8;
+  animation: kiosk-blink 1s steps(1) infinite;
+}
 @keyframes kiosk-blink { 50% { opacity: 0.35; } }
 
 /* --- アラートバナー(大型用に拡大)--- */

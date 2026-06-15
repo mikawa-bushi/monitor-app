@@ -120,12 +120,16 @@
       const alerts = payload.alerts || [];
       alertUi.update(alerts);
       const level = setLight(alerts);
+      lightEl.removeAttribute("title");
       // critical のビューがあればそこに固定。なければローテーション再開。
       pinned = level === "critical";
       markDot();
       updateProgress();
     } catch (e) {
-      lightEl.className = "status-light";
+      // 取得失敗を可視化する(#E9)。大型表示は誰も操作しないため、古い表示の
+      // まま気付けないと現場判断を誤る。ライトを stale 状態にして明示する。
+      lightEl.className = "status-light stale";
+      lightEl.title = "接続エラー — データが更新されていません";
     }
   }
 

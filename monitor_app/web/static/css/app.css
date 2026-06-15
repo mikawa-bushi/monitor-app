@@ -548,3 +548,24 @@ details.table-collapse[open] > summary::before {
   text-align: center;
   color: var(--muted);
 }
+
+/* 取得失敗(stale)時に KPI グリッドを薄く表示し、鮮度の喪失を示す(#E9) */
+.kpi-grid.stale { opacity: 0.55; }
+
+/* 通知を有効化するボタン(#U4)。ロード時に許可ダイアログを出さず、
+   ユーザーがクリックして初めて許可要求する。未決定のときだけ表示される。 */
+.notify-enable-btn {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 50;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 999px;
+  background: var(--card, #fff);
+  color: var(--fg, #0f172a);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.notify-enable-btn:hover { filter: brightness(0.97); }
