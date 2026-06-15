@@ -31,6 +31,12 @@ pip-wheel-metadata/
 # 📂 Pytest キャッシュ
 .pytest_cache/
 
+# 📂 カバレッジ計測の成果物
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
 # 📂 VS Code 設定（無視する場合）
 .vscode/
 
