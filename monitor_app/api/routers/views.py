@@ -129,6 +129,35 @@ def export_view(
     )
 
 
+def _view_payload_and_hash(service: ViewService, engine, view_name: str) -> tuple:
+    """SSE 1 フレーム分のペイロードとハッシュを作る(差分判定に使う)。"""
+    payload, digest = service.get_view_hashed(view_name)
+    engine.evaluate_view(view_name, payload["data"])
+    payload["alerts"] = engine.active_alerts()
+    return payload, digest
+
+
+async def _sse_event_stream(
+    service: ViewService, engine, view_name: str, interval, is_disconnected
+):
+    """SSE イベントを生成する。ハッシュが変化したときだけ ``message`` を送る。
+
+    ``is_disconnected`` は ``request.is_disconnected``(テストでは差し替え可能)。
+    ブロッキングなクエリ/ハッシュ計算はスレッドへ逃がす。
+    """
+    last_hash: str | None = None
+    while True:
+        if await is_disconnected():
+            break
+        payload, current = await anyio.to_thread.run_sync(
+            _view_payload_and_hash, service, engine, view_name
+        )
+        if current != last_hash:
+            last_hash = current
+            yield {"event": "message", "data": json.dumps(payload, default=str)}
+        await anyio.sleep(interval)
+
+
 @router.get("/{view_name}/stream")
 async def stream_view(
     view_name: str,
@@ -145,22 +174,6 @@ async def stream_view(
     より、複数クライアントが同じビューを購読してもクエリ・ハッシュは 1 回。
     """
     interval = max(config.refresh_interval_ms, 250) / 1000.0
-
-    def _payload_and_hash() -> tuple[dict, str]:
-        payload, digest = service.get_view_hashed(view_name)
-        engine.evaluate_view(view_name, payload["data"])
-        payload["alerts"] = engine.active_alerts()
-        return payload, digest
-
-    async def event_generator():
-        last_hash: str | None = None
-        while True:
-            if await request.is_disconnected():
-                break
-            payload, current = await anyio.to_thread.run_sync(_payload_and_hash)
-            if current != last_hash:
-                last_hash = current
-                yield {"event": "message", "data": json.dumps(payload, default=str)}
-            await anyio.sleep(interval)
-
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(
+        _sse_event_stream(service, engine, view_name, interval, request.is_disconnected)
+    )
