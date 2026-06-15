@@ -17,6 +17,7 @@ from monitor_app import (
     Threshold,
     ViewDef,
 )
+from monitor_app.settings.declarative import DashboardConfig
 
 config = MonitorConfig(
     # ---- 画面の見た目 ----
@@ -55,6 +56,7 @@ config = MonitorConfig(
         "products_view": ViewDef(
             query="SELECT id, name, price FROM products",
             title="商品一覧",
+            group="販売",  # サイドバーとビュー一覧を「販売」グループにまとめる例
             styles={
                 "price": CellStyle(
                     greater_than=Threshold(
@@ -65,7 +67,16 @@ config = MonitorConfig(
                 ),
             },
             # グラフ表示(管理限界線つき)。表とグラフの両方が出る。
-            chart=ChartDef(type="bar", x="name", y="price", ucl=5000, target=1000),
+            # x_label / y_label で軸タイトル(単位)を付けると目盛りが読みやすい。
+            chart=ChartDef(
+                type="bar",
+                x="name",
+                y="price",
+                x_label="商品名",
+                y_label="単価 (円)",
+                ucl=5000,
+                target=1000,
+            ),
         ),
         "orders_summary": ViewDef(
             query=(
@@ -103,15 +114,41 @@ config = MonitorConfig(
     # ---- KPI サマリーカード(ホーム上部に表示。スカラー1値を返す SELECT)----
     kpis={
         "order_count": KpiCard(
-            title="注文件数", query="SELECT COUNT(*) FROM orders", unit="件"
+            title="注文件数",
+            query="SELECT COUNT(*) FROM orders",
+            unit="件",
+            link_view="orders_summary",  # クリックで関連ビューへ遷移
         ),
         "total_amount": KpiCard(
             title="合計数量",
             query="SELECT SUM(amount) FROM orders",
             unit="個",
             target=20,
+            link_view="orders_summary",
         ),
     },
     # ---- Andon / 大型表示(/kiosk)。ライン大型モニタ向け ----
     kiosk=KioskConfig(rotate_seconds=15, theme="dark"),
+    # ---- ダッシュボード(ホームのミニチャートグリッド設定)----
+    # views は chart 付きビューのみ指定可。省略時は chart 付き全ビューを表示。
+    dashboard=DashboardConfig(
+        views=["products_view"],  # chart を持つビューのみ指定すること
+        columns=2,  # グリッド列数(1〜4)
+    ),
 )
+
+# ---- 外部ツール連携(integrations)の例 ----------------------------------------
+# procdiag / netdiag / network-checker の出力を宣言だけで可視化できます。
+# 以下のコメントを外して必要なツールを有効にしてください。
+# 詳細: docs/integrations_v2_2.md
+#
+# from monitor_app.integrations import procdiag, netdiag, network_checker
+#
+# # procdiag: ホストの CPU / メモリ / PSI を SQLite から取り込む
+# config = procdiag.attach(config, db_path="/opt/procdiag/data/procdiag.db")
+#
+# # netdiag: netdiag watch のアラートログ(JSONL)を差分取り込みする
+# config = netdiag.attach(config)
+#
+# # network_checker: ping 結果の SQLite をホスト別に可視化する
+# config = network_checker.attach(config, hosts=["plc-01", "gateway"])

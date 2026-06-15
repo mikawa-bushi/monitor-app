@@ -1,0 +1,140 @@
+/* ============================================================================
+   dashboard.css — ダッシュボード固有スタイル(U03)
+
+   - 色は app.css の CSS 変数(var(--surface) 等)のみを使い、ダークテーマに
+     自動追従させる。
+   - 固有の色が要る場合は本ファイル内で CSS 変数として定義する。
+   - app.css には触らない。
+   ============================================================================ */
+
+/* ---- ダッシュボード固有変数 -------------------------------------------- */
+:root {
+  --ok: #16a34a;
+  --warning: #d97706;
+  --critical: #dc2626;
+  --info: #2563eb;
+  --sb-bg: var(--surface);
+  --sb-border: var(--border);
+}
+
+/* ---- ステータスバー(#status-bar) -------------------------------------- */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--sb-bg);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+}
+
+/* ステータスドット */
+.sb-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #d1d5db; /* 初期/不明 */
+}
+.sb-dot.ok { background: var(--ok); }
+.sb-dot.warning { background: var(--warning); }
+.sb-dot.critical {
+  background: var(--critical);
+  animation: sb-pulse 1.2s ease-in-out infinite;
+}
+.sb-dot.info { background: var(--info); }
+
+@keyframes sb-pulse {
+  50% { opacity: 0.5; }
+}
+
+/* サマリーテキスト部 */
+.sb-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.sb-alert-count {
+  font-weight: 600;
+}
+
+.sb-sep {
+  color: var(--muted);
+}
+
+.sb-alert-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.sb-alert-link:hover { text-decoration: underline; }
+
+/* 右端: 最終更新時刻 */
+.sb-right {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- ミニチャートグリッド(#dashboard-grid) ---------------------------- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--dash-columns, 3), 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* 900px 未満は 1 列 */
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ダッシュボードカード */
+.dash-card {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* カードタイトル(リンク) */
+.dash-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.dash-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+.dash-card-title a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* canvas ラッパ */
+.dash-canvas {
+  width: 100% !important;
+  height: 180px !important;
+  display: block;
+}
+
+/* ---- ビュー一覧グループ見出し ----------------------------------------- */
+.view-group-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 1rem 0 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

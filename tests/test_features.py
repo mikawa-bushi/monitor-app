@@ -42,6 +42,7 @@ def feature_config() -> MonitorConfig:
             "products_view": ViewDef(
                 query="SELECT id, name, price FROM products",
                 title="商品",
+                labels={"name": "商品名", "price": "単価 (円)"},
                 chart=ChartDef(type="line", x="name", y="price", ucl=5000),
             ),
         },
@@ -116,6 +117,26 @@ class TestAlerts:
         assert engine.evaluate_view("v", [{"t": 50}]) == []  # 復帰
         assert engine.active_alerts() == []
 
+    def test_scheduler_evaluates_without_viewer(self):
+        # #13: 画面取得が無くてもバックグラウンド評価で発火する。
+        from monitor_app.services.alert_scheduler import AlertScheduler
+
+        cfg = MonitorConfig(
+            views={"v": ViewDef(query="SELECT 1")},
+            alerts=[AlertRule(view="v", column="t", op=">", value=80)],
+        )
+        engine = AlertEngine(cfg, AppSettings())
+
+        class _StubViewService:
+            def get_view(self, _name):
+                return {"data": [{"t": 90}]}
+
+        scheduler = AlertScheduler(engine, _StubViewService(), interval_seconds=1.0)
+        assert engine.active_alerts() == []  # 誰もビューを開いていない
+        scheduler.run_once()  # バックグラウンド評価
+        alerts = engine.active_alerts()
+        assert alerts and alerts[0]["level"] == "warning"
+
 
 # --- E KPI / D チャート ---------------------------------------------------
 class TestKpiChart:
@@ -128,12 +149,17 @@ class TestKpiChart:
         html = fclient.get("/table/products_view").text
         assert 'id="chart"' in html and "chart-config" in html
 
+    def test_view_payload_includes_column_labels(self, fclient):
+        # テーブルヘッダーの単位付き見出し。labels 未設定の列はキーに現れない。
+        data = fclient.get("/api/views/products_view").json()
+        assert data["column_labels"] == {"name": "商品名", "price": "単価 (円)"}
+
 
 # --- B Kiosk --------------------------------------------------------------
 class TestKiosk:
     def test_kiosk_page(self, fclient):
         html = fclient.get("/kiosk").text
-        assert 'data-views="products_view"' in html
+        assert 'id="kiosk-config"' in html and "products_view" in html
         assert 'data-theme="dark"' in html
 
 

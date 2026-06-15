@@ -41,6 +41,7 @@ class KpiService:
             "unit": card.unit,
             "target": card.target,
             "status": self._status(card, value),
+            "link_view": card.link_view,
         }
 
     @staticmethod

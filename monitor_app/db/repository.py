@@ -19,10 +19,18 @@ class TableRepository:
         self.db = db
         self.registry = registry
 
-    def list(self, table_name: str) -> List[Dict[str, Any]]:
+    def list(
+        self,
+        table_name: str,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
         table = self.registry.get(table_name)
+        stmt = select(table)
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(max(offset, 0))
         with self.db.readonly() as conn:
-            result = conn.execute(select(table))
+            result = conn.execute(stmt)
             return [dict(row) for row in result.mappings()]
 
     def get(self, table_name: str, record_id: Any) -> Optional[Dict[str, Any]]:

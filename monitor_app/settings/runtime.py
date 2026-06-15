@@ -38,6 +38,14 @@ class AppSettings(BaseSettings):
 
     log_level: str = "INFO"
     csv_dir: Path = Path("csv")
+    #: CSV 取り込み時の文字エンコーディング。現場の Excel 由来 CSV は
+    #: "cp932"(Shift-JIS)が多い。既定は BOM 付き UTF-8 も読める "utf-8-sig"。
+    csv_encoding: str = "utf-8-sig"
+
+    # --- ビュー共有キャッシュ(#18)---
+    #: ビュー結果を共有キャッシュする TTL(ミリ秒)。SSE/ダッシュボードの
+    #: 多重クエリを抑える。書き込み時は無効化される。0 でキャッシュ無効。
+    view_cache_ttl_ms: int = 1000
 
     # --- データ取り込み(フェーズ1・C)---
     #: csv/ フォルダを監視し、変更されたファイルを自動で取り込む。
