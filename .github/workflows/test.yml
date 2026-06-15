@@ -39,8 +39,9 @@ jobs:
     - name: Install project
       run: poetry install --no-interaction
 
-    - name: Run tests
-      run: poetry run python -m pytest tests/ -v --tb=short
+    - name: Run tests (with coverage gate)
+      # fail_under は pyproject.toml の [tool.coverage.report] で管理(下回ると失敗)。
+      run: poetry run python -m pytest -v --tb=short --cov=monitor_app --cov-report=term-missing
 
     - name: Check formatting
       run: poetry run black --check monitor_app/ tests/
