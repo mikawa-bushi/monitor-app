@@ -245,6 +245,16 @@ jobs:
           fi
         fi
 
+    - name: Lint with Ruff (import order)
+      run: |
+        echo "Running Ruff lint (import sorting)..."
+        if poetry run ruff check .; then
+          echo "✅ Ruff check passed."
+        else
+          echo "❌ Ruff check failed. Run 'poetry run ruff check --fix .' to fix."
+          exit 1
+        fi
+
     - name: Comment on PR (if formatting failed)
       if: failure() && github.event_name == 'pull_request'
       uses: actions/github-script@v7

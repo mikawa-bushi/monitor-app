@@ -14,13 +14,14 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Iterator, List
 
-from sqlalchemy import delete, insert
+from sqlalchemy import delete
 
 from ..db.engine import Database
 from ..db.ingest_state import IngestStateStore
 from ..db.registry import TableRegistry
 from ..settings.declarative import MonitorConfig, SourceDef
 from .coercion import CoercionError, coerce
+from .importer import insert_in_chunks
 
 logger = logging.getLogger("monitor_app.connectors")
 
@@ -163,7 +164,7 @@ class SourceConnector(ABC):
                 if replace:
                     conn.execute(delete(table))
                 if rows:
-                    conn.execute(insert(table), rows)
+                    insert_in_chunks(conn, table, rows)
 
         logger.info(
             "source '%s': %d 行取り込み (replace=%s)",

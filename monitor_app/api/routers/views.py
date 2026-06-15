@@ -17,10 +17,10 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
-from ..deps import get_alert_engine, get_config, get_view_service, require_read_auth
-from ..schemas import ViewDataResponse
 from ...services.view_service import ViewService
 from ...settings.declarative import MonitorConfig
+from ..deps import get_alert_engine, get_config, get_view_service, require_read_auth
+from ..schemas import ViewDataResponse
 
 router = APIRouter(prefix="/api/views", tags=["Views"])
 

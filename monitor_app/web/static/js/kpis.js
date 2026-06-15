@@ -72,13 +72,30 @@
     });
   }
 
+  // fetch 失敗を可視化する(#E9)。前回値は残しつつ「古い」ことを示す。
+  let lastOk = null;
+
+  function markStale() {
+    grid.classList.add("stale");
+    const when = lastOk
+      ? lastOk.toLocaleTimeString("ja-JP", { hour12: false })
+      : "未取得";
+    grid.title = "接続エラー — 最終更新 " + when;
+  }
+
   async function load() {
     try {
       const res = await fetch("/api/kpis");
-      if (!res.ok) return;
+      if (!res.ok) {
+        markStale();
+        return;
+      }
       render((await res.json()).kpis || []);
+      lastOk = new Date();
+      grid.classList.remove("stale");
+      grid.removeAttribute("title");
     } catch (e) {
-      /* 取得失敗時は前回表示を維持 */
+      markStale(); // 取得失敗時は前回表示を残しつつ stale 表示
     }
   }
 

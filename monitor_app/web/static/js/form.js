@@ -35,6 +35,11 @@
 
   form.addEventListener("submit", async function (ev) {
     ev.preventDefault();
+    // 二重送信ガード(#U3): 送信中は submit ボタンを無効化する。
+    // タッチ操作や Enter 連打での重複登録を防ぐ。
+    const submitBtn =
+      form.querySelector('[type="submit"]') || form.querySelector("button");
+    if (submitBtn) submitBtn.disabled = true;
     const payload = collect();
     try {
       const res = await fetch("/api/tables/" + encodeURIComponent(table), {
@@ -54,6 +59,8 @@
       }
     } catch (e) {
       showMessage("通信エラーが発生しました", false);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   });
 })();

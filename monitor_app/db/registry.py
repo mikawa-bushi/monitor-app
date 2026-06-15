@@ -15,6 +15,7 @@ from sqlalchemy import (
     Date,
     Float,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     String,
@@ -47,7 +48,18 @@ def _build_table(name: str, tdef: TableDef, metadata: MetaData) -> Table:
         if col in fks:
             args.append(ForeignKey(fks[col]))
         columns.append(Column(*args, primary_key=(col == tdef.primary_key)))
-    return Table(name, metadata, *columns)
+    table = Table(name, metadata, *columns)
+
+    # 外部キー列と宣言インデックスへ索引を張る(#V6)。JOIN や時系列ビューの
+    # WHERE/ORDER BY がフルスキャンになるのを避ける。名前で重複排除する。
+    index_cols: Dict[str, list] = {}
+    for col in fks:
+        index_cols[f"ix_{name}_{col}"] = [col]
+    for cols in tdef.indexes:
+        index_cols[f"ix_{name}_{'_'.join(cols)}"] = list(cols)
+    for idx_name, cols in index_cols.items():
+        Index(idx_name, *[table.c[c] for c in cols])
+    return table
 
 
 class TableRegistry:

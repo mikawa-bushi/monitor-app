@@ -2,6 +2,9 @@
 
 ``netdiag watch`` が ``~/.netdiag/alerts.jsonl`` に追記する 1 行 1 JSON 形式の
 アラートログを monitor-app に取り込むための設定フラグメント生成器。
+
+注意(#M4): KPI の ``strftime('%s','now')`` は **SQLite 方言**。アプリ本体の DB が
+SQLite であることを前提とする(MySQL/PostgreSQL では時刻フィルタが動作しない)。
 """
 
 from __future__ import annotations
@@ -52,6 +55,8 @@ def attach(
                 "duration_s": "float",
             },
             primary_key="id",
+            # ORDER BY ts / 時刻フィルタのフルスキャンを避ける(#V6)。
+            indexes=[["ts"]],
         )
     }
 

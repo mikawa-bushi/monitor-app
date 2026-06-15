@@ -123,6 +123,11 @@ v2.2 の integrations 機能は、これらツールが書き出すファイル(
 
 ## プリセットの使い方
 
+> ⚠️ **SQLite 前提(#M4)**: 各プリセットが生成するビュー/KPI の時刻関数は
+> `datetime('now', ...)` / `strftime('%s','now')` / `unixepoch` など **SQLite 方言**に
+>依存します。アプリ本体の DB(`MONITOR_DATABASE_URL`)が SQLite であることを前提と
+> しており、MySQL/PostgreSQL では時刻フィルタが動作しません。
+
 ### 共通パターン
 
 ```python

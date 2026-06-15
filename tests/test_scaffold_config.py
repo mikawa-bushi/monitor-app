@@ -23,8 +23,7 @@ _SCAFFOLD_CONFIG = (
 )
 
 # integrations プリセット — 遅延インポートして依存エラーを明確化
-from monitor_app.integrations import procdiag, netdiag, network_checker
-
+from monitor_app.integrations import netdiag, network_checker, procdiag
 
 # ---------------------------------------------------------------------------
 # テスト 1: scaffold/config.py のロード

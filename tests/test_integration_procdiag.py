@@ -9,8 +9,8 @@ attach() が返す config の正確性と、in-memory SQLite に手動投入し�
 from __future__ import annotations
 
 import json
-import tempfile
 import os
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +19,6 @@ from monitor_app.integrations.procdiag import attach
 from monitor_app.main import create_app
 from monitor_app.settings.declarative import MonitorConfig
 from monitor_app.settings.runtime import AppSettings
-
 
 # ---------------------------------------------------------------------------
 # ヘルパー

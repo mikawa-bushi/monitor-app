@@ -80,6 +80,10 @@ class TableDef(BaseModel):
     columns: Union[List[str], Dict[str, ColumnType]]
     primary_key: str = "id"
     foreign_keys: Dict[str, str] = Field(default_factory=dict)
+    #: 追加インデックス(#V6)。各要素は索引対象の列名リスト(複合可)。
+    #: 外部キー列には自動で索引が張られるため、ここでは時刻/ウォーターマーク
+    #: 列など WHERE/ORDER BY で使う列を指定する。
+    indexes: List[List[str]] = Field(default_factory=list)
     form: FormDef | None = None  # 作業者入力フォーム(フェーズ3)
 
     @property
@@ -107,6 +111,14 @@ class TableDef(BaseModel):
                 f"primary_key '{self.primary_key}' は columns "
                 f"{self.column_names} に存在しません"
             )
+        names = set(self.column_names)
+        for cols in self.indexes:
+            for col in cols:
+                if col not in names:
+                    raise ValueError(
+                        f"index 列 '{col}' は columns {self.column_names} に"
+                        " 存在しません"
+                    )
         return self
 
 

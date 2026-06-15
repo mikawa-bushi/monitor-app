@@ -19,10 +19,11 @@
   // アラートレベルの重み(大きいほど重篤)
   var LEVEL_WEIGHT = { info: 1, warning: 2, critical: 3 };
 
-  // 最終取得アラートを保持(取得失敗時は前回表示を維持)
+  // 最終取得アラートと最終成功時刻を保持(取得失敗時は前回表示を維持しつつ stale 表示)
   var lastAlerts = null;
+  var lastOkTime = null;
 
-  function renderStatusBar(alerts) {
+  function renderStatusBar(alerts, stale) {
     if (!statusBar) return;
     statusBar.innerHTML = "";
 
@@ -34,10 +35,16 @@
 
     var right = document.createElement("span");
     right.className = "sb-right";
-    var ts = new Date().toLocaleTimeString("ja-JP", { hour12: false });
-    right.textContent = "最終更新 " + ts;
+    // 「最終更新」は最後に成功した時刻を表示する(失敗中に時刻だけ進まないように)。
+    var ts = (lastOkTime || new Date()).toLocaleTimeString("ja-JP", {
+      hour12: false,
+    });
+    right.textContent = (stale ? "⚠ 接続エラー — " : "") + "最終更新 " + ts;
 
-    if (!alerts || alerts.length === 0) {
+    if (stale) {
+      dot.classList.add("stale");
+      summary.textContent = "データを更新できません";
+    } else if (!alerts || alerts.length === 0) {
       dot.classList.add("ok");
       summary.textContent = "すべて正常";
     } else {
@@ -77,15 +84,17 @@
   async function loadAlerts() {
     try {
       var res = await fetch("/api/alerts");
-      if (!res.ok) return;
+      if (!res.ok) {
+        renderStatusBar(lastAlerts || [], true);
+        return;
+      }
       var data = await res.json();
       lastAlerts = data.alerts || [];
-      renderStatusBar(lastAlerts);
+      lastOkTime = new Date();
+      renderStatusBar(lastAlerts, false);
     } catch (e) {
-      // 取得失敗時は前回表示を維持
-      if (lastAlerts !== null) {
-        renderStatusBar(lastAlerts);
-      }
+      // 取得失敗時は前回表示を残しつつ stale を示す(#E9)
+      renderStatusBar(lastAlerts || [], true);
     }
   }
 
@@ -144,13 +153,17 @@
     try {
       var qs = names.map(encodeURIComponent).join(",");
       var res = await fetch("/api/views/batch?names=" + qs);
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (grid) grid.classList.add("stale");
+        return;
+      }
       var views = (await res.json()).views || {};
       names.forEach(function (name) {
         if (views[name]) charts[name].update(views[name]);
       });
+      if (grid) grid.classList.remove("stale"); // 復帰したら stale 解除(#E9)
     } catch (e) {
-      /* 取得失敗時は前回表示を維持 */
+      if (grid) grid.classList.add("stale"); // 取得失敗を可視化(#E9)
     }
   }
 

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from ...services.crud_service import CrudService
 from ..deps import (
     get_crud_service,
     get_kpi_service,
     require_read_auth,
 )
 from ..schemas import SchemaResponse
-from ...services.crud_service import CrudService
 
 router = APIRouter(prefix="/api", tags=["Meta"])
 

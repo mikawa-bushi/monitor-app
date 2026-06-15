@@ -2,6 +2,10 @@
 
 network-checker は SQLite(既定 ~/network_check_tool.db)の ping_results テーブルに
 蓄積するツール。このモジュールは MonitorConfig にビュー・KPI・アラートを合成する。
+
+注意(#M4): 生成するビュー/KPI の時刻関数は ``datetime('now', ...)`` など
+**SQLite 方言**に依存する。アプリ本体の DB(``MONITOR_DATABASE_URL``)が SQLite
+であることを前提とする。MySQL/PostgreSQL では時刻フィルタが動作しない。
 """
 
 from __future__ import annotations
@@ -20,6 +24,10 @@ from ..settings.declarative import (
     ViewDef,
 )
 from . import merge
+
+#: ホスト名として許可する文字(英数字・ドット・アンダースコア・ハイフン・コロン)。
+#: SQL に直接埋め込むため、引用符等を含むホスト名は早期に弾く(#S3)。
+_HOST_RE = re.compile(r"^[0-9A-Za-z._:-]+$")
 
 
 def attach(
@@ -48,6 +56,8 @@ def attach(
                 "error_message": "str",
             },
             primary_key="id",
+            # 時刻フィルタ・ホスト別集計のフルスキャンを避ける(#V6)。
+            indexes=[["target_host", "timestamp"]],
         )
     }
 
@@ -108,6 +118,11 @@ GROUP BY target_host
     # --- ホスト別応答時間ビュー(line チャート) ---
     if hosts is not None:
         for host in hosts:
+            if not _HOST_RE.match(host):
+                raise ValueError(
+                    f"network_checker: 不正なホスト名 '{host}'"
+                    "(英数字 . _ - : のみ使用可)"
+                )
             sanitized = re.sub(r"[^0-9A-Za-z_]", "_", host)
             view_name = f"{prefix}_rt_{sanitized}"
             escaped_host = host.replace("'", "''")

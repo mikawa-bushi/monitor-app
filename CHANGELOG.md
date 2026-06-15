@@ -24,13 +24,40 @@
   `&` と行区切り(U+2028/U+2029)を `\uXXXX` へ置換して無害化。ビュータイトルや
   チャートラベル等の config 由来文字列に `</script>` を含めても script タグを
   閉じられない(`JSON.parse` 後の値は不変)
+- **基本的なセキュリティヘッダを付与(#S2)** — 全レスポンスへ
+  `X-Content-Type-Options: nosniff` / `X-Frame-Options: SAMEORIGIN` /
+  `Referrer-Policy: same-origin` を付与(MIME スニッフィング XSS・クリック
+  ジャッキングの基本対策)。厳格な CSP は将来対応
+- **network_checker のホスト名を検証(#S3)** — SQL へ直接埋め込むホスト名を
+  許可文字(英数字 `. _ - :`)で検証し、不正な値は早期に拒否。手動エスケープ依存を解消
 
 ### Fixed
+- **パスパラメータの主キーを型変換(#E8)** — URL 上の主キーを主キー列の論理型へ
+  coerce してから比較。PostgreSQL/MySQL での `integer = '5'(text)` 型不一致を防止
+- **fetch 失敗の可視化(#E9)** — ダッシュボード/KPI/kiosk が取得失敗時に黙って
+  古い値を保持していたのを、stale 表示(最終更新時刻・灰の点滅)で明示
+- **入力フォームの二重送信ガード(#U3)** — 送信中は submit ボタンを無効化し、連打
+  による重複登録を防止
+- **ブラウザ通知をオプトインに(#U4)** — ロード時に許可ダイアログを出さず、
+  「通知を有効化」ボタンのユーザー操作を起点に要求
+- **KPI 評価の N+1 解消(#V4)** — 全 KPI を 1 本の読み取り専用コネクションで評価。
+  1 件の失敗は rollback で分離
+- **取り込みのチャンク挿入(#V5)** — 一括 INSERT を 1000 件ずつに分割し、パラメータ
+  上限超過と巨大文によるメモリ圧迫を回避
+- **インデックス自動生成(#V6)** — 外部キー列へ索引を自動付与し、`TableDef.indexes` で
+  時刻/ウォーターマーク列に索引を宣言可能に。integrations の時系列ビューにも適用
 - **SSE が瞬断で恒久的にポーリングへ降格する問題を修正(#U2)** — これまで
   `EventSource.onerror` で即 `close()` していたため、ネットワークの一瞬の切断でも
   二度と SSE に戻らずポーリング固定になっていた。ブラウザ標準の自動再接続を活かし、
   連続失敗が閾値(6 回)を超えたときだけポーリングへ降格するよう変更。接続回復時は
   自動で差分配信(SSE)に戻る
+
+### Changed
+- **ruff による import 整列を導入(#M3)** — import 順の不統一を ruff(isort 相当)で
+  自動整列し、CI で強制(`code-quality-check`)。差分ノイズを根絶
+- **integrations の SQLite 方言依存を明記(#M4)** — procdiag/netdiag/network_checker の
+  生成するビュー/KPI が SQLite 方言(`datetime('now',...)` 等)に依存することを docstring
+  と integrations ドキュメントに明記(アプリ DB が SQLite 前提)
 
 ### Removed
 - **LINE Notify 通知チャネルを削除** — LINE Notify は 2025-03-31 にサービス終了済みで、

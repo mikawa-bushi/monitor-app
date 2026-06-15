@@ -47,6 +47,13 @@
   animation: sb-pulse 1.2s ease-in-out infinite;
 }
 .sb-dot.info { background: var(--info); }
+/* 取得失敗(stale): 灰色の点滅で「更新できていない」ことを示す(#E9) */
+.sb-dot.stale {
+  background: #94a3b8;
+  animation: sb-pulse 1.2s ease-in-out infinite;
+}
+/* チャートグリッドが stale のときは薄く表示して鮮度の喪失を示す(#E9) */
+#dashboard-grid.stale { opacity: 0.55; }
 
 @keyframes sb-pulse {
   50% { opacity: 0.5; }

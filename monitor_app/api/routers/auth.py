@@ -12,8 +12,8 @@ import secrets
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
-from ..deps import SESSION_COOKIE, get_settings, session_token
 from ...settings.runtime import AppSettings
+from ..deps import SESSION_COOKIE, get_settings, session_token
 
 router = APIRouter(prefix="/api", tags=["Auth"])
 
