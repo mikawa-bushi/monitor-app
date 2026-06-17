@@ -21,7 +21,7 @@ monitor-app で宣言的に可視化する。2層構成:
 - 既存コードのスタイルに従う: 日本語 docstring、`from __future__ import annotations`、
   型ヒント必須。コメントは「コードで表せない制約」のみ。
 - 新規依存パッケージの追加禁止(標準ライブラリ+既存依存のみ)。
-- フォーマット: `.venv/bin/black <自分の所有ファイル>`(black==24.10.0、インストール済み)。
+- フォーマット: `.venv/bin/black <自分の所有ファイル>`(black==26.5.1、インストール済み)。
 - テスト実行: `.venv/bin/python -m pytest tests/<自分のテスト>.py -q`。
   既存テストを壊さないこと: `.venv/bin/python -m pytest -q` が最後に全件パスすること。
 - git コミットはしない(ワーキングツリーに変更を残すだけ)。
@@ -127,5 +127,5 @@ class IngestWatcher:
 ## 検証環境
 
 - venv: `/home/user/projects/gitpjt/monitor-app/.venv`(Python 3.11.10、
-  `pip install -e .` 済み、pytest / httpx / black==24.10.0 入り)
+  `pip install -e .` 済み、pytest / httpx / black==26.5.1 入り)
 - 実行はリポジトリルート(`/home/user/projects/gitpjt/monitor-app`)から。

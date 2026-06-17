@@ -27,7 +27,7 @@ repos:
 
   # --- フォーマッタ / リンタ（CI と同一バージョンに固定して食い違いを防ぐ） ---
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 24.10.0
+    rev: 26.5.1
     hooks:
       - id: black
 
