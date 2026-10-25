@@ -1,0 +1,263 @@
+{
+  "all": {
+    "monitor_app": [
+      "AlertRule",
+      "CellStyle",
+      "ChartDef",
+      "DashboardConfig",
+      "FormDef",
+      "KioskConfig",
+      "KpiCard",
+      "MonitorConfig",
+      "SourceDef",
+      "TableDef",
+      "Threshold",
+      "ViewDef",
+      "__version__"
+    ],
+    "monitor_app.settings": [
+      "AppSettings",
+      "CellStyle",
+      "MonitorConfig",
+      "TableDef",
+      "Threshold",
+      "ViewDef"
+    ]
+  },
+  "console_scripts": {
+    "monitor-app": "monitor_app.cli:app"
+  },
+  "imports": {
+    "monitor_app.cli": ["app"],
+    "monitor_app.integrations": ["merge"],
+    "monitor_app.integrations.netdiag": ["attach"],
+    "monitor_app.integrations.network_checker": ["attach"],
+    "monitor_app.integrations.procdiag": ["attach"],
+    "monitor_app.main": ["app_factory", "create_app"],
+    "monitor_app.settings.declarative": [
+      "AlertRule",
+      "CellStyle",
+      "ChartDef",
+      "ColumnType",
+      "DashboardConfig",
+      "FormDef",
+      "KioskConfig",
+      "KpiCard",
+      "MonitorConfig",
+      "SourceDef",
+      "TableDef",
+      "Threshold",
+      "ViewDef"
+    ],
+    "monitor_app.settings.loader": ["ConfigError", "load_config"],
+    "monitor_app.settings.runtime": ["AppSettings"]
+  },
+  "integrations": {
+    "netdiag": {
+      "alert_views": ["netdiag_state"],
+      "kpis": ["netdiag_avg_recovery_min", "netdiag_degraded_24h"],
+      "kwargs": {},
+      "module": "netdiag",
+      "sources": {
+        "netdiag_alerts": "jsonl"
+      },
+      "tables": ["netdiag_alerts"],
+      "views": ["netdiag_state", "netdiag_timeline"]
+    },
+    "network_checker": {
+      "alert_views": ["netcheck_summary"],
+      "kpis": ["netcheck_avg_ms_24h", "netcheck_success_pct_24h"],
+      "kwargs": {},
+      "module": "network_checker",
+      "sources": {
+        "netcheck_ping": "sqlite"
+      },
+      "tables": ["netcheck_ping"],
+      "views": ["netcheck_summary"]
+    },
+    "network_checker+hosts": {
+      "alert_views": ["netcheck_summary"],
+      "kpis": ["netcheck_avg_ms_24h", "netcheck_success_pct_24h"],
+      "kwargs": {
+        "hosts": ["plc-01", "gateway"]
+      },
+      "module": "network_checker",
+      "sources": {
+        "netcheck_ping": "sqlite"
+      },
+      "tables": ["netcheck_ping"],
+      "views": ["netcheck_rt_gateway", "netcheck_rt_plc_01", "netcheck_summary"]
+    },
+    "procdiag": {
+      "alert_views": [],
+      "kpis": ["procdiag_cpu_avg", "procdiag_mem_used_avg"],
+      "kwargs": {
+        "db_path": "procdiag.db"
+      },
+      "module": "procdiag",
+      "sources": {
+        "procdiag_sys": "sqlite"
+      },
+      "tables": ["procdiag_sys"],
+      "views": ["procdiag_cpu", "procdiag_memory", "procdiag_psi"]
+    },
+    "procdiag+findings": {
+      "alert_views": ["procdiag_findings"],
+      "kpis": ["procdiag_cpu_avg", "procdiag_critical_count", "procdiag_mem_used_avg"],
+      "kwargs": {
+        "db_path": "procdiag.db",
+        "findings_json": "findings.json"
+      },
+      "module": "procdiag",
+      "sources": {
+        "procdiag_findings": "json",
+        "procdiag_sys": "sqlite"
+      },
+      "tables": ["procdiag_findings", "procdiag_sys"],
+      "views": ["procdiag_cpu", "procdiag_findings", "procdiag_memory", "procdiag_psi"]
+    }
+  },
+  "loggers": [
+    "monitor_app",
+    "monitor_app.alerts",
+    "monitor_app.api",
+    "monitor_app.audit",
+    "monitor_app.connectors",
+    "monitor_app.importer",
+    "monitor_app.ingest",
+    "monitor_app.kpi"
+  ],
+  "signatures": {
+    "monitor_app.integrations.netdiag:attach": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "config"
+      },
+      {
+        "default": "~/.netdiag/alerts.jsonl",
+        "kind": "KEYWORD_ONLY",
+        "name": "alerts_jsonl"
+      },
+      {
+        "default": "netdiag",
+        "kind": "KEYWORD_ONLY",
+        "name": "prefix"
+      },
+      {
+        "default": true,
+        "kind": "KEYWORD_ONLY",
+        "name": "with_alerts"
+      }
+    ],
+    "monitor_app.integrations.network_checker:attach": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "config"
+      },
+      {
+        "default": "~/network_check_tool.db",
+        "kind": "KEYWORD_ONLY",
+        "name": "db_path"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "hosts"
+      },
+      {
+        "default": "netcheck",
+        "kind": "KEYWORD_ONLY",
+        "name": "prefix"
+      },
+      {
+        "default": true,
+        "kind": "KEYWORD_ONLY",
+        "name": "with_alerts"
+      },
+      {
+        "default": 5.0,
+        "kind": "KEYWORD_ONLY",
+        "name": "loss_threshold_pct"
+      }
+    ],
+    "monitor_app.integrations.procdiag:attach": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "config"
+      },
+      {
+        "kind": "KEYWORD_ONLY",
+        "name": "db_path"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "findings_json"
+      },
+      {
+        "default": "procdiag",
+        "kind": "KEYWORD_ONLY",
+        "name": "prefix"
+      },
+      {
+        "default": true,
+        "kind": "KEYWORD_ONLY",
+        "name": "with_alerts"
+      }
+    ],
+    "monitor_app.integrations:merge": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "config"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "tables"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "views"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "kpis"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "alerts"
+      },
+      {
+        "default": null,
+        "kind": "KEYWORD_ONLY",
+        "name": "sources"
+      }
+    ],
+    "monitor_app.main:app_factory": [],
+    "monitor_app.main:create_app": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "config"
+      },
+      {
+        "default": null,
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "settings"
+      },
+      {
+        "default": true,
+        "kind": "KEYWORD_ONLY",
+        "name": "init_db"
+      }
+    ],
+    "monitor_app.settings.loader:load_config": [
+      {
+        "kind": "POSITIONAL_OR_KEYWORD",
+        "name": "path"
+      }
+    ]
+  }
+}

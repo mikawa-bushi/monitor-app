@@ -9,10 +9,9 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
-from monitor_app import MonitorConfig, TableDef, ViewDef
+from monitor_app import MonitorConfig, ViewDef
 from monitor_app.main import create_app
 from monitor_app.settings.runtime import AppSettings
 

@@ -103,7 +103,7 @@ def attach(
         )
 
     # ---- ビュー定義 ----------------------------------------------------------
-    _where_24h = f"WHERE ts_min > strftime('%s','now') - 86400"
+    _where_24h = "WHERE ts_min > strftime('%s','now') - 86400"
 
     views: dict = {
         f"{prefix}_cpu": ViewDef(

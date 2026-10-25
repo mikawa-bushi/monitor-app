@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import ClassVar
 
 import pytest
 
@@ -98,9 +99,9 @@ def test_webhook_posts_json_payload(monkeypatch):
 # EmailNotifier
 # ---------------------------------------------------------------------------
 class _FakeSMTP:
-    instances: list["_FakeSMTP"] = []
+    instances: ClassVar[list[_FakeSMTP]] = []
 
-    def __init__(self, host, port, timeout=None):
+    def __init__(self, host, port, timeout=None, context=None):
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -115,7 +116,7 @@ class _FakeSMTP:
     def __exit__(self, *exc):
         return False
 
-    def starttls(self):
+    def starttls(self, context=None):
         self.started_tls = True
 
     def login(self, user, password):

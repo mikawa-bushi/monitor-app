@@ -1,12 +1,17 @@
 // ダッシュボードの描画(U03)。
 // #dashboard-config の JSON を読み、ミニチャートグリッドと
-// ステータスサマリー(#status-bar)を描画する。
+// ステータスサマリー(#status-bar)を描画する。core.js(MonitorCore)の後に読み込む。
 //
 // dashboard_json: { columns: int, views: [{name, title, chart}] }
 // /api/alerts: { alerts: [{view, column, level, message, count}] }
+//
+// 取得は MonitorCore.poll(前回の取得が終わるまで次を始めない。失敗時は間隔を伸ばす)。
+// 応答が前回と同じなら描き直さない(ステータスバーは「最終更新」の時刻だけ進める)。
 
 (function () {
   "use strict";
+
+  var Core = window.MonitorCore;
 
   // ---- ステータスバー ------------------------------------------------
   var statusBar = document.getElementById("status-bar");
@@ -16,16 +21,23 @@
     10
   );
 
-  // アラートレベルの重み(大きいほど重篤)
-  var LEVEL_WEIGHT = { info: 1, warning: 2, critical: 3 };
-
   // 最終取得アラートと最終成功時刻を保持(取得失敗時は前回表示を維持しつつ stale 表示)
   var lastAlerts = null;
   var lastOkTime = null;
+  var timeEl = null; // 「最終更新」の表示先(変化がないときはここだけ書き換える)
+  var shownStale = null; // 描画中のステータスバーが stale 表示か
+  var alertTracker = Core.tracker();
+
+  function timeText(stale) {
+    // 「最終更新」は最後に成功した時刻を表示する(失敗中に時刻だけ進まないように)。
+    var ts = (lastOkTime || new Date()).toLocaleTimeString("ja-JP", {
+      hour12: false,
+    });
+    return (stale ? "⚠ 接続エラー — " : "") + "最終更新 " + ts;
+  }
 
   function renderStatusBar(alerts, stale) {
     if (!statusBar) return;
-    statusBar.innerHTML = "";
 
     var dot = document.createElement("span");
     dot.className = "sb-dot";
@@ -35,11 +47,9 @@
 
     var right = document.createElement("span");
     right.className = "sb-right";
-    // 「最終更新」は最後に成功した時刻を表示する(失敗中に時刻だけ進まないように)。
-    var ts = (lastOkTime || new Date()).toLocaleTimeString("ja-JP", {
-      hour12: false,
-    });
-    right.textContent = (stale ? "⚠ 接続エラー — " : "") + "最終更新 " + ts;
+    right.textContent = timeText(stale);
+    timeEl = right;
+    shownStale = stale;
 
     if (stale) {
       dot.classList.add("stale");
@@ -48,14 +58,7 @@
       dot.classList.add("ok");
       summary.textContent = "すべて正常";
     } else {
-      // 最悪レベルを計算
-      var worstLevel = "info";
-      alerts.forEach(function (a) {
-        if ((LEVEL_WEIGHT[a.level] || 0) > (LEVEL_WEIGHT[worstLevel] || 0)) {
-          worstLevel = a.level;
-        }
-      });
-      dot.classList.add(worstLevel);
+      dot.classList.add(Core.worstLevel(alerts));
 
       var count = document.createElement("span");
       count.className = "sb-alert-count";
@@ -68,7 +71,7 @@
         sep.textContent = " / ";
         sep.className = "sb-sep";
         var link = document.createElement("a");
-        link.href = "/table/" + encodeURIComponent(a.view);
+        link.href = Core.url("/table/" + encodeURIComponent(a.view));
         link.textContent = a.message || a.view + " " + a.column;
         link.className = "sb-alert-link";
         summary.appendChild(sep);
@@ -76,26 +79,31 @@
       });
     }
 
-    statusBar.appendChild(dot);
-    statusBar.appendChild(summary);
-    statusBar.appendChild(right);
+    statusBar.replaceChildren(dot, summary, right);
   }
 
   async function loadAlerts() {
+    var body;
     try {
-      var res = await fetch("/api/alerts");
-      if (!res.ok) {
-        renderStatusBar(lastAlerts || [], true);
-        return;
-      }
-      var data = await res.json();
-      lastAlerts = data.alerts || [];
-      lastOkTime = new Date();
-      renderStatusBar(lastAlerts, false);
+      body = await Core.getJson("/api/alerts", alertTracker);
     } catch (e) {
       // 取得失敗時は前回表示を残しつつ stale を示す(#E9)
-      renderStatusBar(lastAlerts || [], true);
+      if (shownStale !== true) renderStatusBar(lastAlerts || [], true);
+      return false;
     }
+    lastOkTime = new Date();
+    if (body === Core.UNCHANGED && shownStale === false && timeEl) {
+      timeEl.textContent = timeText(false); // 内容は同じ: 時刻だけ進める
+      return true;
+    }
+    if (body !== Core.UNCHANGED) lastAlerts = body.alerts || [];
+    try {
+      renderStatusBar(lastAlerts || [], false);
+    } catch (e) {
+      alertTracker.reset(); // 描けなかった応答は、次の取得で描き直す
+      return false;
+    }
+    return true;
   }
 
   // ---- ダッシュボードグリッド ----------------------------------------
@@ -120,7 +128,7 @@
       var titleEl = document.createElement("div");
       titleEl.className = "dash-card-title";
       var link = document.createElement("a");
-      link.href = "/table/" + encodeURIComponent(view.name);
+      link.href = Core.url("/table/" + encodeURIComponent(view.name));
       link.textContent = view.title || view.name;
       titleEl.appendChild(link);
 
@@ -142,36 +150,43 @@
     if (names.length === 0) return;
 
     // 全カードを 1 リクエストでまとめて更新(カード毎ポーリングを避ける — #19)
-    function refresh() {
-      fetchBatch(names, charts);
-    }
-    refresh();
-    setInterval(refresh, interval);
+    var batchPath = "/api/views/batch?names=" + names.map(encodeURIComponent).join(",");
+    var batchTracker = Core.tracker();
+    Core.poll(function () {
+      return fetchBatch(batchPath, batchTracker, names, charts);
+    }, interval);
   }
 
-  async function fetchBatch(names, charts) {
+  async function fetchBatch(batchPath, batchTracker, names, charts) {
+    var body;
     try {
-      var qs = names.map(encodeURIComponent).join(",");
-      var res = await fetch("/api/views/batch?names=" + qs);
-      if (!res.ok) {
-        if (grid) grid.classList.add("stale");
-        return;
-      }
-      var views = (await res.json()).views || {};
+      body = await Core.getJson(batchPath, batchTracker);
+    } catch (e) {
+      if (grid) grid.classList.add("stale"); // 取得失敗を可視化(#E9)
+      return false;
+    }
+    if (body === Core.UNCHANGED) {
+      if (grid) grid.classList.remove("stale"); // 復帰したら stale 解除(#E9)
+      return true; // 前回と同じ: チャートは描き直さない
+    }
+    var views = body.views || {};
+    try {
       names.forEach(function (name) {
         if (views[name]) charts[name].update(views[name]);
       });
-      if (grid) grid.classList.remove("stale"); // 復帰したら stale 解除(#E9)
     } catch (e) {
-      if (grid) grid.classList.add("stale"); // 取得失敗を可視化(#E9)
+      batchTracker.reset(); // 描けなかった応答は、次の取得で描き直す
+      if (grid) grid.classList.add("stale");
+      return false;
     }
+    if (grid) grid.classList.remove("stale"); // 復帰したら stale 解除(#E9)
+    return true;
   }
 
   // ---- 初期化 ---------------------------------------------------------
   function init() {
-    // ステータスバー初期描画
-    loadAlerts();
-    setInterval(loadAlerts, interval);
+    // ステータスバー(初期描画 + 定期更新)
+    Core.poll(loadAlerts, interval);
 
     // ダッシュボードグリッド構築
     var configEl = document.getElementById("dashboard-config");

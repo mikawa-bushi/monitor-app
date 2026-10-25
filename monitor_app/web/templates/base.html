@@ -19,18 +19,25 @@
     1. bootstrap.min.css … config.py のセルスタイル(bg-*, text-* 等の色クラス)を
        解決するためだけに使う。レイアウトには使っていない。
     2. app.css … 本アプリ独自のモダンで簡素なテーマ。bootstrap の後に読み込み上書きする。
+
+  URL の書き方(web/serving.py が用意するテンプレート関数):
+    url_for(...)     … ルート相対の URL(サブパス配信でも正しい。スキーム・ホストなし)
+    static_url(path) … 静的ファイルのバージョン付き URL(長期キャッシュされる)
+    root_path()      … サブパス。<meta name="monitor-root"> で JS(core.js)へ渡す
 #}
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="monitor-root" content="{{ root_path() }}">
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
-    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
-    {# theme.js は <head> 内で同期読み込みして FOUC を防ぐ #}
-    <script src="{{ url_for('static', path='js/theme.js') }}"></script>
+    <link rel="icon" href="{{ static_url(favicon_path) }}">
+    <link href="{{ static_url('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ static_url('css/app.css') }}" rel="stylesheet">
+    {# theme.js は <head> 内で同期読み込みして FOUC を防ぐ。core.js は他の JS より先に読む #}
+    <script src="{{ static_url('js/theme.js') }}"></script>
+    <script src="{{ static_url('js/core.js') }}"></script>
 </head>
 <body>
     {# ハンバーガーメニュー用オーバーレイ(モバイル) #}
@@ -41,7 +48,7 @@
         <div class="sidebar-brand">
             <a href="{{ url_for('index') }}">{{ header_text }}</a>
         </div>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="ビューのメニュー">
             {% for group in nav_groups | default([]) %}
                 {% if group.group and (nav_groups | length > 1 or group.group != "") %}
                 <div class="nav-group-label">{{ group.group }}</div>
@@ -65,7 +72,8 @@
     <div class="main-column">
         <header class="site-header">
             {# ハンバーガーボタン(900px 未満で表示) #}
-            <button id="hamburger" class="hamburger-btn" aria-label="メニューを開く" onclick="openSidebar()">
+            <button id="hamburger" class="hamburger-btn" type="button" aria-label="メニューを開く"
+                    aria-controls="sidebar" aria-expanded="false" onclick="openSidebar()">
                 <span></span><span></span><span></span>
             </button>
             <span class="site-header__title">{% block title_text %}{{ app_title }}{% endblock %}</span>
@@ -85,16 +93,42 @@
     <script>
     (function () {
       "use strict";
+      var sidebar = document.getElementById("sidebar");
+      var overlay = document.getElementById("sidebar-overlay");
+      var hamburger = document.getElementById("hamburger");
+      // 900px 未満ではサイドバーが画面外に隠れる(オフキャンバス)。隠れている間は
+      // inert にして、キーボード操作で見えないリンクへフォーカスが移らないようにする。
+      var narrow = window.matchMedia ? window.matchMedia("(max-width: 899px)") : null;
+
+      function sync() {
+        var open = sidebar.classList.contains("is-open");
+        hamburger.setAttribute("aria-expanded", open ? "true" : "false");
+        sidebar.inert = !!(narrow && narrow.matches && !open);
+      }
       function openSidebar() {
-        document.getElementById("sidebar").classList.add("is-open");
-        document.getElementById("sidebar-overlay").classList.add("is-visible");
+        sidebar.classList.add("is-open");
+        overlay.classList.add("is-visible");
+        sync();
+        var first = sidebar.querySelector("a");
+        if (first) first.focus();
       }
       function closeSidebar() {
-        document.getElementById("sidebar").classList.remove("is-open");
-        document.getElementById("sidebar-overlay").classList.remove("is-visible");
+        var wasOpen = sidebar.classList.contains("is-open");
+        sidebar.classList.remove("is-open");
+        overlay.classList.remove("is-visible");
+        sync();
+        if (wasOpen && narrow && narrow.matches) hamburger.focus();
       }
       window.openSidebar = openSidebar;
       window.closeSidebar = closeSidebar;
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape" && sidebar.classList.contains("is-open")) closeSidebar();
+      });
+      if (narrow) {
+        if (narrow.addEventListener) narrow.addEventListener("change", sync);
+        else if (narrow.addListener) narrow.addListener(sync);
+      }
+      sync();
 
       // テーマトグルボタンの初期アイコン設定
       var btn = document.getElementById("theme-toggle");

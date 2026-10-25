@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import insert, text
+from sqlalchemy import text
 
 from monitor_app import KpiCard, MonitorConfig, TableDef
 from monitor_app.db.engine import Database

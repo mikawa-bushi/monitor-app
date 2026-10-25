@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from ...services.audit_service import AuditService
 from ..deps import get_audit_service, require_read_auth
 
 router = APIRouter(prefix="/api/audit", tags=["Audit"])
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/api/audit", tags=["Audit"])
 def list_audit(
     table: str | None = None,
     limit: int = 100,
-    service=Depends(get_audit_service),
+    service: AuditService = Depends(get_audit_service),
     _: None = Depends(require_read_auth),
 ):
     """直近の変更履歴を返す。``table`` で対象テーブルを絞れる。

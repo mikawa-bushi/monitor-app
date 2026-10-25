@@ -100,7 +100,9 @@ def test_date_passthrough_for_date_and_datetime():
     assert coerce(ts, "date") is ts
 
 
-@pytest.mark.parametrize("value", ["not-a-date", "2024/01/15", "2024-13-99"])
+# "2024/01/15" は Excel の日付の表記として受け付けるようになった(CRIT-12)。
+# スラッシュ区切りでも存在しない日付は変換できない。
+@pytest.mark.parametrize("value", ["not-a-date", "2024/13/15", "2024-13-99"])
 def test_date_invalid_raises(value):
     with pytest.raises(CoercionError):
         coerce(value, "date")

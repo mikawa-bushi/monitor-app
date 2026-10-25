@@ -1,7 +1,5 @@
 """REST API のテスト。"""
 
-import json
-
 
 class TestSchema:
     def test_schema_lists_tables(self, client):
@@ -10,7 +8,8 @@ class TestSchema:
         assert data["tables"]["orders"]["foreign_keys"]["user_id"] == "users.id"
 
     def test_health(self, client):
-        assert client.get("/api/health").json() == {"status": "ok"}
+        # 本文には version・database・tasks も加わった(キーの追加は契約上の互換)。
+        assert client.get("/api/health").json()["status"] == "ok"
 
 
 class TestRead:

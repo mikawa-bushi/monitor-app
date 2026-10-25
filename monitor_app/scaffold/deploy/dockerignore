@@ -1,0 +1,13 @@
+# このフォルダをビルドコンテキストにして「docker build」するときに除外するもの
+# (DB・秘密情報・ログをイメージに入れない)。例: ghcr.io/mikawa-bushi/monitor-app を
+# FROM にして COPY . /project で、設定とデータ入りの独自イメージを作る場合。
+.git
+.env
+instances/*.db*
+backups/
+logs/
+__pycache__/
+*.py[cod]
+monitor-app.service
+start-monitor.bat
+install-task.ps1

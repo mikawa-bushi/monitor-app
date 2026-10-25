@@ -13,7 +13,8 @@
   描画の流れ:
     このテンプレートは「空の器」だけを出力する。実データは static/js/app.js が
     /api/views/<view_name> から取得して <table> に流し込む。サーバー側では
-    行データを描画しない(リアルタイム更新のため)。
+    行データを描画しない(リアルタイム更新のため)。chart 付きビューの折りたたみ
+    テーブルは、<details> を開いたときに最新データで描く(閉じている間は描かない)。
 
   app.js との契約(JS はこれらの id / data-* 属性に依存している。変更時は app.js も直すこと):
     [data-view]      … ビュー名(body 直下の識別用)
@@ -39,8 +40,8 @@
         {% endif %}
     </div>
     <div class="page-head__actions">
-        {# CSV エクスポート(フェーズ4・H)。 #}
-        <a class="back-link" href="{{ url_for('export_view', view_name=view_name) }}?format=csv">⬇ CSV</a>
+        {# CSV エクスポート(フェーズ4・H)。bom=1 で BOM 付き UTF-8 にし、Excel で文字化けさせない #}
+        <a class="back-link" href="{{ url_for('export_view', view_name=view_name) }}?format=csv&amp;bom=1">⬇ CSV</a>
         <span id="status" class="status">
             <span class="dot"></span>
             <span id="status-text">読み込み中</span>
@@ -48,8 +49,10 @@
     </div>
 </div>
 
-{# アラートバナー。app.js が payload.alerts を流し込む(フェーズ1・A)。 #}
-<div id="alert-banner" class="alert-banner" hidden></div>
+{# アラートバナー。app.js が payload.alerts を流し込む(フェーズ1・A)。
+   ライブリージョンなので、スクリーンリーダーが新しいアラートを読み上げる
+   (critical は alerts-ui.js が role="alert" にして割り込みで通知する)。 #}
+<div id="alert-banner" class="alert-banner" aria-live="polite" hidden></div>
 
 {% if has_chart %}
 {# chart 付きビュー: チャートを主役として最上部に表示し、テーブルは折りたたみ。 #}
@@ -90,11 +93,11 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/alerts-ui.js') }}"></script>
+<script src="{{ static_url('js/alerts-ui.js') }}"></script>
 {% if has_chart %}
-<script src="{{ url_for('static', path='js/chart.umd.min.js') }}"></script>
-<script src="{{ url_for('static', path='js/chart-view.js') }}"></script>
+<script src="{{ static_url('js/chart.umd.min.js') }}"></script>
+<script src="{{ static_url('js/chart-view.js') }}"></script>
 {% endif %}
-<script src="{{ url_for('static', path='js/table-render.js') }}"></script>
-<script src="{{ url_for('static', path='js/app.js') }}"></script>
+<script src="{{ static_url('js/table-render.js') }}"></script>
+<script src="{{ static_url('js/app.js') }}"></script>
 {% endblock %}

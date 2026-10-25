@@ -6,8 +6,6 @@ import json
 import sqlite3
 import time
 
-import pytest
-
 from monitor_app.db.engine import Database
 from monitor_app.db.ingest_state import IngestStateStore
 from monitor_app.db.registry import TableRegistry

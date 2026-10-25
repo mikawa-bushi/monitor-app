@@ -2,46 +2,259 @@ name: Tests
 
 on:
   push:
-    branches: [ '**' ]  # All branches
+    branches: [main]
   pull_request:
-    branches: [ '**' ]  # All PRs
+  # build.yml(リリース)からも呼び出し、テストに通ったものだけを公開する。
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # 同じブランチ・PR に新しい push があれば、古い実行は取り消す。
+  # (build.yml から呼ばれたときと名前が重ならないよう "tests-" を付ける)
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # uv のバージョンは Dockerfile の UV_VERSION とそろえる。
+  UV_VERSION: "0.12.9"
 
 jobs:
-  test:
+  lint:
+    name: lint (black, ruff, uv.lock)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: uv.lock is up to date with pyproject.toml
+        run: uv lock --check
+      - name: black
+        run: uv run --locked --only-group dev black --check --diff .
+      - name: ruff
+        run: uv run --locked --only-group dev ruff check .
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+  test:
+    name: test (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python: "3.12"
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+      - name: Install (uv.lock, all extras, dev group)
+        run: uv sync --locked --all-extras
+      - name: Tests with the coverage gate
+        # 下限(fail_under)は pyproject.toml の [tool.coverage.report]。
+        if: runner.os == 'Linux'
+        run: uv run --no-sync python -m pytest -q --cov=monitor_app --cov-report=term-missing
+      - name: Tests
+        if: runner.os != 'Linux'
+        run: uv run --no-sync python -m pytest -q
 
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
+  lowest-direct:
+    # pyproject.toml の下限(>=)どおりの古い直接依存で動くか(下限が正しいか)を確かめる。
+    name: test (lowest direct dependencies, Python 3.10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.10"
+      - name: Install the lowest allowed versions into a fresh venv
+        run: |
+          uv venv .venv-lowest
+          uv pip install --python .venv-lowest/bin/python \
+            --resolution lowest-direct -e ".[xlsx,postgres]" --group dev
+          uv pip list --python .venv-lowest/bin/python
+      - name: Tests
+        run: .venv-lowest/bin/python -m pytest -q
 
-    - name: Load cached venv
-      id: cached-poetry-dependencies
-      uses: actions/cache@v3
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+  server-db:
+    # 実際の PostgreSQL / MySQL での取り込み・インジェスト・外部キー・連番・スキーマ確認
+    # (tests/server_db。ドライバは pg8000・psycopg・PyMySQL)。各テストは接続先の
+    # データベースの全テーブルを消すため、このジョブ専用のコンテナを使う。
+    name: test (PostgreSQL 16, MySQL 8.4)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: monitor
+          POSTGRES_PASSWORD: monitor
+          POSTGRES_DB: monitor
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U monitor -d monitor"
+          --health-interval 2s --health-retries 30
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpw
+          MYSQL_USER: monitor
+          MYSQL_PASSWORD: monitor
+          MYSQL_DATABASE: monitor
+        ports: ["3306:3306"]
+        # 初期化中の一時サーバーは TCP を受けないため、TCP で確かめる
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -umonitor -pmonitor"
+          --health-interval 2s --health-retries 60
+    env:
+      MONITOR_TEST_PG_URL: postgresql://monitor:monitor@127.0.0.1:5432/monitor
+      MONITOR_TEST_MYSQL_URL: mysql+pymysql://monitor:monitor@127.0.0.1:3306/monitor
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+      - name: Install (uv.lock, all extras so psycopg is tested too)
+        run: uv sync --locked --all-extras
+      - name: Server database tests
+        run: uv run --no-sync python -m pytest -q -m server_db tests/server_db
 
-    - name: Install project
-      run: poetry install --no-interaction
+  wheel:
+    # 利用者と同じく、ビルドした wheel だけを入れた環境で CLI とサーバーを動かす。
+    name: wheel smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+      - name: Build the sdist and the wheel
+        run: uv build
+      - name: Install the wheel into a clean venv
+        run: |
+          uv venv "$RUNNER_TEMP/smoke"
+          uv pip install --python "$RUNNER_TEMP/smoke/bin/python" dist/*.whl
+          echo "$RUNNER_TEMP/smoke/bin" >> "$GITHUB_PATH"
+      - name: startproject, check, import-csv, deploy files
+        working-directory: ${{ runner.temp }}
+        run: |
+          monitor-app --version
+          monitor-app startproject demo --deploy all
+          cd demo
+          monitor-app check
+          monitor-app import-csv
+          monitor-app check --strict --data
+          monitor-app migrate --dry-run
+          monitor-app backup
+          set -- backups/*.db
+          monitor-app restore "$1" --yes
+          systemd-analyze verify ./monitor-app.service
+          cd ..
+          monitor-app startproject fromcsv --from-csv demo/csv
+          monitor-app check --config fromcsv --strict
+          cd fromcsv
+          monitor-app import-csv
+      - name: runserver answers /api/health
+        working-directory: ${{ runner.temp }}/demo
+        run: |
+          monitor-app runserver --port 9990 > server.log 2>&1 &
+          # 成功しても失敗しても、最後にサーバーのログを表示する
+          trap 'cat server.log' EXIT
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:9990/api/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9990/api/views/orders_summary > /dev/null
+      - name: check succeeds with a cp932 stdout (redirected output on Japanese Windows)
+        working-directory: ${{ runner.temp }}/demo
+        env:
+          PYTHONIOENCODING: cp932
+        run: |
+          monitor-app check > check.log
+          test -s check.log
 
-    - name: Run tests (with coverage gate)
-      # fail_under は pyproject.toml の [tool.coverage.report] で管理(下回ると失敗)。
-      run: poetry run python -m pytest -v --tb=short --cov=monitor_app --cov-report=term-missing
-
-    - name: Check formatting
-      run: poetry run black --check monitor_app/ tests/
+  docker:
+    name: docker image smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: monitor-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: The demo starts without a mount and turns healthy
+        run: |
+          docker run -d --name demo -p 9990:9990 monitor-app:ci
+          status=""
+          for _ in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' demo)"
+            [ "$status" = healthy ] && break
+            sleep 1
+          done
+          docker logs demo
+          test "$status" = healthy
+          curl -fsS http://127.0.0.1:9990/api/views/products_view > /dev/null
+      - name: A bind-mounted folder owned by another uid works
+        run: |
+          mkdir "$RUNNER_TEMP/project"
+          sudo chown 1234:1234 "$RUNNER_TEMP/project"
+          docker run -d --name project -p 9991:9990 -v "$RUNNER_TEMP/project:/project" monitor-app:ci
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:9991/api/health > /dev/null 2>&1 && break
+            sleep 1
+          done
+          docker logs project
+          test "$(stat -c %u "$RUNNER_TEMP/project/instances/database.db")" = 1234
+      - name: The health check follows a --port passed to the entrypoint
+        run: |
+          docker run -d --name port -p 9992:8000 monitor-app:ci --port 8000
+          status=""
+          for _ in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' port)"
+            [ "$status" = healthy ] && break
+            sleep 1
+          done
+          docker logs port
+          test "$status" = healthy
+          docker rm -f port
+      - name: docker stop is quick while an SSE stream is open
+        run: |
+          curl -sN http://127.0.0.1:9990/api/views/orders_summary/stream > /dev/null &
+          sleep 2
+          start=$(date +%s)
+          docker stop demo
+          elapsed=$(( $(date +%s) - start ))
+          echo "docker stop took ${elapsed}s"
+          test "$(docker inspect -f '{{.State.ExitCode}}' demo)" = 0
+          test "$elapsed" -le 5
+      - name: Give the uid-1234 folder back to the runner user
+        if: always()
+        run: |
+          docker rm -f project > /dev/null 2>&1 || true
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/project" || true

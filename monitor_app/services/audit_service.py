@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import (
     Column,
@@ -26,6 +26,7 @@ from sqlalchemy import (
 )
 
 from ..db.engine import Database
+from ..db.gate import fetch_all
 
 logger = logging.getLogger("monitor_app.audit")
 
@@ -51,7 +52,7 @@ class AuditService:
             self._metadata.create_all(db.engine)
 
     @staticmethod
-    def _dump(value: Optional[Dict[str, Any]]) -> Optional[str]:
+    def _dump(value: dict[str, Any] | None) -> str | None:
         return (
             None
             if value is None
@@ -64,8 +65,8 @@ class AuditService:
         record_id: Any,
         action: str,
         *,
-        before: Optional[Dict[str, Any]] = None,
-        after: Optional[Dict[str, Any]] = None,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
         actor: str = "system",
     ) -> None:
         if not self.enabled:
@@ -83,22 +84,24 @@ class AuditService:
                         actor=actor,
                     )
                 )
-        except Exception:  # noqa: BLE001 - 監査の失敗で業務処理を止めない
+        except Exception:  # 監査の失敗で業務処理を止めない
             logger.exception("監査ログの記録に失敗しました")
 
     def list_recent(
-        self, table_name: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, table_name: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         if not self.enabled:
             return []
         stmt = select(self.table).order_by(desc(self.table.c.id)).limit(limit)
         if table_name:
             stmt = stmt.where(self.table.c.table_name == table_name)
         with self.db.readonly() as conn:
-            rows = conn.execute(stmt).mappings().all()
+            cursor = conn.execute(stmt)
+            keys = list(cursor.keys())
+            rows = fetch_all(cursor, self.db)  # SQLite の取り出しを順番に行う(PERF-01)
         result = []
         for r in rows:
-            d = dict(r)
+            d = dict(zip(keys, r))
             d["before"] = json.loads(d["before"]) if d["before"] else None
             d["after"] = json.loads(d["after"]) if d["after"] else None
             result.append(d)

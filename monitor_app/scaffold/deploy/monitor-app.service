@@ -1,0 +1,40 @@
+# monitor-app の systemd ユニット(「monitor-app deploy systemd」で生成)。
+#
+#   登録    sudo cp @UNIT_FILE@ /etc/systemd/system/
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now monitor-app
+#   状態    systemctl status monitor-app
+#   ログ    journalctl -u monitor-app -f
+#
+# 設定はプロジェクトの .env(MONITOR_*)で変える(アプリが WorkingDirectory の .env を
+# 読む)。ほかの PC から見るには .env に MONITOR_HOST=0.0.0.0 を書く(書き込みに必要な
+# MONITOR_API_KEY は、monitor-app deploy が .env に生成する)。
+# .env を EnvironmentFile= で読ませないのは、systemd が値の後ろの「# コメント」を値の
+# 一部として渡し、アプリの解釈(コメントを除く)とずれるため。MONITOR_* 以外の環境変数
+# (プロキシなど)は下の Environment= に足す。
+# 複数のプロジェクトを動かすときは、ファイル名(monitor-app-<名前>.service)を変える。
+[Unit]
+Description=monitor-app (@DESCRIPTION@)
+Documentation=https://github.com/mikawa-bushi/monitor-app
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@WORKING_DIRECTORY@
+# PYTHONSAFEPATH=1(Python 3.11 以降): python -m がこのフォルダのモジュールを読まない
+# (フォルダに置かれた typer.py などが、ライブラリの代わりに読み込まれない)。
+Environment=PYTHONUNBUFFERED=1 PYTHONUTF8=1 PYTHONSAFEPATH=1
+# Environment=HTTPS_PROXY=http://proxy.example.com:8080
+ExecStart=@EXEC_START@
+Restart=on-failure
+RestartSec=5
+# SSE の接続が残っていても数秒で止まる(既定の 90 秒待ちを短くする)。
+TimeoutStopSec=15
+SyslogIdentifier=monitor-app
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

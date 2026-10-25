@@ -3,7 +3,7 @@
 テスト 1: scaffold/config.py を load_config() で読み込み、有効な MonitorConfig が得られること
           (scaffold に追記したコメントが動作を壊していないことの確認)
 
-テスト 2: docs/integrations_v2_2.md に記載した attach() 使用例が実際に動くこと
+テスト 2: docs/design/integrations_v2_2.md に記載した attach() 使用例が実際に動くこと
           (procdiag / netdiag / network_checker の 3 プリセットを scaffold 由来 config に
            attach してバリデーションが通ること)
 """
@@ -12,18 +12,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-from monitor_app.settings.declarative import MonitorConfig, SourceDef, TableDef, ViewDef
+from monitor_app.integrations import netdiag, network_checker, procdiag
+from monitor_app.settings.declarative import MonitorConfig
 from monitor_app.settings.loader import load_config
 
 # scaffold/config.py の絶対パス
 _SCAFFOLD_CONFIG = (
     Path(__file__).parent.parent / "monitor_app" / "scaffold" / "config.py"
 )
-
-# integrations プリセット — 遅延インポートして依存エラーを明確化
-from monitor_app.integrations import netdiag, network_checker, procdiag
 
 # ---------------------------------------------------------------------------
 # テスト 1: scaffold/config.py のロード
@@ -220,8 +216,6 @@ def test_network_checker_attach_with_hosts():
 
 def test_all_three_presets_combined():
     """3 つのプリセットを組み合わせても名前衝突なく valid な config になる。"""
-    import json
-    import tempfile
 
     config = _base_config()
 

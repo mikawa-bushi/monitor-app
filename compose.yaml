@@ -1,0 +1,47 @@
+# リポジトリのチェックアウトからイメージをビルドして、デモを動かす Compose 設定
+# (開発者向け・インターネットに出られない現場でのビルド向け)。
+#
+#   docker compose up -d --build    → http://localhost:9990/(初回はデモプロジェクト)
+#   docker compose logs -f
+#   docker compose down             (データは名前付きボリューム "project" に残る。
+#                                    消すときは docker compose down -v)
+#
+# 自分のプロジェクトを動かすなら、プロジェクトのフォルダで「monitor-app deploy docker」を
+# 実行して生成される compose.yaml を使う(公開イメージを使い、フォルダをマウントする)。
+# 詳しくは docker/README.md を参照。
+name: monitor-app
+
+services:
+  monitor-app:
+    build: .
+    # 「docker build -t monitor-app .」と同じ名前(コードを更新したら --build で作り直す)。
+    image: monitor-app:latest
+    ports:
+      - "${MONITOR_PORT:-9990}:9990"
+    volumes:
+      # 空のボリュームに初回起動時にデモプロジェクト(config.py・csv/・instances/)を作る。
+      - project:/project
+    environment:
+      TZ: ${TZ:-UTC}
+    # 権限を最小にする。起動時にフォルダの所有者へ切り替える SETUID・SETGID と、
+    # 空の instances/ の所有者を合わせる CHOWN だけを残す。
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      # /api/health を確かめる(イメージの HEALTHCHECK と同じスクリプト。--port にも従う)。
+      test: ["CMD", "python", "-I", "/opt/monitor-app/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  project:

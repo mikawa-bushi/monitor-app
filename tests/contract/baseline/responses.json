@@ -1,0 +1,2333 @@
+{
+  "scenarios": [
+    {
+      "name": "default",
+      "requests": [
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_headers": {
+              "referrer-policy": "same-origin",
+              "x-content-type-options": "nosniff",
+              "x-frame-options": "SAMEORIGIN"
+            },
+            "pin_json": {
+              "status": "ok"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "status": ["string"]
+                  },
+                  "required": ["status"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "health",
+            "method": "GET",
+            "path": "/api/health",
+            "pin_headers": ["referrer-policy", "x-content-type-options", "x-frame-options"],
+            "pin_json": ["status"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "success": ["boolean"],
+                    "tables": [
+                      {
+                        "object": {
+                          "properties": {
+                            "line_events": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "foreign_keys": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "primary_key": ["string"]
+                                  },
+                                  "required": ["columns", "foreign_keys", "primary_key"]
+                                }
+                              }
+                            ],
+                            "orders": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "foreign_keys": [
+                                      {
+                                        "object": {
+                                          "properties": {
+                                            "product_id": ["string"],
+                                            "user_id": ["string"]
+                                          },
+                                          "required": ["product_id", "user_id"]
+                                        }
+                                      }
+                                    ],
+                                    "primary_key": ["string"]
+                                  },
+                                  "required": ["columns", "foreign_keys", "primary_key"]
+                                }
+                              }
+                            ],
+                            "products": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "foreign_keys": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "primary_key": ["string"]
+                                  },
+                                  "required": ["columns", "foreign_keys", "primary_key"]
+                                }
+                              }
+                            ],
+                            "users": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "foreign_keys": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "primary_key": ["string"]
+                                  },
+                                  "required": ["columns", "foreign_keys", "primary_key"]
+                                }
+                              }
+                            ]
+                          },
+                          "required": ["line_events", "orders", "products", "users"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["success", "tables"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "schema",
+            "method": "GET",
+            "path": "/api/schema"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "count": ["integer"],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "email": ["string"],
+                                "id": ["integer"],
+                                "name": ["string"]
+                              },
+                              "required": ["email", "id", "name"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "table_name": ["string"]
+                  },
+                  "required": ["columns", "count", "data", "table_name"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.list",
+            "method": "GET",
+            "path": "/api/tables/users"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "count": ["integer"],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "email": ["string"],
+                                "id": ["integer"],
+                                "name": ["string"]
+                              },
+                              "required": ["email", "id", "name"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "table_name": ["string"]
+                  },
+                  "required": ["columns", "count", "data", "table_name"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.list.paged",
+            "method": "GET",
+            "path": "/api/tables/users?limit=2&offset=1"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "data": [
+                      {
+                        "object": {
+                          "properties": {
+                            "email": ["string"],
+                            "id": ["integer"],
+                            "name": ["string"]
+                          },
+                          "required": ["email", "id", "name"]
+                        }
+                      }
+                    ],
+                    "success": ["boolean"]
+                  },
+                  "required": ["data", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.get",
+            "method": "GET",
+            "path": "/api/tables/users/1"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "success": true
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "data": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": ["number"],
+                            "id": ["integer"],
+                            "product_id": ["integer"],
+                            "user_id": ["integer"]
+                          },
+                          "required": ["amount", "id", "product_id", "user_id"]
+                        }
+                      }
+                    ],
+                    "success": ["boolean"]
+                  },
+                  "required": ["data", "success"]
+                }
+              }
+            ],
+            "status": 201
+          },
+          "request": {
+            "id": "tables.create",
+            "json": {
+              "amount": 3,
+              "product_id": 2,
+              "user_id": 1
+            },
+            "method": "POST",
+            "path": "/api/tables/orders",
+            "pin_json": ["success"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "data": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": ["number"],
+                            "id": ["integer"],
+                            "product_id": ["integer"],
+                            "user_id": ["integer"]
+                          },
+                          "required": ["amount", "id", "product_id", "user_id"]
+                        }
+                      }
+                    ],
+                    "success": ["boolean"]
+                  },
+                  "required": ["data", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.get.created",
+            "method": "GET",
+            "path": "/api/tables/orders/6"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "success": true
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "data": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": ["number"],
+                            "id": ["integer"],
+                            "product_id": ["integer"],
+                            "user_id": ["integer"]
+                          },
+                          "required": ["amount", "id", "product_id", "user_id"]
+                        }
+                      }
+                    ],
+                    "success": ["boolean"]
+                  },
+                  "required": ["data", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.update",
+            "json": {
+              "amount": 7
+            },
+            "method": "PUT",
+            "path": "/api/tables/orders/6",
+            "pin_json": ["success"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "success": true
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "message": ["string"],
+                    "success": ["boolean"]
+                  },
+                  "required": ["message", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "tables.delete",
+            "method": "DELETE",
+            "path": "/api/tables/orders/6",
+            "pin_json": ["success"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "inserted": 1,
+              "success": true
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "inserted": ["integer"],
+                    "success": ["boolean"]
+                  },
+                  "required": ["inserted", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "ingest.single",
+            "json": {
+              "id": 10,
+              "name": "Durian",
+              "price": "1200"
+            },
+            "method": "POST",
+            "path": "/api/ingest/products",
+            "pin_json": ["success", "inserted"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "inserted": 2,
+              "success": true
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "inserted": ["integer"],
+                    "success": ["boolean"]
+                  },
+                  "required": ["inserted", "success"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "ingest.list",
+            "json": [
+              {
+                "id": 11,
+                "name": "Elderberry",
+                "price": 300
+              },
+              {
+                "id": 12,
+                "name": "Fig",
+                "price": 450.5
+              }
+            ],
+            "method": "POST",
+            "path": "/api/ingest/products",
+            "pin_json": ["success", "inserted"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": []
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "align": ["string"],
+                                    "bold": ["boolean"],
+                                    "greater_than": [
+                                      {
+                                        "object": {
+                                          "properties": {
+                                            "class": ["string"],
+                                            "value": ["number"]
+                                          },
+                                          "required": ["class", "value"]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "required": ["align", "bold", "greater_than"]
+                                }
+                              }
+                            ]
+                          },
+                          "required": ["amount"]
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "amount": ["number"],
+                                "id": ["integer"],
+                                "product": ["string"],
+                                "user": ["string"]
+                              },
+                              "required": ["amount", "id", "product", "user"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "views.get.paged",
+            "method": "GET",
+            "path": "/api/views/orders_summary?limit=2&offset=1"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "column": ["string"],
+                                "count": ["integer"],
+                                "level": ["string"],
+                                "message": ["string"],
+                                "view": ["string"]
+                              },
+                              "required": ["column", "count", "level", "message", "view"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "align": ["string"],
+                                    "bold": ["boolean"],
+                                    "greater_than": [
+                                      {
+                                        "object": {
+                                          "properties": {
+                                            "class": ["string"],
+                                            "value": ["number"]
+                                          },
+                                          "required": ["class", "value"]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "required": ["align", "bold", "greater_than"]
+                                }
+                              }
+                            ]
+                          },
+                          "required": ["amount"]
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "amount": ["number"],
+                                "id": ["integer"],
+                                "product": ["string"],
+                                "user": ["string"]
+                              },
+                              "required": ["amount", "id", "product", "user"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "views.get",
+            "method": "GET",
+            "path": "/api/views/orders_summary"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "column": ["string"],
+                                "count": ["integer"],
+                                "level": ["string"],
+                                "message": ["string"],
+                                "view": ["string"]
+                              },
+                              "required": ["column", "count", "level", "message", "view"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {
+                            "ts": ["string"],
+                            "value": ["string"]
+                          },
+                          "required": ["ts", "value"]
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "id": ["integer"],
+                                "line": ["string"],
+                                "ts": ["string"],
+                                "value": ["number"]
+                              },
+                              "required": ["id", "line", "ts", "value"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "views.get.labels",
+            "method": "GET",
+            "path": "/api/views/line_events_view"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "views": [
+                      {
+                        "object": {
+                          "properties": {
+                            "products_view": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "alerts": [
+                                      {
+                                        "array": [
+                                          {
+                                            "object": {
+                                              "properties": {
+                                                "column": ["string"],
+                                                "count": ["integer"],
+                                                "level": ["string"],
+                                                "message": ["string"],
+                                                "view": ["string"]
+                                              },
+                                              "required": ["column", "count", "level", "message", "view"]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "cell_styles": [
+                                      {
+                                        "object": {
+                                          "properties": {
+                                            "price": [
+                                              {
+                                                "object": {
+                                                  "properties": {
+                                                    "align": ["string"],
+                                                    "bold": ["boolean"],
+                                                    "greater_than": [
+                                                      {
+                                                        "object": {
+                                                          "properties": {
+                                                            "class": ["string"],
+                                                            "value": ["number"]
+                                                          },
+                                                          "required": ["class", "value"]
+                                                        }
+                                                      }
+                                                    ],
+                                                    "less_than": [
+                                                      {
+                                                        "object": {
+                                                          "properties": {
+                                                            "class": ["string"],
+                                                            "value": ["number"]
+                                                          },
+                                                          "required": ["class", "value"]
+                                                        }
+                                                      }
+                                                    ]
+                                                  },
+                                                  "required": ["align", "bold", "greater_than", "less_than"]
+                                                }
+                                              }
+                                            ]
+                                          },
+                                          "required": ["price"]
+                                        }
+                                      }
+                                    ],
+                                    "column_labels": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "data": [
+                                      {
+                                        "array": [
+                                          {
+                                            "object": {
+                                              "properties": {
+                                                "id": ["integer"],
+                                                "name": ["string"],
+                                                "price": ["number"]
+                                              },
+                                              "required": ["id", "name", "price"]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "description": ["string"],
+                                    "title": ["string"],
+                                    "view_name": ["string"]
+                                  },
+                                  "required": [
+                                    "alerts",
+                                    "cell_styles",
+                                    "column_labels",
+                                    "columns",
+                                    "data",
+                                    "description",
+                                    "title",
+                                    "view_name"
+                                  ]
+                                }
+                              }
+                            ],
+                            "users_view": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "alerts": [
+                                      {
+                                        "array": [
+                                          {
+                                            "object": {
+                                              "properties": {
+                                                "column": ["string"],
+                                                "count": ["integer"],
+                                                "level": ["string"],
+                                                "message": ["string"],
+                                                "view": ["string"]
+                                              },
+                                              "required": ["column", "count", "level", "message", "view"]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "cell_styles": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "column_labels": [
+                                      {
+                                        "object": {
+                                          "properties": {},
+                                          "required": []
+                                        }
+                                      }
+                                    ],
+                                    "columns": [
+                                      {
+                                        "array": ["string"]
+                                      }
+                                    ],
+                                    "data": [
+                                      {
+                                        "array": [
+                                          {
+                                            "object": {
+                                              "properties": {
+                                                "email": ["string"],
+                                                "id": ["integer"],
+                                                "name": ["string"]
+                                              },
+                                              "required": ["email", "id", "name"]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "description": ["string"],
+                                    "title": ["string"],
+                                    "view_name": ["string"]
+                                  },
+                                  "required": [
+                                    "alerts",
+                                    "cell_styles",
+                                    "column_labels",
+                                    "columns",
+                                    "data",
+                                    "description",
+                                    "title",
+                                    "view_name"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          "required": ["products_view", "users_view"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["views"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "views.batch",
+            "method": "GET",
+            "path": "/api/views/batch?names=users_view,products_view,ghost"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/csv",
+            "first_line": "id,name,price",
+            "status": 200
+          },
+          "request": {
+            "id": "views.export.csv",
+            "method": "GET",
+            "path": "/api/views/products_view/export",
+            "pin_first_line": true
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/event-stream",
+            "event": "message",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "column": ["string"],
+                                "count": ["integer"],
+                                "level": ["string"],
+                                "message": ["string"],
+                                "view": ["string"]
+                              },
+                              "required": ["column", "count", "level", "message", "view"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {
+                            "amount": [
+                              {
+                                "object": {
+                                  "properties": {
+                                    "align": ["string"],
+                                    "bold": ["boolean"],
+                                    "greater_than": [
+                                      {
+                                        "object": {
+                                          "properties": {
+                                            "class": ["string"],
+                                            "value": ["number"]
+                                          },
+                                          "required": ["class", "value"]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "required": ["align", "bold", "greater_than"]
+                                }
+                              }
+                            ]
+                          },
+                          "required": ["amount"]
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "amount": ["number"],
+                                "id": ["integer"],
+                                "product": ["string"],
+                                "user": ["string"]
+                              },
+                              "required": ["amount", "id", "product", "user"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "views.stream",
+            "kind": "sse",
+            "method": "GET",
+            "path": "/api/views/orders_summary/stream"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "kpis": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "display": ["string"],
+                                "key": ["string"],
+                                "link_view": ["string"],
+                                "status": ["string"],
+                                "target": ["null", "number"],
+                                "title": ["string"],
+                                "unit": ["string"],
+                                "value": ["number"]
+                              },
+                              "required": [
+                                "display",
+                                "key",
+                                "link_view",
+                                "status",
+                                "target",
+                                "title",
+                                "unit",
+                                "value"
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "required": ["kpis"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "kpis",
+            "method": "GET",
+            "path": "/api/kpis"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "column": ["string"],
+                                "count": ["integer"],
+                                "level": ["string"],
+                                "message": ["string"],
+                                "view": ["string"]
+                              },
+                              "required": ["column", "count", "level", "message", "view"]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "required": ["alerts"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "alerts",
+            "method": "GET",
+            "path": "/api/alerts"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "entries": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "action": ["string"],
+                                "actor": ["string"],
+                                "after": [
+                                  "null",
+                                  {
+                                    "object": {
+                                      "properties": {
+                                        "amount": ["number"],
+                                        "id": ["integer"],
+                                        "product_id": ["integer"],
+                                        "user_id": ["integer"]
+                                      },
+                                      "required": ["amount", "id", "product_id", "user_id"]
+                                    }
+                                  }
+                                ],
+                                "before": [
+                                  "null",
+                                  {
+                                    "object": {
+                                      "properties": {
+                                        "amount": ["number"],
+                                        "id": ["integer"],
+                                        "product_id": ["integer"],
+                                        "user_id": ["integer"]
+                                      },
+                                      "required": ["amount", "id", "product_id", "user_id"]
+                                    }
+                                  }
+                                ],
+                                "id": ["integer"],
+                                "record_id": ["string"],
+                                "table_name": ["string"],
+                                "ts": ["string"]
+                              },
+                              "required": [
+                                "action",
+                                "actor",
+                                "after",
+                                "before",
+                                "id",
+                                "record_id",
+                                "table_name",
+                                "ts"
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "required": ["entries"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "audit",
+            "method": "GET",
+            "path": "/api/audit"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "entries": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "action": ["string"],
+                                "actor": ["string"],
+                                "after": [
+                                  "null",
+                                  {
+                                    "object": {
+                                      "properties": {
+                                        "amount": ["number"],
+                                        "id": ["integer"],
+                                        "product_id": ["integer"],
+                                        "user_id": ["integer"]
+                                      },
+                                      "required": ["amount", "id", "product_id", "user_id"]
+                                    }
+                                  }
+                                ],
+                                "before": [
+                                  {
+                                    "object": {
+                                      "properties": {
+                                        "amount": ["number"],
+                                        "id": ["integer"],
+                                        "product_id": ["integer"],
+                                        "user_id": ["integer"]
+                                      },
+                                      "required": ["amount", "id", "product_id", "user_id"]
+                                    }
+                                  }
+                                ],
+                                "id": ["integer"],
+                                "record_id": ["string"],
+                                "table_name": ["string"],
+                                "ts": ["string"]
+                              },
+                              "required": [
+                                "action",
+                                "actor",
+                                "after",
+                                "before",
+                                "id",
+                                "record_id",
+                                "table_name",
+                                "ts"
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "required": ["entries"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "audit.filtered",
+            "method": "GET",
+            "path": "/api/audit?table=orders&limit=2"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "VIEW_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.view_not_found",
+            "method": "GET",
+            "path": "/api/views/ghost",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "VIEW_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.export_view_not_found",
+            "method": "GET",
+            "path": "/api/views/ghost/export",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "TABLE_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.table_not_found",
+            "method": "GET",
+            "path": "/api/tables/ghost",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "RECORD_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.record_not_found",
+            "method": "GET",
+            "path": "/api/tables/users/999",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "RECORD_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.record_id_type",
+            "method": "GET",
+            "path": "/api/tables/users/abc",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "RECORD_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.update_not_found",
+            "json": {
+              "name": "x"
+            },
+            "method": "PUT",
+            "path": "/api/tables/users/999",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "RECORD_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.delete_not_found",
+            "method": "DELETE",
+            "path": "/api/tables/users/999",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "INVALID_PAYLOAD"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 422
+          },
+          "request": {
+            "id": "error.no_valid_columns",
+            "json": {
+              "junk": 1
+            },
+            "method": "POST",
+            "path": "/api/tables/users",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "INVALID_PAYLOAD"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 422
+          },
+          "request": {
+            "id": "error.coercion",
+            "json": {
+              "name": "x",
+              "price": "abc"
+            },
+            "method": "POST",
+            "path": "/api/tables/products",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "TABLE_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "error.ingest_table_not_found",
+            "json": [
+              {
+                "id": 1
+              }
+            ],
+            "method": "POST",
+            "path": "/api/ingest/ghost",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "status": 422
+          },
+          "request": {
+            "id": "error.query_validation",
+            "method": "GET",
+            "path": "/api/views/users_view?limit=0",
+            "shape": false
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "pin_headers": {
+              "referrer-policy": "same-origin",
+              "x-content-type-options": "nosniff",
+              "x-frame-options": "SAMEORIGIN"
+            },
+            "status": 200
+          },
+          "request": {
+            "id": "page.index",
+            "method": "GET",
+            "path": "/",
+            "pin_headers": ["referrer-policy", "x-content-type-options", "x-frame-options"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "page.table",
+            "method": "GET",
+            "path": "/table/users_view"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "page.table.chart",
+            "method": "GET",
+            "path": "/table/products_view"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "page.form",
+            "method": "GET",
+            "path": "/form/orders"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "page.kiosk",
+            "method": "GET",
+            "path": "/kiosk"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "page.login",
+            "method": "GET",
+            "path": "/login"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "VIEW_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "page.table.not_found",
+            "method": "GET",
+            "path": "/table/ghost",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "TABLE_NOT_FOUND"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 404
+          },
+          "request": {
+            "id": "page.form.not_found",
+            "method": "GET",
+            "path": "/form/ghost",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/css",
+            "status": 200
+          },
+          "request": {
+            "id": "static.css",
+            "method": "GET",
+            "path": "/static/css/app.css"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "docs.swagger",
+            "method": "GET",
+            "path": "/docs"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "docs.redoc",
+            "method": "GET",
+            "path": "/redoc"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "status": 200
+          },
+          "request": {
+            "id": "docs.openapi",
+            "method": "GET",
+            "path": "/openapi.json",
+            "shape": false
+          }
+        }
+      ],
+      "settings": {
+        "audit_enabled": true
+      }
+    },
+    {
+      "name": "auth",
+      "requests": [
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "status": "ok"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "status": ["string"]
+                  },
+                  "required": ["status"]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "auth.health_is_open",
+            "method": "GET",
+            "path": "/api/health",
+            "pin_json": ["status"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "UNAUTHORIZED"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 401
+          },
+          "request": {
+            "id": "auth.read_without_key",
+            "method": "GET",
+            "path": "/api/views/users_view",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": []
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "email": ["string"],
+                                "id": ["integer"],
+                                "name": ["string"]
+                              },
+                              "required": ["email", "id", "name"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "auth.read_with_key",
+            "method": "GET",
+            "path": "/api/views/users_view",
+            "send_headers": {
+              "X-API-Key": "test-key"
+            }
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "UNAUTHORIZED"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 401
+          },
+          "request": {
+            "id": "auth.write_without_key",
+            "json": {
+              "name": "x"
+            },
+            "method": "POST",
+            "path": "/api/tables/users",
+            "pin_json": ["detail.code"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "",
+            "pin_headers": {
+              "location": "/login"
+            },
+            "status": 303
+          },
+          "request": {
+            "id": "auth.page_redirects_to_login",
+            "method": "GET",
+            "path": "/",
+            "pin_headers": ["location"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "auth.login_page_is_open",
+            "method": "GET",
+            "path": "/login"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "",
+            "pin_headers": {
+              "location": "/login?error=1"
+            },
+            "status": 303
+          },
+          "request": {
+            "form": {
+              "key": "wrong"
+            },
+            "id": "auth.login_wrong_key",
+            "method": "POST",
+            "path": "/api/login",
+            "pin_headers": ["location"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "",
+            "header_contains": {
+              "set-cookie": ["monitor_session=", "httponly"]
+            },
+            "pin_headers": {
+              "location": "/"
+            },
+            "status": 303
+          },
+          "request": {
+            "form": {
+              "key": "test-key"
+            },
+            "header_contains": {
+              "set-cookie": ["monitor_session=", "httponly"]
+            },
+            "id": "auth.login",
+            "method": "POST",
+            "path": "/api/login",
+            "pin_headers": ["location"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "alerts": [
+                      {
+                        "array": []
+                      }
+                    ],
+                    "cell_styles": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "column_labels": [
+                      {
+                        "object": {
+                          "properties": {},
+                          "required": []
+                        }
+                      }
+                    ],
+                    "columns": [
+                      {
+                        "array": ["string"]
+                      }
+                    ],
+                    "data": [
+                      {
+                        "array": [
+                          {
+                            "object": {
+                              "properties": {
+                                "email": ["string"],
+                                "id": ["integer"],
+                                "name": ["string"]
+                              },
+                              "required": ["email", "id", "name"]
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "description": ["string"],
+                    "title": ["string"],
+                    "view_name": ["string"]
+                  },
+                  "required": [
+                    "alerts",
+                    "cell_styles",
+                    "column_labels",
+                    "columns",
+                    "data",
+                    "description",
+                    "title",
+                    "view_name"
+                  ]
+                }
+              }
+            ],
+            "status": 200
+          },
+          "request": {
+            "id": "auth.read_with_session",
+            "method": "GET",
+            "path": "/api/views/users_view"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "text/html",
+            "status": 200
+          },
+          "request": {
+            "id": "auth.page_with_session",
+            "method": "GET",
+            "path": "/"
+          }
+        },
+        {
+          "expected": {
+            "content_type": "",
+            "pin_headers": {
+              "location": "/login"
+            },
+            "status": 303
+          },
+          "request": {
+            "id": "auth.logout",
+            "method": "POST",
+            "path": "/api/logout",
+            "pin_headers": ["location"]
+          }
+        },
+        {
+          "expected": {
+            "content_type": "application/json",
+            "pin_json": {
+              "detail.code": "UNAUTHORIZED"
+            },
+            "shape": [
+              {
+                "object": {
+                  "properties": {
+                    "detail": [
+                      {
+                        "object": {
+                          "properties": {
+                            "code": ["string"],
+                            "message": ["string"]
+                          },
+                          "required": ["code", "message"]
+                        }
+                      }
+                    ]
+                  },
+                  "required": ["detail"]
+                }
+              }
+            ],
+            "status": 401
+          },
+          "request": {
+            "id": "auth.read_after_logout",
+            "method": "GET",
+            "path": "/api/views/users_view",
+            "pin_json": ["detail.code"]
+          }
+        }
+      ],
+      "settings": {
+        "api_key": "test-key",
+        "protect_reads": true
+      }
+    }
+  ]
+}

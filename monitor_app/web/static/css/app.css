@@ -9,6 +9,10 @@
    - bootstrap.min.css も読み込まれているが、用途は config.py のセルスタイル
      (bg-danger / text-white などの色クラス)を解決することだけ。レイアウトには
      使っていない。このファイルが bootstrap の後に読み込まれ、上書きする。
+     bootstrap の部品ルール(.card の文字色・a の色など)はライト配色前提なので、
+     本アプリが使う要素は色をここで必ず指定する(ダークテーマで文字が消えないように)。
+   - 文字色と背景の組み合わせは両テーマでコントラスト比 4.5:1 以上を保つ
+     (WCAG AA。--accent の上の文字は --on-accent を使う)。
 
    セクション目次:
      1. テーマ変数(:root / [data-theme="dark"])
@@ -36,6 +40,9 @@
   --muted: #6b7280;
   --border: #e5e7eb;
   --accent: #2563eb;
+  --on-accent: #ffffff;          /* --accent を背景にしたときの文字色 */
+  --ok-text: #15803d;            /* 成功メッセージ */
+  --error-text: #b91c1c;         /* エラーメッセージ */
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
@@ -55,6 +62,9 @@
   --muted: #94a3b8;
   --border: #334155;
   --accent: #60a5fa;
+  --on-accent: #0f172a;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --ok-text: #4ade80;
+  --error-text: #f87171;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
   --chart-grid: rgba(148, 163, 184, 0.15);
   --chart-tick: #94a3b8;
@@ -135,6 +145,7 @@ body {
 }
 
 .nav-link:hover {
+  color: var(--text);  /* bootstrap の .nav-link:hover(#0a58ca)を打ち消す */
   background: var(--bg);
   border-left-color: var(--border);
 }
@@ -320,9 +331,21 @@ body {
   font-size: 0.9rem;
 }
 
+/* 見出し横の小さなリンク(「← 一覧へ」「⬇ CSV」「📺 大型表示」)。bootstrap の
+   既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
+.back-link {
+  color: var(--accent);
+  white-space: nowrap;
+  text-underline-offset: 2px;
+}
+.back-link:hover { color: var(--accent); text-decoration-thickness: 2px; }
+
 /* --- 6. カード ----------------------------------------------------------- */
+/* bootstrap の .card は color: var(--bs-body-color)(#212529 固定)を持つため、
+   文字色を明示しないとダークテーマでカード内の表・ラベルが背景と同化する。 */
 .card {
   background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -370,6 +393,19 @@ table.data tbody td {
 
 table.data tbody tr:last-child td { border-bottom: none; }
 table.data tbody tr:hover { background: var(--bg); }
+
+/* セルスタイル(config の css_class)で背景色クラスだけを指定した場合の文字色。
+   bootstrap の text-bg-* と同じ組み合わせにし、どちらのテーマでも読めるようにする。
+   text-white などの文字色クラス(bootstrap では !important)を併記すればそちらが優先。 */
+table.data td.bg-primary,
+table.data td.bg-secondary,
+table.data td.bg-success,
+table.data td.bg-danger,
+table.data td.bg-dark { color: #fff; }
+table.data td.bg-warning,
+table.data td.bg-info,
+table.data td.bg-light,
+table.data td.bg-white { color: #000; }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
 .view-list { display: flex; flex-direction: column; }
@@ -419,6 +455,21 @@ table.data tbody tr:hover { background: var(--bg); }
   font-weight: 600;
 }
 .alert-banner .alert-item + .alert-item { margin-top: 0.25rem; }
+/* アラートが無い間のバナー(alerts-ui.js が付け外しする)。ライブリージョンとして
+   アクセシビリティツリーに残したまま(最初のアラートも読み上げられるように)、
+   見えなくし、場所も取らない。 */
+.alert-banner.is-empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .alert-banner.level-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
 .alert-banner.level-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
 .alert-banner.level-critical {
@@ -494,16 +545,17 @@ a.kpi-card:hover {
   padding: 0.9rem;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 .btn-submit:active { opacity: 0.85; }
+.btn-submit:disabled { cursor: progress; opacity: 0.7; }
 .form-message { margin-top: 1rem; font-weight: 600; }
-.form-message.ok { color: #16a34a; }
-.form-message.error { color: #ef4444; }
+.form-message.ok { color: var(--ok-text); }
+.form-message.error { color: var(--error-text); }
 
 /* --- 14. table-collapse(U04 が使う) ------------------------------------- */
 details.table-collapse {
@@ -543,6 +595,9 @@ details.table-collapse[open] > summary::before {
 /* --- 15. 補助クラス ------------------------------------------------------ */
 .muted { color: var(--muted); }
 
+/* bootstrap の code(#d63384)はダークテーマで読みにくいので本文色に合わせる */
+code { color: inherit; font-size: 0.9em; }
+
 .empty {
   padding: 2rem 1rem;
   text-align: center;
@@ -562,8 +617,8 @@ details.table-collapse[open] > summary::before {
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--border, #cbd5e1);
   border-radius: 999px;
-  background: var(--card, #fff);
-  color: var(--fg, #0f172a);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   font-size: 0.9rem;

@@ -4,10 +4,13 @@
 // KPI 1 件の形: { key, title, value, display, unit, target, status, link_view }
 // target がある場合は達成状況を矢印で示す。status(good/bad/neutral)で色分け(CSS 任せ)。
 // link_view があるカードは /table/<link_view> へのリンクとして描画する。
+// 取得は MonitorCore.poll(重複しない・失敗時は間隔を伸ばす)。応答が前回と同じなら
+// 描き直さない。core.js(MonitorCore)の後に読み込む。
 
 (function () {
   "use strict";
 
+  const Core = window.MonitorCore;
   const grid = document.getElementById("kpi-grid");
   if (!grid) return;
   const interval = parseInt(grid.dataset.refreshInterval || "5000", 10);
@@ -19,7 +22,7 @@
       const card = document.createElement(k.link_view ? "a" : "div");
       card.className = "kpi-card " + (k.status || "neutral");
       if (k.link_view) {
-        card.href = "/table/" + encodeURIComponent(k.link_view);
+        card.href = Core.url("/table/" + encodeURIComponent(k.link_view));
         card.classList.add("kpi-link");
         card.title = "関連ビューを開く";
       }
@@ -74,6 +77,7 @@
 
   // fetch 失敗を可視化する(#E9)。前回値は残しつつ「古い」ことを示す。
   let lastOk = null;
+  const tracker = Core.tracker();
 
   function markStale() {
     grid.classList.add("stale");
@@ -85,20 +89,20 @@
 
   async function load() {
     try {
-      const res = await fetch("/api/kpis");
-      if (!res.ok) {
-        markStale();
-        return;
-      }
-      render((await res.json()).kpis || []);
-      lastOk = new Date();
-      grid.classList.remove("stale");
-      grid.removeAttribute("title");
+      const body = await Core.getJson("/api/kpis", tracker);
+      if (body !== Core.UNCHANGED) render(body.kpis || []);
     } catch (e) {
-      markStale(); // 取得失敗時は前回表示を残しつつ stale 表示
+      // 取得・描画の失敗時は前回表示を残しつつ stale 表示。描けなかった応答も
+      // 「変化なし」扱いにせず、次の取得で描き直す
+      tracker.reset();
+      markStale();
+      return false;
     }
+    lastOk = new Date();
+    grid.classList.remove("stale");
+    grid.removeAttribute("title");
+    return true;
   }
 
-  load();
-  setInterval(load, interval);
+  Core.poll(load, interval);
 })();

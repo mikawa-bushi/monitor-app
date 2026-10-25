@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 from monitor_app import ChartDef, MonitorConfig, TableDef, ViewDef
 from monitor_app.main import create_app
-from monitor_app.services.importer import CsvImporter
 from monitor_app.settings.runtime import AppSettings
 
 SCAFFOLD_CSV = Path(__file__).parent.parent / "monitor_app" / "scaffold" / "csv"

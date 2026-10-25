@@ -1,6 +1,7 @@
 /* Andon / 大型表示モードのテーマ(フェーズ1・B)。
    遠くから見えるよう大きなフォント・高コントラスト。
-   <html data-theme="dark|light"> で配色を切り替える。 */
+   <html data-theme="dark|light"> で配色を切り替える。
+   文字と背景はどちらのテーマでもコントラスト比 4.5:1 以上(--k-muted を含む)。 */
 
 :root[data-theme="dark"] {
   --k-bg: #0b1220;
@@ -14,7 +15,7 @@
   --k-bg: #f1f5f9;
   --k-surface: #ffffff;
   --k-text: #0f172a;
-  --k-muted: #64748b;
+  --k-muted: #475569;  /* #64748b は見出し行の背景上で 4.1:1 だった */
   --k-border: #e2e8f0;
   --k-head: #e8eef6;
 }

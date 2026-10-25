@@ -1,0 +1,13 @@
+# ワークフローのアクションはコミットの SHA で固定している(タグはコメント)。
+# Dependabot が新しい版の SHA に更新する PR を作る(公開から 7 日待ってから)。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]

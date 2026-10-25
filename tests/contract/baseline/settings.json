@@ -1,0 +1,186 @@
+{
+  "env_file": ".env",
+  "env_prefix": "MONITOR_",
+  "fields": {
+    "alert_email_to": {
+      "default": null,
+      "env": "MONITOR_ALERT_EMAIL_TO",
+      "probe": {
+        "expected": "ops@probe.example",
+        "raw": "ops@probe.example"
+      },
+      "required": false
+    },
+    "api_key": {
+      "default": null,
+      "env": "MONITOR_API_KEY",
+      "probe": {
+        "expected": "probe-key",
+        "raw": "probe-key"
+      },
+      "required": false
+    },
+    "audit_enabled": {
+      "default": false,
+      "env": "MONITOR_AUDIT_ENABLED",
+      "probe": {
+        "expected": true,
+        "raw": "true"
+      },
+      "required": false
+    },
+    "cors_origins": {
+      "default": [],
+      "env": "MONITOR_CORS_ORIGINS",
+      "probe": {
+        "expected": ["http://probe.example"],
+        "raw": "[\"http://probe.example\"]"
+      },
+      "required": false
+    },
+    "csv_dir": {
+      "default": "csv",
+      "env": "MONITOR_CSV_DIR",
+      "probe": {
+        "expected": "probe_csv",
+        "raw": "probe_csv"
+      },
+      "required": false
+    },
+    "csv_encoding": {
+      "default": "utf-8-sig",
+      "env": "MONITOR_CSV_ENCODING",
+      "probe": {
+        "expected": "cp932",
+        "raw": "cp932"
+      },
+      "required": false
+    },
+    "database_url": {
+      "default": "sqlite:///instances/database.db",
+      "env": "MONITOR_DATABASE_URL",
+      "probe": {
+        "expected": "sqlite:///probe/database.db",
+        "raw": "sqlite:///probe/database.db"
+      },
+      "required": false
+    },
+    "host": {
+      "default": "127.0.0.1",
+      "env": "MONITOR_HOST",
+      "probe": {
+        "expected": "0.0.0.0",
+        "raw": "0.0.0.0"
+      },
+      "required": false
+    },
+    "ingest_interval": {
+      "default": 5.0,
+      "env": "MONITOR_INGEST_INTERVAL",
+      "probe": {
+        "expected": 2.5,
+        "raw": "2.5"
+      },
+      "required": false
+    },
+    "ingest_mode": {
+      "default": "replace",
+      "env": "MONITOR_INGEST_MODE",
+      "probe": {
+        "expected": "append",
+        "raw": "append"
+      },
+      "required": false
+    },
+    "ingest_watch": {
+      "default": false,
+      "env": "MONITOR_INGEST_WATCH",
+      "probe": {
+        "expected": true,
+        "raw": "true"
+      },
+      "required": false
+    },
+    "log_level": {
+      "default": "INFO",
+      "env": "MONITOR_LOG_LEVEL",
+      "probe": {
+        "expected": "DEBUG",
+        "raw": "DEBUG"
+      },
+      "required": false
+    },
+    "port": {
+      "default": 9990,
+      "env": "MONITOR_PORT",
+      "probe": {
+        "expected": 8123,
+        "raw": "8123"
+      },
+      "required": false
+    },
+    "protect_reads": {
+      "default": false,
+      "env": "MONITOR_PROTECT_READS",
+      "probe": {
+        "expected": true,
+        "raw": "true"
+      },
+      "required": false
+    },
+    "smtp_host": {
+      "default": null,
+      "env": "MONITOR_SMTP_HOST",
+      "probe": {
+        "expected": "smtp.probe.example",
+        "raw": "smtp.probe.example"
+      },
+      "required": false
+    },
+    "smtp_password": {
+      "default": null,
+      "env": "MONITOR_SMTP_PASSWORD",
+      "probe": {
+        "expected": "probe-pass",
+        "raw": "probe-pass"
+      },
+      "required": false
+    },
+    "smtp_port": {
+      "default": 587,
+      "env": "MONITOR_SMTP_PORT",
+      "probe": {
+        "expected": 2525,
+        "raw": "2525"
+      },
+      "required": false
+    },
+    "smtp_user": {
+      "default": null,
+      "env": "MONITOR_SMTP_USER",
+      "probe": {
+        "expected": "probe-user",
+        "raw": "probe-user"
+      },
+      "required": false
+    },
+    "view_cache_ttl_ms": {
+      "default": 1000,
+      "env": "MONITOR_VIEW_CACHE_TTL_MS",
+      "probe": {
+        "expected": 250,
+        "raw": "250"
+      },
+      "required": false
+    },
+    "webhook_url": {
+      "default": null,
+      "env": "MONITOR_WEBHOOK_URL",
+      "probe": {
+        "expected": "http://probe.example/hook",
+        "raw": "http://probe.example/hook"
+      },
+      "required": false
+    }
+  }
+}

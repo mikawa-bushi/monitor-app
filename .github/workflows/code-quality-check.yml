@@ -6,28 +6,39 @@ on:
   pull_request:
     branches: [ '**' ]  # All target branches
 
+permissions:
+  contents: read
+
 jobs:
   check-commit-message:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      pull-requests: write  # Comment on the PR when the check fails
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        persist-credentials: false
         fetch-depth: 0  # Fetch all history for all branches
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        pip install requests
-
     - name: Check commit message language
+      # Values from the event are passed as environment variables, not expanded into the script.
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PUSH_BEFORE_SHA: ${{ github.event.before }}
+        PUSH_AFTER_SHA: ${{ github.event.after }}
       run: |
         python << 'EOF'
+        import os
         import subprocess
         import sys
         import re
@@ -95,15 +106,15 @@ jobs:
         def get_commit_messages():
             """Get commit messages from the current PR or push"""
             try:
-                if '${{ github.event_name }}' == 'pull_request':
+                if os.environ.get('EVENT_NAME') == 'pull_request':
                     # For PR, get commits between base and head
-                    base_sha = '${{ github.event.pull_request.base.sha }}'
-                    head_sha = '${{ github.event.pull_request.head.sha }}'
+                    base_sha = os.environ.get('PR_BASE_SHA', '')
+                    head_sha = os.environ.get('PR_HEAD_SHA', '')
                     cmd = f'git log --pretty=format:"%s" {base_sha}..{head_sha}'
                 else:
                     # For push, get commits from the push
-                    before_sha = '${{ github.event.before }}'
-                    after_sha = '${{ github.event.after }}'
+                    before_sha = os.environ.get('PUSH_BEFORE_SHA', '')
+                    after_sha = os.environ.get('PUSH_AFTER_SHA', '')
                     
                     # Handle initial commit case
                     if before_sha == '0000000000000000000000000000000000000000':
@@ -160,7 +171,7 @@ jobs:
 
     - name: Comment on PR (if failed)
       if: failure() && github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
           github.rest.issues.createComment({
@@ -191,73 +202,44 @@ jobs:
 
   code-formatting:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      pull-requests: write  # Comment on the PR when the check fails
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        python-version: '3.10'
+        persist-credentials: false
 
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
+    - name: Set up uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Load cached venv
-      id: cached-poetry-dependencies
-      uses: actions/cache@v3
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-
-    - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
-
-    - name: Install project
-      run: poetry install --no-interaction
+        version: "0.12.9"  # Same as UV_VERSION in test.yml and the Dockerfile
 
     - name: Check code formatting with Black
       run: |
         echo "Running Black formatter check..."
-        if poetry run which black >/dev/null 2>&1; then
-          poetry run black --check --diff .
-          if [ $? -ne 0 ]; then
-            echo "❌ Code formatting check failed. Run 'poetry run black .' to fix formatting."
-            exit 1
-          else
-            echo "✅ Code formatting check passed."
-          fi
+        if uv run --locked --only-group dev black --check --diff .; then
+          echo "✅ Code formatting check passed."
         else
-          echo "Black not available in dependencies, installing temporarily..."
-          poetry add --dev black
-          poetry run black --check --diff .
-          if [ $? -ne 0 ]; then
-            echo "❌ Code formatting check failed. Run 'poetry run black .' to fix formatting."
-            exit 1
-          else
-            echo "✅ Code formatting check passed."
-          fi
+          echo "❌ Code formatting check failed. Run 'uv run black .' to fix formatting."
+          exit 1
         fi
 
-    - name: Lint with Ruff (import order)
+    - name: Lint with Ruff
       run: |
-        echo "Running Ruff lint (import sorting)..."
-        if poetry run ruff check .; then
+        echo "Running Ruff lint..."
+        if uv run --locked --only-group dev ruff check .; then
           echo "✅ Ruff check passed."
         else
-          echo "❌ Ruff check failed. Run 'poetry run ruff check --fix .' to fix."
+          echo "❌ Ruff check failed. Run 'uv run ruff check --fix .' to fix."
           exit 1
         fi
 
     - name: Comment on PR (if formatting failed)
       if: failure() && github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
           github.rest.issues.createComment({
@@ -266,11 +248,11 @@ jobs:
             repo: context.repo.repo,
             body: `## 🎨 Code Formatting Check Failed
 
-          The code in this PR doesn't follow the Black formatting standards.
+          The code in this PR doesn't follow the Black formatting standards (or Ruff reported lint findings).
 
           **How to fix:**
-          1. Install Black if not already installed: \`poetry add --dev black\`
-          2. Run the formatter: \`poetry run black .\`
+          1. Install the dev tools: \`uv sync\`
+          2. Run the formatters: \`uv run black .\` and \`uv run ruff check --fix .\`
           3. Commit the formatting changes: \`git add . && git commit -m "Format code with Black"\`
           4. Push the changes: \`git push\`
 

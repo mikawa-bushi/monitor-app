@@ -1,11 +1,18 @@
 // アラート表示の共通部品(フェーズ1・A)。table.html と kiosk.html の両方が使う。
-// window.MonitorAlerts として公開する。
+// window.MonitorAlerts として公開する。core.js(MonitorCore)の後に読み込む。
 //
 // 使い方:
 //   const ui = MonitorAlerts.create(bannerElement);
 //   ui.update(payload.alerts);   // payload.alerts は /api/views/<v> が返すアラート配列
 //
 // アラート 1 件の形: { view, column, level, message, count }
+//
+// バナーはライブリージョン(テンプレートで aria-live="polite")。critical を含む間は
+// role="alert"(割り込みで読み上げ)にする。内容が前回と同じなら DOM を触らない
+// (更新のたびに同じアラートが読み上げ直されないように)。
+// ライブリージョンは中身が変わる前からアクセシビリティツリーに居る必要がある
+// (display:none から表示に変わった領域の中身は polite では読み上げられない)。
+// そのためアラートが無い間も hidden にはせず、is-empty で見えなく・場所を取らなくする。
 
 (function () {
   "use strict";
@@ -18,38 +25,66 @@
     if (head) new Notification("異常検知", { body: head.message });
   }
 
-  function highestLevel(alerts) {
-    if (alerts.some(function (a) { return a.level === "critical"; })) return "critical";
-    if (alerts.some(function (a) { return a.level === "warning"; })) return "warning";
-    return "info";
-  }
-
   function keyset(alerts) {
     return alerts.map(function (a) { return a.view + ":" + a.column + ":" + a.message; });
+  }
+
+  function signature(alerts) {
+    return alerts
+      .map(function (a) { return [a.level, a.view, a.column, a.message, a.count].join("\u0001"); })
+      .join("\u0002");
   }
 
   function create(bannerEl) {
     // null = 初回描画前。ページを開いた時点で既に継続中のアラートはバナー表示のみとし、
     // 表示後に「増えた」アラートだけをブラウザ通知の対象にする。
     let prevKeys = null;
+    let shown = ""; // 描画中の内容(signature)。"" = アラートなし
 
-    function update(alerts) {
-      alerts = alerts || [];
-      // バナー描画
+    function collapse() {
       bannerEl.replaceChildren();
+      bannerEl.className = "alert-banner is-empty";
+      bannerEl.removeAttribute("role");
+      bannerEl.setAttribute("aria-live", "polite");
+      bannerEl.hidden = false; // 空のライブリージョンとして残す(上の説明)
+    }
+    collapse();
+
+    function render(alerts) {
+      const sig = signature(alerts);
+      if (sig === shown) return;
+      shown = sig;
       if (alerts.length === 0) {
-        bannerEl.hidden = true;
-        prevKeys = [];
+        collapse();
         return;
       }
-      bannerEl.hidden = false;
-      bannerEl.className = "alert-banner level-" + highestLevel(alerts);
+      const level = window.MonitorCore.worstLevel(alerts);
+      bannerEl.className = "alert-banner level-" + level;
+      if (level === "critical") {
+        bannerEl.setAttribute("role", "alert");
+        bannerEl.setAttribute("aria-live", "assertive");
+      } else {
+        bannerEl.removeAttribute("role");
+        bannerEl.setAttribute("aria-live", "polite");
+      }
+      const frag = document.createDocumentFragment();
       alerts.forEach(function (a) {
         const item = document.createElement("div");
         item.className = "alert-item";
         item.textContent = "⚠ " + a.message + "(" + a.count + " 件)";
-        bannerEl.appendChild(item);
+        frag.appendChild(item);
       });
+      bannerEl.replaceChildren(frag);
+      bannerEl.hidden = false;
+    }
+
+    function update(alerts) {
+      alerts = alerts || [];
+      render(alerts);
+      if (alerts.length === 0) {
+        prevKeys = [];
+        return;
+      }
 
       // 新規アラートが増えていればブラウザ通知(初回描画は対象外)。
       // 音は鳴らさない(現場の要望によりアラーム音は廃止。表示と通知のみ)。
