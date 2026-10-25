@@ -86,3 +86,14 @@ def query(db_path: Path, sql: str) -> list[tuple]:
     """SQLite ファイルへ直接 SQL を投げる(アプリを介さずに DB の中身を確かめる)。"""
     with closing(sqlite3.connect(db_path)) as conn:
         return conn.execute(sql).fetchall()
+
+
+def case_insensitive_fs(directory: Path) -> bool:
+    """``directory`` のファイルシステムが大文字小文字を区別しないか(Windows・macOS の
+    既定)。区別しないと ``USERS.CSV`` を書くと ``users.csv`` を上書きする。"""
+    probe = directory / "case-probe.tmp"
+    probe.touch()
+    try:
+        return (directory / "CASE-PROBE.TMP").exists()
+    finally:
+        probe.unlink()

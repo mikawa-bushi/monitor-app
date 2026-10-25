@@ -109,7 +109,20 @@ def test_damage_is_told_apart_from_a_lock(tmp_path):
         holder.close()
 
 
-@pytest.mark.parametrize("folder", ["工場 データ", "a#b", "p%20q", "q?r"])
+@pytest.mark.parametrize(
+    "folder",
+    [
+        "工場 データ",
+        "a#b",
+        "p%20q",
+        pytest.param(
+            "q?r",
+            marks=pytest.mark.skipif(
+                os.name == "nt", reason="Windows ではフォルダ名に ? を使えない"
+            ),
+        ),
+    ],
+)
 def test_damage_check_with_special_characters_in_the_path(
     tmp_path, folder, monkeypatch
 ):

@@ -51,6 +51,8 @@ class SqliteDataVersion:
         self._lock = threading.Lock()
         self._conn: sqlite3.Connection | None = None
         self._next_open = 0.0
+        #: ロック中で読めなかった回数。待っている間に増えたら、並んで読み直さない。
+        self._busy_count = 0
 
     def _open(self) -> sqlite3.Connection:
         if self._uri:
@@ -75,7 +77,14 @@ class SqliteDataVersion:
 
     def current(self) -> int | None:
         """現在のトークン。読めないとき(ファイルが無い・ロック中など)は None。"""
+        busy_count = self._busy_count
         with self._lock:
+            if self._busy_count != busy_count:
+                # 待っている間に、ほかのスレッドがロック中で読めなかった。Windows の
+                # SQLite はロックを取れないと Sleep(1)(実際には約 16 ms)を挟んで取り直す
+                # ため 1 回の読み取りに数十 ms かかり、順に読み直すと全スレッドが
+                # (スレッド数 × 数十 ms) 遅れる。並ばずに「不明」を返す。
+                return None
             conn = self._conn
             if conn is None:
                 now = time.monotonic()
@@ -94,7 +103,9 @@ class SqliteDataVersion:
                 finally:
                     cursor.close()
             except sqlite3.Error as exc:
-                if not _is_transient(exc):
+                if _is_transient(exc):
+                    self._busy_count += 1
+                else:
                     # 壊れたコネクションは捨て、少し後に開き直す。
                     self._close_locked()
                     self._next_open = time.monotonic() + _RETRY_INTERVAL

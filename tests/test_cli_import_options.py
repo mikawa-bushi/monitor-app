@@ -124,12 +124,16 @@ def test_duplicates_skipped_by_keep_are_totalled(project, runner):
 
 
 def test_unmatched_csv_files_get_a_suggestion(project, runner):
-    (project / "csv" / "Users2.csv").write_text("id\n1\n", encoding="utf-8")
-    (project / "csv" / "USERS.CSV").write_text("id\n1\n", encoding="utf-8")
+    csv_dir = project / "csv"
+    (csv_dir / "Users2.csv").write_text("id\n1\n", encoding="utf-8")
+    # 大文字小文字を区別しないファイルシステムでは USERS.CSV が users.csv を上書きする
+    case_sensitive = not helpers.case_insensitive_fs(csv_dir)
+    if case_sensitive:
+        (csv_dir / "USERS.CSV").write_text("id\n1\n", encoding="utf-8")
     result = runner.invoke(app, ["import-csv"])
     assert result.exit_code == 0, result.output
     assert "⚠️  Users2.csv: 対応するテーブルがありません" in result.stdout
-    if not (project / "csv" / "users.csv").samefile(project / "csv" / "USERS.CSV"):
+    if case_sensitive:
         assert "テーブル 'users' のつもりならファイル名を users.csv に" in (
             result.stdout
         )

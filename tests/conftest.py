@@ -25,6 +25,9 @@ SCAFFOLD_CSV = Path(__file__).parent.parent / "monitor_app" / "scaffold" / "csv"
 #: 開発者のシェルに残っていても外さない接頭辞(サーバー DB・ブラウザのテストの
 #: 接続先など、テストを有効にするための変数)。
 _KEPT_ENV_PREFIX = "MONITOR_TEST_"
+#: rich の色付き出力を強制する環境変数。Typer は GitHub Actions(GITHUB_ACTIONS)でも
+#: 端末扱いにするため、ヘルプの文字列が ANSI エスケープで分断される。
+_FORCE_COLOR_ENV = ("GITHUB_ACTIONS", "FORCE_COLOR", "PY_COLORS", "TTY_COMPATIBLE")
 
 
 @pytest.fixture(autouse=True)
@@ -36,11 +39,21 @@ def _no_host_monitor_env(monkeypatch, tmp_path_factory):
     - 作業フォルダを空の一時フォルダにする。リポジトリ直下の .env を AppSettings が
       読まず、既定の ``instances/`` などもリポジトリに作られない。作業フォルダを決めて
       使うテストは、これまでどおり各自で ``monkeypatch.chdir`` する(後から効く)。
+    - CI(GitHub Actions)でも、CLI の出力を端末の外と同じ色なしの文字列にする。
     """
     for key in list(os.environ):
         upper = key.upper()
         if upper.startswith("MONITOR_") and not upper.startswith(_KEPT_ENV_PREFIX):
             monkeypatch.delenv(key)
+    for key in _FORCE_COLOR_ENV:
+        monkeypatch.delenv(key, raising=False)
+    # Typer は色の強制を import 時に決める(rich_utils.FORCE_TERMINAL)
+    try:
+        from typer import rich_utils
+    except ImportError:  # rich が無い環境では色が付かない
+        pass
+    else:
+        monkeypatch.setattr(rich_utils, "FORCE_TERMINAL", None)
     monkeypatch.chdir(tmp_path_factory.mktemp("cwd"))
 
 

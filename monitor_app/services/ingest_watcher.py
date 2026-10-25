@@ -1,6 +1,6 @@
 """csv/ フォルダを監視し、変更されたファイルを自動取り込みする(フェーズ1・C)。
 
-依存を増やさないため watchdog ではなく mtime ポーリングを使う。FastAPI の
+依存を増やさないため watchdog ではなく mtime とサイズのポーリングを使う。FastAPI の
 lifespan から asyncio タスクとして起動・停止する(ループと起動/停止は
 :class:`~monitor_app.services.periodic.PeriodicTask` が担う)。
 
@@ -44,8 +44,8 @@ MAX_RETRY_DELAY = 60.0
 class _Failure:
     """取り込みに失敗した CSV(成功するまで間隔を伸ばしながら取り込み直す)。"""
 
-    #: 失敗したときのファイルの mtime(変われば待たずに取り込み直す)。
-    mtime: float | None
+    #: 失敗したときのファイルの (mtime, サイズ)(変われば待たずに取り込み直す)。
+    mtime: tuple[int, int] | None
     #: 続けて失敗した回数。
     count: int
     #: 次に取り込み直す時刻(time.monotonic())。
@@ -71,10 +71,10 @@ class IngestWatcher(PeriodicTask):
         self.importer = importer
         self.keep = keep
         self.csv_dir: Path = importer.csv_dir
-        #: 取り込み済みの CSV の mtime(取り込みに成功してから記録する — D4-07)。
-        self._mtimes: dict[str, float] = {}
-        #: 今回のポーリングで見つけた変更の mtime(取り込みに成功したら _mtimes へ)。
-        self._seen: dict[str, float] = {}
+        #: 取り込み済みの CSV の (mtime, サイズ)(取り込みに成功してから記録する — D4-07)。
+        self._mtimes: dict[str, tuple[int, int]] = {}
+        #: 今回のポーリングで見つけた変更の (mtime, サイズ)(取り込みに成功したら _mtimes へ)。
+        self._seen: dict[str, tuple[int, int]] = {}
         #: 取り込みに失敗した CSV(テーブル名 → 失敗の記録)。
         self._failed: dict[str, _Failure] = {}
         # 追記(keep=True)監視の読み取り済みデータ行数(参考値 — #9)。読み取り位置の
@@ -88,20 +88,25 @@ class IngestWatcher(PeriodicTask):
         self.on_change = on_change
 
     def _changed_tables(self) -> list[str]:
-        """前回の取り込み以降に mtime が変わった CSV のテーブル名を返す。
+        """前回の取り込み以降に mtime かサイズが変わった CSV のテーブル名を返す。
+
+        mtime の刻みが粗いファイルシステム(Windows はシステム時計の約 16 ms、FAT は
+        2 秒)では、続けて書き込むと mtime が変わらないことがある。追記や書き換えで
+        サイズが変われば、mtime が同じでも変更として扱う。
 
         取り込みに失敗した CSV は、取り込み直す時刻になったら(ファイルが変わったら
-        すぐに)もう一度返す。見つけた mtime は :meth:`_mark_done` で記録する。
+        すぐに)もう一度返す。見つけた値は :meth:`_mark_done` で記録する。
         """
         changed = []
         now = time.monotonic()
         for table_name in self.importer.config.tables:
             path = self.csv_dir / f"{table_name}.csv"
             try:
-                mtime = path.stat().st_mtime
+                st = path.stat()
             except OSError:
                 self._failed.pop(table_name, None)
                 continue
+            mtime = (st.st_mtime_ns, st.st_size)
             failure = self._failed.get(table_name)
             if failure is not None:
                 if failure.mtime == mtime and now < failure.retry_at:
@@ -113,7 +118,7 @@ class IngestWatcher(PeriodicTask):
         return changed
 
     def _mark_done(self, table_name: str) -> None:
-        """変更を取り込んだ(または取り込みが不要な)CSV の mtime を記録する。"""
+        """変更を取り込んだ(または取り込みが不要な)CSV の (mtime, サイズ) を記録する。"""
         mtime = self._seen.pop(table_name, None)
         if mtime is not None:
             self._mtimes[table_name] = mtime

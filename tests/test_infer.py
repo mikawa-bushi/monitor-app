@@ -550,9 +550,11 @@ def test_names_that_break_sql_parameters_or_links_are_skipped(tmp_path):
     Excel が開いている間の ``~$`` ファイルと隠しファイルも表にしない。
     """
     d = tmp_path / "csv"
-    names = ["ok.csv", "x :y.csv", "a#b.csv", "a%b.csv", "~$ok.csv", ".hidden.csv"]
+    names = ["ok.csv", "a#b.csv", "a%b.csv", "~$ok.csv", ".hidden.csv"]
     if os.name != "nt":
-        names.append("a?b.csv")  # Windows ではファイル名に使えない
+        # Windows ではファイル名に使えない(: は代替データストリームの区切りになり、
+        # "x :y.csv" と書くとファイル "x " のストリームになる)
+        names += ["x :y.csv", "a?b.csv"]
     for name in names:
         _csv(d / name, "id,v\n1,2\n")
     project = infer_project([d])

@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 import pytest
+from contract import helpers
 from sqlalchemy import event, text
 from typer.testing import CliRunner
 
@@ -300,6 +301,10 @@ def test_header_variants_are_mapped_case_width_and_bom_insensitively(env, caplog
 
 def test_unmatched_csv_files_are_reported_with_a_suggestion(env, caplog):
     config, registry, db, csv_dir = env
+    if helpers.case_insensitive_fs(csv_dir):
+        # Products.CSV が products.csv を上書きしてしまう(この場合の扱いは
+        # test_case_insensitive_file_systems_do_not_report_imported_files で確かめる)
+        pytest.skip("大文字小文字を区別しないファイルシステム")
     (csv_dir / "Products.CSV").write_text("id\n1\n")
     (csv_dir / "production.csv").write_text("id\n1\n")
     (csv_dir / "notes.txt").write_text("not a csv")

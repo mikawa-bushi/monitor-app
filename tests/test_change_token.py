@@ -196,6 +196,54 @@ def test_busy_database_does_not_queue_concurrent_callers(tmp_path):
         token.close()
 
 
+def test_slow_busy_reads_are_not_repeated_by_waiting_callers(tmp_path):
+    """Windows の SQLite はロックを取れないと Sleep(1)(約 16 ms)を挟んで取り直すため、
+    ロック中の 1 回の読み取りに数十 ms かかる。待っていた呼び出しが順に読み直すと、
+    20 スレッドで最後の 1 件が約 0.5 秒待った(CI の Windows で再現)。"""
+    path = tmp_path / "busy.db"
+    with closing(sqlite3.connect(path)) as conn:
+        conn.execute("CREATE TABLE t (id INTEGER)")
+        conn.commit()
+    token = SqliteDataVersion(str(path))
+    token.current()
+    reads = []
+
+    class _SlowBusy:
+        def execute(self, sql):
+            reads.append(sql)
+            time.sleep(0.05)
+            raise sqlite3.OperationalError("database is locked")
+
+        def close(self):
+            pass
+
+    real, token._conn = token._conn, _SlowBusy()
+    barrier = threading.Barrier(20)
+    latencies: list[float] = []
+    lock = threading.Lock()
+
+    def call() -> None:
+        barrier.wait()
+        started = time.monotonic()
+        assert token.current() is None
+        with lock:
+            latencies.append(time.monotonic() - started)
+
+    try:
+        threads = [threading.Thread(target=call) for _ in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(10)
+        assert len(latencies) == 20
+        assert len(reads) < 5, reads  # 待っていた呼び出しは読み直さない
+        assert max(latencies) < 0.3, latencies
+    finally:
+        token._conn = real
+        token.close()
+    assert isinstance(token.current(), int)  # ロックが外れたら次の呼び出しで読む
+
+
 def test_close_and_reopen(tmp_path):
     db = _file_db(tmp_path)
     token = change_token_for(db)

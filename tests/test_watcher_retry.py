@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 
 import pytest
@@ -115,3 +116,22 @@ def test_retry_delay_is_capped(env):
     assert (
         failure.retry_at - watcher_mod.time.monotonic() <= watcher_mod.MAX_RETRY_DELAY
     )
+
+
+def test_a_change_within_the_same_mtime_tick_is_noticed_by_its_size(env):
+    """mtime の刻みが粗い(Windows は約 16 ms、FAT は 2 秒)と、続けて書くと mtime が
+    変わらない。サイズが変われば変更として取り込む(以前は次の書き込みまで読まなかった)。"""
+    config, registry, db, csv_dir, _db_file = env
+    csv = csv_dir / "items.csv"
+    csv.write_text("id,name\n1,a\n")
+    importer = CsvImporter(config, registry, db, csv_dir)
+    importer.import_table("items", csv)
+    watcher = IngestWatcher(importer, 1.0, keep=False)
+    watcher.setup()
+    stamp = csv.stat().st_mtime_ns
+    csv.write_text("id,name\n1,a\n2,b\n")
+    os.utime(csv, ns=(stamp, stamp))  # 同じ刻みのうちに書き換えた
+    assert watcher.poll_once() == ["items"]
+    watcher.record_result()
+    assert _count(db) == 2
+    assert watcher.poll_once() == []
