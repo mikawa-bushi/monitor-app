@@ -181,7 +181,7 @@ def test_async_notify_worker_dispatches():
         # 違反(x=5 > 0)で発火 → 通知はキュー経由でワーカースレッドが送る。
         engine.evaluate_view("v", [{"x": 5.0}])
         assert _wait_until(lambda: len(rec.sent) >= 1)
-        subject, body, level = rec.sent[0]
+        subject, _body, level = rec.sent[0]
         assert "異常検知" in subject
         assert level == "critical"
     finally:

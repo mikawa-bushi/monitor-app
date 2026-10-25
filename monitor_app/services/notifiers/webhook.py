@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.request
 
@@ -13,7 +14,14 @@ class WebhookNotifier:
     def send(self, subject: str, body: str, level: str) -> None:
         # Slack / Teams いずれも "text" フィールドを解釈できる汎用ペイロード。
         payload = json.dumps({"text": f"[{level}] {subject}\n{body}"}).encode("utf-8")
-        req = urllib.request.Request(
-            self.url, data=payload, headers={"Content-Type": "application/json"}
-        )
-        urllib.request.urlopen(req, timeout=5).close()
+        try:
+            req = urllib.request.Request(
+                self.url, data=payload, headers={"Content-Type": "application/json"}
+            )
+            urllib.request.urlopen(req, timeout=5).close()
+        except (ValueError, http.client.InvalidURL):
+            # URL の形式の誤り(スキーム無し・空白など)。urllib の例外メッセージは URL を
+            # そのまま含み、Webhook の URL は秘密情報なので、ログに残る文言から外す。
+            raise ValueError(
+                "MONITOR_WEBHOOK_URL の形式が正しくありません(URL は表示しません)"
+            ) from None

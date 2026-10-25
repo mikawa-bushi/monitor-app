@@ -13,17 +13,19 @@
 
   kiosk.js への受け渡しは #kiosk[data-*] 属性と #kiosk-config JSON で行う。
   実データは kiosk.js が /api/views/<name> と /api/kpis から取得する。
+  URL は base.html と同じく url_for / static_url / root_path() で組む(サブパス配信対応)。
 #}
 <!DOCTYPE html>
 <html lang="ja" data-theme="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="monitor-root" content="{{ root_path() }}">
     <title>{{ app_title }} — Andon</title>
-    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
-    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/kiosk.css') }}" rel="stylesheet">
+    <link rel="icon" href="{{ static_url(favicon_path) }}">
+    <link href="{{ static_url('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ static_url('css/app.css') }}" rel="stylesheet">
+    <link href="{{ static_url('css/kiosk.css') }}" rel="stylesheet">
 </head>
 <body class="kiosk">
     <div id="kiosk"
@@ -42,10 +44,11 @@
         {# ローテーション進行バー(次の切替までの残り時間を可視化) #}
         <div class="kiosk-progress"><div id="kiosk-progress-fill"></div></div>
 
-        <div id="alert-banner" class="alert-banner" hidden></div>
+        {# ライブリージョン(critical は alerts-ui.js が role="alert" にする) #}
+        <div id="alert-banner" class="alert-banner" aria-live="polite" hidden></div>
 
         {% if has_kpis %}
-        <div id="kiosk-kpis" class="kiosk-kpis"></div>
+        <section id="kiosk-kpis" class="kiosk-kpis" aria-label="KPI"></section>
         {% endif %}
 
         <main class="kiosk-main">
@@ -60,16 +63,17 @@
             </div>
         </main>
 
-        <footer class="kiosk-dots" id="kiosk-dots"></footer>
+        <nav class="kiosk-dots" id="kiosk-dots" aria-label="表示するビュー"></nav>
     </div>
 
     <script id="kiosk-config" type="application/json">{{ kiosk_json | safe }}</script>
-    <script src="{{ url_for('static', path='js/alerts-ui.js') }}"></script>
+    <script src="{{ static_url('js/core.js') }}"></script>
+    <script src="{{ static_url('js/alerts-ui.js') }}"></script>
     {% if has_kiosk_charts %}
-    <script src="{{ url_for('static', path='js/chart.umd.min.js') }}"></script>
-    <script src="{{ url_for('static', path='js/chart-view.js') }}"></script>
+    <script src="{{ static_url('js/chart.umd.min.js') }}"></script>
+    <script src="{{ static_url('js/chart-view.js') }}"></script>
     {% endif %}
-    <script src="{{ url_for('static', path='js/table-render.js') }}"></script>
-    <script src="{{ url_for('static', path='js/kiosk.js') }}"></script>
+    <script src="{{ static_url('js/table-render.js') }}"></script>
+    <script src="{{ static_url('js/kiosk.js') }}"></script>
 </body>
 </html>

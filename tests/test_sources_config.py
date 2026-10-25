@@ -7,7 +7,7 @@ from monitor_app import MonitorConfig, TableDef, ViewDef
 from monitor_app.db.engine import Database
 from monitor_app.db.ingest_state import IngestStateStore
 from monitor_app.integrations import merge
-from monitor_app.settings.declarative import AlertRule, KpiCard, SourceDef
+from monitor_app.settings.declarative import AlertRule, SourceDef
 
 # ---------------------------------------------------------------------------
 # SourceDef バリデーション

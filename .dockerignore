@@ -1,0 +1,22 @@
+# Docker のビルドコンテキストに入れるもの(許可リスト)。ほかはすべて除外する
+# (.git・.venv・テスト・DB などを送らず、ビルドを速く・イメージを再現可能にする)。
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!monitor_app/
+!docker/entrypoint.sh
+!docker/healthcheck.py
+
+# 許可したフォルダの中でも、キャッシュや手元の生成物は入れない。コンテナ内のビルドには
+# .gitignore が無く、wheel に入ってしまうため、手元で作った DB・秘密情報・ログも除く。
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store
+**/.env
+**/instances
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/*.log

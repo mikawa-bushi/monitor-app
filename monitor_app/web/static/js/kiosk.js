@@ -9,10 +9,18 @@
 //   #kiosk-title #kiosk-clock #status-light #alert-banner
 //   #kiosk-progress-fill #kiosk-kpis(任意) #kiosk-charts #kiosk-table-wrap
 //   #thead-row #tbody #kiosk-dots
+// 依存するスクリプト: core.js(MonitorCore)、alerts-ui.js、table-render.js、
+//   chart 付きビューがあれば chart-view.js。
+//
+// データ取得は MonitorCore.poll で行う(前回の取得が終わるまで次を始めない。失敗時は
+// 間隔を伸ばす)。応答が前回と同じなら描き直さない。ローテーションやビュー名の
+// クリックで取得中にビューが切り替わった場合、古い取得結果は捨てる(別のビューの
+// 領域へ描かない)。
 
 (function () {
   "use strict";
 
+  const Core = window.MonitorCore;
   const root = document.getElementById("kiosk");
   const cfgEl = document.getElementById("kiosk-config");
   const views = cfgEl ? (JSON.parse(cfgEl.textContent).views || []) : [];
@@ -34,9 +42,13 @@
   const alertUi = window.MonitorAlerts.create(bannerEl);
 
   let current = 0;
+  let shownIndex = -1; // 最後に描いたビュー(進行バーを流し直すかの判定に使う)
   let pinned = false; // critical アラートで固定中か
   let columns = [];
   let rotateTimer = null;
+  let refresher = null; // 現在ビューの定期取得(MonitorCore.poll)
+  const viewTracker = Core.tracker(); // 表示中のビューの応答が変わったか
+  const kpiTracker = Core.tracker();
 
   // --- チャート(ビューごとに canvas を先に作り、表示だけ切り替える) -------
   // chart-view.js は破棄 API を持たないため、canvas の再利用ではなく
@@ -59,22 +71,23 @@
     pill.className = "view-pill";
     pill.textContent = v.title;
     pill.addEventListener("click", function () {
-      current = i;
-      loadCurrent();
+      show(i);
       restartRotation();
     });
     dotsEl.appendChild(pill);
   });
   function markDot() {
     Array.prototype.forEach.call(dotsEl.children, function (d, i) {
-      d.classList.toggle("active", i === current);
+      const active = i === current;
+      d.classList.toggle("active", active);
+      if (active) d.setAttribute("aria-current", "true");
+      else d.removeAttribute("aria-current");
     });
   }
 
   function setLight(alerts) {
-    let level = "ok";
-    if (alerts.some(function (a) { return a.level === "critical"; })) level = "critical";
-    else if (alerts.some(function (a) { return a.level === "warning"; })) level = "warning";
+    const worst = Core.worstLevel(alerts);
+    const level = worst === "critical" || worst === "warning" ? worst : "ok";
     lightEl.className = "status-light " + level;
     // アンドン動作: critical 中は画面全体を点滅枠で強調
     document.body.classList.toggle("alert-critical", level === "critical");
@@ -103,72 +116,116 @@
     });
   }
 
+  function markStale() {
+    // 取得失敗を可視化する(#E9)。大型表示は誰も操作しないため、古い表示の
+    // まま気付けないと現場判断を誤る。ライトを stale 状態にして明示する。
+    lightEl.className = "status-light stale";
+    lightEl.title = "接続エラー — データが更新されていません";
+  }
+
   async function loadCurrent() {
-    const view = views[current];
-    if (!view) return;
+    // 取得の間にローテーション/クリックで current が変わり得るため、対象を先に確定する
+    const index = current;
+    const view = views[index];
+    if (!view) return true;
+    let payload;
     try {
-      const res = await fetch("/api/views/" + encodeURIComponent(view.name));
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const payload = await res.json();
-      titleEl.textContent = payload.title || view.name;
-      showArea(current);
-      if (charts[current]) {
-        charts[current].update(payload);
-      } else {
-        renderTable(payload);
-      }
-      const alerts = payload.alerts || [];
-      alertUi.update(alerts);
-      const level = setLight(alerts);
-      lightEl.removeAttribute("title");
-      // critical のビューがあればそこに固定。なければローテーション再開。
-      pinned = level === "critical";
-      markDot();
-      updateProgress();
+      payload = await Core.getJson("/api/views/" + encodeURIComponent(view.name), viewTracker);
     } catch (e) {
-      // 取得失敗を可視化する(#E9)。大型表示は誰も操作しないため、古い表示の
-      // まま気付けないと現場判断を誤る。ライトを stale 状態にして明示する。
-      lightEl.className = "status-light stale";
-      lightEl.title = "接続エラー — データが更新されていません";
+      if (index === current) markStale();
+      return false;
     }
+    if (index !== current) {
+      // 取得中に別のビューへ切り替わった: この結果は描かない(新しいビューの取得が続く)
+      viewTracker.reset();
+      return true;
+    }
+    if (payload === Core.UNCHANGED) return true; // 表示中の内容と同じ
+    try {
+      renderView(index, view, payload);
+    } catch (e) {
+      viewTracker.reset(); // 描けなかった応答は「変化なし」扱いにせず、次の取得で描き直す
+      markStale();
+      return false;
+    }
+    return true;
+  }
+
+  function renderView(index, view, payload) {
+    titleEl.textContent = payload.title || view.name;
+    showArea(index);
+    if (charts[index]) {
+      charts[index].update(payload);
+    } else {
+      renderTable(payload);
+    }
+    const alerts = payload.alerts || [];
+    alertUi.update(alerts);
+    const level = setLight(alerts);
+    lightEl.removeAttribute("title");
+    // critical のビューがあればそこに固定。なければローテーション再開。
+    const wasPinned = pinned;
+    pinned = level === "critical";
+    markDot();
+    // 進行バーは、ビューが替わったときと固定の開始/解除のときだけ最初から流し直す
+    // (データが更新されるたびに戻すと、更新間隔がローテーションより短いとき最後まで進まない)
+    if (index !== shownIndex || pinned !== wasPinned) updateProgress();
+    shownIndex = index;
+  }
+
+  // 表示するビューを切り替え、すぐに取得する(実行中の取得があれば終わった直後)
+  function show(index) {
+    current = index;
+    viewTracker.reset(); // 切り替え後の最初の応答は必ず描く
+    if (refresher) refresher.now();
   }
 
   // --- KPI ストリップ --------------------------------------------------------
   async function loadKpis() {
-    if (!kpisEl) return;
+    if (!kpisEl) return true;
+    let body;
     try {
-      const res = await fetch("/api/kpis");
-      if (!res.ok) return;
-      const kpis = (await res.json()).kpis || [];
-      const frag = document.createDocumentFragment();
-      kpis.forEach(function (k) {
-        // link_view 付きの KPI は関連ビューページへのリンクとして描画する
-        const card = document.createElement(k.link_view ? "a" : "div");
-        card.className = "kiosk-kpi " + (k.status || "neutral");
-        if (k.link_view) {
-          card.href = "/table/" + encodeURIComponent(k.link_view);
-          card.classList.add("kiosk-kpi-link");
-        }
-        const title = document.createElement("div");
-        title.className = "kiosk-kpi-title";
-        title.textContent = k.title;
-        const value = document.createElement("div");
-        value.className = "kiosk-kpi-value";
-        value.textContent = k.display;
-        if (k.unit) {
-          const unit = document.createElement("span");
-          unit.className = "kiosk-kpi-unit";
-          unit.textContent = k.unit;
-          value.appendChild(unit);
-        }
-        card.appendChild(title);
-        card.appendChild(value);
-        frag.appendChild(card);
-      });
-      kpisEl.replaceChildren(frag);
+      body = await Core.getJson("/api/kpis", kpiTracker);
     } catch (e) {
-      /* 取得失敗時は前回表示を維持 */
+      return false; /* 取得失敗時は前回表示を維持 */
     }
+    if (body === Core.UNCHANGED) return true;
+    try {
+      renderKpis(body.kpis || []);
+    } catch (e) {
+      kpiTracker.reset(); // 次の取得で描き直す
+      return false;
+    }
+    return true;
+  }
+
+  function renderKpis(kpis) {
+    const frag = document.createDocumentFragment();
+    kpis.forEach(function (k) {
+      // link_view 付きの KPI は関連ビューページへのリンクとして描画する
+      const card = document.createElement(k.link_view ? "a" : "div");
+      card.className = "kiosk-kpi " + (k.status || "neutral");
+      if (k.link_view) {
+        card.href = Core.url("/table/" + encodeURIComponent(k.link_view));
+        card.classList.add("kiosk-kpi-link");
+      }
+      const title = document.createElement("div");
+      title.className = "kiosk-kpi-title";
+      title.textContent = k.title;
+      const value = document.createElement("div");
+      value.className = "kiosk-kpi-value";
+      value.textContent = k.display;
+      if (k.unit) {
+        const unit = document.createElement("span");
+        unit.className = "kiosk-kpi-unit";
+        unit.textContent = k.unit;
+        value.appendChild(unit);
+      }
+      card.appendChild(title);
+      card.appendChild(value);
+      frag.appendChild(card);
+    });
+    kpisEl.replaceChildren(frag);
   }
 
   // --- ローテーションと進行バー ----------------------------------------------
@@ -190,8 +247,7 @@
 
   function rotate() {
     if (pinned || views.length <= 1) return;
-    current = (current + 1) % views.length;
-    loadCurrent();
+    show((current + 1) % views.length);
   }
 
   function restartRotation() {
@@ -212,9 +268,7 @@
 
   tickClock();
   setInterval(tickClock, 1000);
-  loadCurrent();
-  loadKpis();
-  setInterval(loadCurrent, refreshMs); // 現在ビューのデータ更新
-  setInterval(loadKpis, refreshMs); // KPI 更新
+  refresher = Core.poll(loadCurrent, refreshMs); // 現在ビューのデータ更新
+  if (kpisEl) Core.poll(loadKpis, refreshMs); // KPI 更新
   restartRotation(); // ビュー切替
 })();

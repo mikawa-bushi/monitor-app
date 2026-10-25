@@ -1,0 +1,441 @@
+{
+  "column_types": ["bool", "date", "float", "int", "str"],
+  "models": {
+    "AlertRule": {
+      "fields": {
+        "column": {
+          "alias": null,
+          "required": true
+        },
+        "level": {
+          "alias": null,
+          "choices": ["critical", "info", "warning"],
+          "default": "warning",
+          "required": false
+        },
+        "message": {
+          "alias": null,
+          "default": "",
+          "required": false
+        },
+        "notify": {
+          "alias": null,
+          "default": [],
+          "required": false
+        },
+        "op": {
+          "alias": null,
+          "choices": ["!=", "<", "<=", "==", ">", ">="],
+          "required": true
+        },
+        "value": {
+          "alias": null,
+          "required": true
+        },
+        "view": {
+          "alias": null,
+          "required": true
+        }
+      },
+      "members": ["describe"],
+      "populate_by_name": false
+    },
+    "CellStyle": {
+      "fields": {
+        "align": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "bold": {
+          "alias": null,
+          "default": false,
+          "required": false
+        },
+        "equal_to": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "font_size": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "greater_than": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "less_than": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "width": {
+          "alias": null,
+          "default": null,
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": true
+    },
+    "ChartDef": {
+      "fields": {
+        "lcl": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "target": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "type": {
+          "alias": null,
+          "choices": ["bar", "line"],
+          "default": "line",
+          "required": false
+        },
+        "ucl": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "x": {
+          "alias": null,
+          "required": true
+        },
+        "x_label": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "y": {
+          "alias": null,
+          "required": true
+        },
+        "y_label": {
+          "alias": null,
+          "default": null,
+          "required": false
+        }
+      },
+      "members": ["y_columns"],
+      "populate_by_name": false
+    },
+    "DashboardConfig": {
+      "fields": {
+        "columns": {
+          "alias": null,
+          "default": 3,
+          "required": false
+        },
+        "views": {
+          "alias": null,
+          "default": [],
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    },
+    "FormDef": {
+      "fields": {
+        "choices": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "fields": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "labels": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "submit_label": {
+          "alias": null,
+          "default": "登録",
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    },
+    "KioskConfig": {
+      "fields": {
+        "rotate_seconds": {
+          "alias": null,
+          "default": 15,
+          "required": false
+        },
+        "theme": {
+          "alias": null,
+          "choices": ["dark", "light"],
+          "default": "dark",
+          "required": false
+        },
+        "views": {
+          "alias": null,
+          "default": [],
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    },
+    "KpiCard": {
+      "fields": {
+        "format": {
+          "alias": null,
+          "default": "{:.0f}",
+          "required": false
+        },
+        "higher_is_better": {
+          "alias": null,
+          "default": true,
+          "required": false
+        },
+        "link_view": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "query": {
+          "alias": null,
+          "required": true
+        },
+        "target": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "title": {
+          "alias": null,
+          "required": true
+        },
+        "unit": {
+          "alias": null,
+          "default": "",
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    },
+    "MonitorConfig": {
+      "fields": {
+        "alerts": {
+          "alias": null,
+          "default": [],
+          "required": false
+        },
+        "app_title": {
+          "alias": null,
+          "default": "Monitor App",
+          "required": false
+        },
+        "dashboard": {
+          "alias": null,
+          "default": {
+            "__model__": "DashboardConfig"
+          },
+          "required": false
+        },
+        "favicon_path": {
+          "alias": null,
+          "default": "img/favicon.ico",
+          "required": false
+        },
+        "footer_text": {
+          "alias": null,
+          "default": "© 2026 Monitor App",
+          "required": false
+        },
+        "header_text": {
+          "alias": null,
+          "default": "📊 Monitor Dashboard",
+          "required": false
+        },
+        "kiosk": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "kpis": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "refresh_interval_ms": {
+          "alias": null,
+          "default": 2000,
+          "required": false
+        },
+        "refresh_mode": {
+          "alias": null,
+          "choices": ["polling", "sse"],
+          "default": "sse",
+          "required": false
+        },
+        "sources": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "tables": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "views": {
+          "alias": null,
+          "default": {},
+          "required": false
+        }
+      },
+      "members": ["kiosk_views"],
+      "populate_by_name": false
+    },
+    "SourceDef": {
+      "fields": {
+        "kind": {
+          "alias": null,
+          "choices": ["json", "jsonl", "sqlite"],
+          "required": true
+        },
+        "mapping": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "mode": {
+          "alias": null,
+          "choices": ["append", "replace"],
+          "default": "append",
+          "required": false
+        },
+        "path": {
+          "alias": null,
+          "required": true
+        },
+        "query": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "record_path": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "source_table": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "table": {
+          "alias": null,
+          "required": true
+        },
+        "watermark_column": {
+          "alias": null,
+          "default": null,
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    },
+    "TableDef": {
+      "fields": {
+        "columns": {
+          "alias": null,
+          "required": true
+        },
+        "foreign_keys": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "form": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "indexes": {
+          "alias": null,
+          "default": [],
+          "required": false
+        },
+        "primary_key": {
+          "alias": null,
+          "default": "id",
+          "required": false
+        }
+      },
+      "members": ["column_names", "column_type"],
+      "populate_by_name": false
+    },
+    "Threshold": {
+      "fields": {
+        "css_class": {
+          "alias": "class",
+          "required": true
+        },
+        "value": {
+          "alias": null,
+          "required": true
+        }
+      },
+      "members": [],
+      "populate_by_name": true
+    },
+    "ViewDef": {
+      "fields": {
+        "chart": {
+          "alias": null,
+          "default": null,
+          "required": false
+        },
+        "description": {
+          "alias": null,
+          "default": "",
+          "required": false
+        },
+        "group": {
+          "alias": null,
+          "default": "",
+          "required": false
+        },
+        "labels": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "query": {
+          "alias": null,
+          "required": true
+        },
+        "styles": {
+          "alias": null,
+          "default": {},
+          "required": false
+        },
+        "title": {
+          "alias": null,
+          "default": "",
+          "required": false
+        }
+      },
+      "members": [],
+      "populate_by_name": false
+    }
+  }
+}

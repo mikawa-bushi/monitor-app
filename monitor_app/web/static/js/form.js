@@ -5,6 +5,7 @@
 // 依存する DOM(form.html):
 //   #entry-form[data-table]  … フォーム本体
 //   #form-message            … 結果メッセージ
+// 送信先の URL は MonitorCore.url で組む(サブパス配信対応。core.js が先に読み込まれる)。
 
 (function () {
   "use strict";
@@ -42,7 +43,7 @@
     if (submitBtn) submitBtn.disabled = true;
     const payload = collect();
     try {
-      const res = await fetch("/api/tables/" + encodeURIComponent(table), {
+      const res = await fetch(window.MonitorCore.url("/api/tables/" + encodeURIComponent(table)), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

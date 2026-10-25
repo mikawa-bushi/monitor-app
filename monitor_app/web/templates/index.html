@@ -46,7 +46,7 @@
 {% if group.group %}
 <h2 class="view-group-heading">{{ group.group }}</h2>
 {% endif %}
-<nav class="card view-list">
+<nav class="card view-list" aria-label="{{ group.group or 'ビュー一覧' }}">
     {% for view in group.views %}
     <a href="{{ url_for('show_table', view_name=view.name) }}">{{ view.title }}</a>
     {% endfor %}
@@ -69,7 +69,7 @@
 <div class="page-head" style="margin-top:2rem;">
     <h1>データ入力</h1>
 </div>
-<nav class="card view-list">
+<nav class="card view-list" aria-label="データ入力">
     {% for table in form_tables %}
     <a href="{{ url_for('show_form', table_name=table) }}">📝 {{ table }} の入力</a>
     {% endfor %}
@@ -79,7 +79,7 @@
 
 {% block scripts %}
 {% if has_kpis %}
-<script src="{{ url_for('static', path='js/kpis.js') }}"></script>
+<script src="{{ static_url('js/kpis.js') }}"></script>
 {% endif %}
 {# dashboard-config の views が 1 件以上あるときだけ Chart.js と chart-view.js を読み込む #}
 <script>
@@ -88,13 +88,13 @@
     var cfg = JSON.parse(document.getElementById("dashboard-config").textContent);
     if (cfg && cfg.views && cfg.views.length > 0) {
       var s1 = document.createElement("script");
-      s1.src = "{{ url_for('static', path='js/chart.umd.min.js') }}";
+      s1.src = "{{ static_url('js/chart.umd.min.js') }}";
       s1.onload = function () {
         var s2 = document.createElement("script");
-        s2.src = "{{ url_for('static', path='js/chart-view.js') }}";
+        s2.src = "{{ static_url('js/chart-view.js') }}";
         s2.onload = function () {
           var s3 = document.createElement("script");
-          s3.src = "{{ url_for('static', path='js/dashboard.js') }}";
+          s3.src = "{{ static_url('js/dashboard.js') }}";
           document.body.appendChild(s3);
         };
         document.body.appendChild(s2);
@@ -102,15 +102,15 @@
       document.body.appendChild(s1);
     } else {
       var s = document.createElement("script");
-      s.src = "{{ url_for('static', path='js/dashboard.js') }}";
+      s.src = "{{ static_url('js/dashboard.js') }}";
       document.body.appendChild(s);
     }
   } catch (e) {
     var s = document.createElement("script");
-    s.src = "{{ url_for('static', path='js/dashboard.js') }}";
+    s.src = "{{ static_url('js/dashboard.js') }}";
     document.body.appendChild(s);
   }
 })();
 </script>
-<link href="{{ url_for('static', path='css/dashboard.css') }}" rel="stylesheet">
+<link href="{{ static_url('css/dashboard.css') }}" rel="stylesheet">
 {% endblock %}

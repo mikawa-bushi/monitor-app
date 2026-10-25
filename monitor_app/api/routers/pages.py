@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from ...exceptions import TableNotFoundError, ViewNotFoundError
 from ...settings.declarative import MonitorConfig
+from ...web import static_asset_path
 from ..deps import get_config, page_auth_guard
 
 router = APIRouter(tags=["Pages"], include_in_schema=False)
@@ -32,22 +33,30 @@ def _escape_json_for_script(raw: str) -> str:
     )
 
 
-def _nav_groups(config: MonitorConfig) -> list[dict]:
+def _nav_groups(config: MonitorConfig, *, chart: bool | None = None) -> list[dict]:
     """ナビゲーション用グループリストを返す。
 
     config.views の出現順でグループ化する。group=="" のビューは、他にグループが
     存在する場合のみ「その他」として末尾に集約する。全ビューが group=="" の場合は
     group 名 "" の単一グループを返す。
+
+    ``chart`` で chart の有無によりビューを絞り込める:
+
+    chart=True  → chart 付きビューのみ
+    chart=False → chart なしビューのみ
+    chart=None  → 全ビュー
     """
     named: dict[str, list[dict]] = {}  # group 名 → ビューリスト(出現順)
     ungrouped: list[dict] = []
 
     for vname, vdef in config.views.items():
+        if chart is True and vdef.chart is None:
+            continue
+        if chart is False and vdef.chart is not None:
+            continue
         entry = {"name": vname, "title": vdef.title or vname}
         if vdef.group:
-            if vdef.group not in named:
-                named[vdef.group] = []
-            named[vdef.group].append(entry)
+            named.setdefault(vdef.group, []).append(entry)
         else:
             ungrouped.append(entry)
 
@@ -61,38 +70,17 @@ def _nav_groups(config: MonitorConfig) -> list[dict]:
     return result
 
 
-def _nav_groups_filtered(
-    config: MonitorConfig, *, chart: bool | None = None
-) -> list[dict]:
-    """nav_groups と同形式で、chart の有無でビューを絞り込んで返す。
+#: 後方互換の別名(``_nav_groups`` が ``chart`` 引数での絞り込みを兼ねる)。
+_nav_groups_filtered = _nav_groups
 
-    chart=True  → chart 付きビューのみ
-    chart=False → chart なしビューのみ
-    chart=None  → 全ビュー(_nav_groups と同じ)
+
+def _favicon(config: MonitorConfig) -> str:
+    """表示する favicon の static パス。
+
+    v1 形式の設定の ``FAVICON_PATH='favicon.ico'``(v1 の既定値)は v2 の配置では
+    見つからないため、同梱の ``img/favicon.ico`` を使う(設定値そのものは変えない)。
     """
-    named: dict[str, list[dict]] = {}
-    ungrouped: list[dict] = []
-
-    for vname, vdef in config.views.items():
-        if chart is True and vdef.chart is None:
-            continue
-        if chart is False and vdef.chart is not None:
-            continue
-        entry = {"name": vname, "title": vdef.title or vname}
-        if vdef.group:
-            if vdef.group not in named:
-                named[vdef.group] = []
-            named[vdef.group].append(entry)
-        else:
-            ungrouped.append(entry)
-
-    if not named:
-        return [{"group": "", "views": ungrouped}]
-
-    result = [{"group": g, "views": vs} for g, vs in named.items()]
-    if ungrouped:
-        result.append({"group": "その他", "views": ungrouped})
-    return result
+    return static_asset_path(config.favicon_path)
 
 
 def _ctx(config: MonitorConfig, **extra) -> dict:
@@ -100,7 +88,7 @@ def _ctx(config: MonitorConfig, **extra) -> dict:
         "app_title": config.app_title,
         "header_text": config.header_text,
         "footer_text": config.footer_text,
-        "favicon_path": config.favicon_path,
+        "favicon_path": _favicon(config),
         "nav_groups": _nav_groups(config),
         **extra,
     }
@@ -143,7 +131,7 @@ def index(
     )
 
     # chart を持たないビューのみ nav_groups と同形式で返す(リンク一覧用)
-    list_views = _nav_groups_filtered(config, chart=False)
+    list_views = _nav_groups(config, chart=False)
 
     return templates.TemplateResponse(
         request,
@@ -244,7 +232,7 @@ def login_page(
         {
             "app_title": config.app_title,
             "header_text": config.header_text,
-            "favicon_path": config.favicon_path,
+            "favicon_path": _favicon(config),
             "error": bool(error),
         },
     )

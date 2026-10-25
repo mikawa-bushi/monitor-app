@@ -1,0 +1,145 @@
+{
+  "commands": {
+    "check": {
+      "params": [
+        {
+          "default": "config.py",
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "config",
+          "nargs": 1,
+          "opts": ["--config"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "str"
+        }
+      ]
+    },
+    "import-csv": {
+      "params": [
+        {
+          "default": "config.py",
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "config",
+          "nargs": 1,
+          "opts": ["--config"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "str"
+        },
+        {
+          "default": false,
+          "is_flag": true,
+          "kind": "option",
+          "multiple": false,
+          "name": "keep",
+          "nargs": 1,
+          "opts": ["--keep"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "bool"
+        }
+      ]
+    },
+    "runserver": {
+      "params": [
+        {
+          "default": "config.py",
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "config",
+          "nargs": 1,
+          "opts": ["--config"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "str"
+        },
+        {
+          "default": null,
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "host",
+          "nargs": 1,
+          "opts": ["--host"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "str"
+        },
+        {
+          "default": null,
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "port",
+          "nargs": 1,
+          "opts": ["--port"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "int"
+        },
+        {
+          "default": false,
+          "is_flag": true,
+          "kind": "option",
+          "multiple": false,
+          "name": "reload",
+          "nargs": 1,
+          "opts": ["--reload"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "bool"
+        },
+        {
+          "default": false,
+          "is_flag": true,
+          "kind": "option",
+          "multiple": false,
+          "name": "import_csv",
+          "nargs": 1,
+          "opts": ["--import-csv"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "bool"
+        }
+      ]
+    },
+    "startproject": {
+      "params": [
+        {
+          "default": null,
+          "is_flag": false,
+          "kind": "argument",
+          "multiple": false,
+          "name": "name",
+          "nargs": 1,
+          "opts": ["name"],
+          "required": true,
+          "secondary_opts": [],
+          "type": "str"
+        }
+      ]
+    },
+    "sync-sources": {
+      "params": [
+        {
+          "default": "config.py",
+          "is_flag": false,
+          "kind": "option",
+          "multiple": false,
+          "name": "config",
+          "nargs": 1,
+          "opts": ["--config"],
+          "required": false,
+          "secondary_opts": [],
+          "type": "str"
+        }
+      ]
+    }
+  },
+  "group_params": []
+}

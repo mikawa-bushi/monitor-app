@@ -1,0 +1,89 @@
+# monitor-app を Docker Compose で動かす設定。config.py と同じフォルダに置く
+# (「monitor-app deploy docker」または「startproject --deploy docker」で生成)。
+#
+#   起動   docker compose up -d       → http://localhost:9990/
+#   状態   docker compose ps          (STATUS が healthy なら正常)
+#   ログ   docker compose logs -f
+#   更新   docker compose pull && docker compose up -d
+#   停止   docker compose down        (データは ./instances に残る)
+#
+# - このフォルダをコンテナの /project にマウントする。コンテナはフォルダの所有者の
+#   ユーザーに切り替えて動くため、DB(instances/)などのファイルはホストの利用者のものになる。
+# - アプリは ./.env を自分で読む(ネイティブ実行と同じ解釈)。ただしコンテナ内の
+#   待ち受け(0.0.0.0:9990)は下の environment で固定する。
+# - .env の MONITOR_PORT はホスト側の公開ポートになる(既定 9990)。
+#   日本時間で動かすには .env に TZ=Asia/Tokyo を書く。
+#   自分でビルドしたイメージ(docker build -t monitor-app .)を使うなら .env に
+#   MONITOR_IMAGE=monitor-app を書く(タグは MONITOR_IMAGE_TAG。既定 latest)。
+# - LAN の誰でもデータを変更できないよう、.env の MONITOR_API_KEY を設定する
+#   (monitor-app deploy は、未設定なら推測されにくいキーを .env に書く)。
+#   値に $ を含むときは '...'(シングルクォート)で囲む(Compose の変数展開を避ける)。
+# - Docker Desktop(Windows/macOS)で SQLite が遅い・ロックされるときは、
+#   instances/ を名前付きボリュームにする(下のコメントを参照)。
+services:
+  monitor-app:
+    image: ${MONITOR_IMAGE:-ghcr.io/mikawa-bushi/monitor-app}:${MONITOR_IMAGE_TAG:-latest}
+    ports:
+      # リバースプロキシ(nginx など)の後ろに置くなら "127.0.0.1:${MONITOR_PORT:-9990}:9990" にし、
+      # .env に MONITOR_FORWARDED_ALLOW_IPS=* を書く(コンテナにはプロキシの接続が
+      # 127.0.0.1 ではなく Docker のゲートウェイ(172.17.0.1 など)から届くため)。
+      - "${MONITOR_PORT:-9990}:9990"
+    volumes:
+      - .:/project
+      # Docker Desktop で DB だけ名前付きボリュームに置く場合(下の volumes: も外す):
+      # - instances:/project/instances
+    environment:
+      MONITOR_HOST: 0.0.0.0
+      MONITOR_PORT: "9990"
+      TZ: ${TZ:-UTC}
+      # .env はアプリが MONITOR_* だけを読む。それ以外の環境変数(通知を送るときの
+      # プロキシなど)はここに書く。例: HTTPS_PROXY: http://proxy.example.com:8080
+    # 権限を最小にする。起動時にフォルダの所有者へ切り替える SETUID・SETGID と、
+    # 空の instances/ の所有者を合わせる CHOWN だけを残す。
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      # /api/health を確かめる(イメージの HEALTHCHECK と同じスクリプト。--port にも従う)。
+      # 確かめる通信はプロキシ(HTTPS_PROXY など)を通らない。
+      test: ["CMD", "python", "-I", "/opt/monitor-app/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    # SSE の接続が残っていても数秒で止まる。猶予を短くして再起動・更新を速くする。
+    stop_grace_period: 15s
+    # ログの肥大化を防ぐ(最大 10 MB × 3 ファイル。Raspberry Pi の SD カード対策)。
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+    # PostgreSQL を使う場合は、下の db サービスとこの depends_on のコメントを外し、
+    # .env に MONITOR_DATABASE_URL=postgresql+psycopg://monitor:change-me@db:5432/monitor
+    # を書く(パスワードは変えること)。
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: monitor
+  #     POSTGRES_PASSWORD: change-me
+  #     POSTGRES_DB: monitor
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U monitor -d monitor"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
+  #   logging:
+  #     driver: local
+
+# volumes:
+#   instances:
+#   pgdata:

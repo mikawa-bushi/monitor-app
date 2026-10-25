@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -110,7 +109,6 @@ def test_create_app_no_sources_no_connectors(tmp_path):
 def test_watcher_poll_once_csv_and_source(tmp_path):
     """IngestWatcher.poll_once(): CSV 変更 + コネクタ取り込みの両方が返る。"""
     # CSV テーブル用設定(users テーブル)
-    from monitor_app import ViewDef
 
     config = MonitorConfig(
         tables={
@@ -278,7 +276,7 @@ def test_cli_sync_sources_with_data(tmp_path):
         f"    )}},\n"
         f"    sources={{'ev': SourceDef(\n"
         f"        kind='jsonl',\n"
-        f"        path={repr(str(jsonl_path))},\n"
+        f"        path={str(jsonl_path)!r},\n"
         f"        table='events',\n"
         f"        mode='append',\n"
         f"    )}},\n"

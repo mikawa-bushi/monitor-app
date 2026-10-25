@@ -1,4 +1,0 @@
-include README.md
-include LICENSE
-recursive-include monitor_app/web *
-recursive-include monitor_app/scaffold *

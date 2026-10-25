@@ -9,7 +9,6 @@ from sqlalchemy import text
 
 from monitor_app import MonitorConfig
 from monitor_app.db.engine import Database
-from monitor_app.db.registry import TableRegistry
 from monitor_app.integrations.network_checker import attach
 from monitor_app.main import create_app
 from monitor_app.services.kpi_service import KpiService

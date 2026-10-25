@@ -3,6 +3,16 @@
 各コネクタは ``poll_once()`` を呼ばれるたびに増分または全件を monitor-app 側 DB に
 取り込み、取り込んだ行数を返す。監視ループから繰り返し呼ばれることを前提にしており、
 ファイル未存在・DB ロックなどのエラーは warning ログに留めて 0 を返す(ループを殺さない)。
+
+取り込んだ行と取り込みカーソル(どこまで読んだか)は同じトランザクションで確定する。
+途中で止まっても(電源断など)「行は入ったがカーソルは古いまま」にならず、次回に同じ
+行を取り込み直して主キーの重複が続くことがない(ARCH-03)。書き込む前に、そのトランザク
+ションの中でカーソルが読んだときのままかを確かめ、ほかのプロセス(cron の
+``sync-sources`` とフォルダ監視など)が先に取り込んでいれば今回は書き込まない(D4-12)。
+
+ファイル全体を毎回読み直すソース(``kind="json"``、watermark の無い ``query`` の
+``sqlite``)を追記(既定)で取り込むときは、主キーが既にある行を読み飛ばす(変わる
+たびに同じ行を入れ直して主キーの重複で失敗し続けない — D3-08)。
 """
 
 from __future__ import annotations
@@ -11,52 +21,35 @@ import json
 import logging
 import sqlite3
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterator, List
+from typing import Any
 
 from sqlalchemy import delete
 
 from ..db.engine import Database
-from ..db.ingest_state import IngestStateStore
+from ..db.ingest_state import IngestStateStore, decode_cursor
 from ..db.registry import TableRegistry
 from ..settings.declarative import MonitorConfig, SourceDef
-from .coercion import CoercionError, coerce
 from .importer import insert_in_chunks
+from .rows import ColumnError, RowConverter
+from .rows import dot_get as _dot_get
+from .rows import flatten as _flatten  # noqa: F401 - 従来の名前で import できるように
+from .value_limits import ValueLimits, reflected_limits
 
 logger = logging.getLogger("monitor_app.connectors")
 
-
-# ---------------------------------------------------------------------------
-# 共通ユーティリティ
-# ---------------------------------------------------------------------------
+#: カーソルをまだ読んでいないことを表す値(保存したカーソルが無い None と区別する)。
+_UNREAD = object()
 
 
-def _dot_get(obj: Any, key: str) -> Any:
-    """ドット記法キーで obj を走査する。数値トークンはリストインデックス。"""
-    parts = key.split(".")
-    cur = obj
-    for part in parts:
-        if isinstance(cur, list):
-            try:
-                cur = cur[int(part)]
-            except (ValueError, IndexError):
-                raise KeyError(key)
-        elif isinstance(cur, dict):
-            if part not in cur:
-                raise KeyError(key)
-            cur = cur[part]
-        else:
-            raise KeyError(key)
-    return cur
-
-
-def _flatten(value: Any) -> Any:
-    """list/dict の平坦化: list → 空白区切り文字列、dict → JSON 文字列。"""
-    if isinstance(value, list):
-        return " ".join(str(v) for v in value)
-    if isinstance(value, dict):
-        return json.dumps(value, ensure_ascii=False)
-    return value
+def _sqlite_order(value: Any) -> tuple[int, Any]:
+    """SQLite の並び順(数値 < 文字列 < BLOB)で比べるためのキー。"""
+    if isinstance(value, (int, float)):
+        return (0, value)
+    if isinstance(value, str):
+        return (1, value)
+    return (2, bytes(value))
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +68,8 @@ class SourceConnector(ABC):
         registry: TableRegistry,
         db: Database,
         state: IngestStateStore,
+        *,
+        on_change: Callable[[], None] | None = None,
     ) -> None:
         self.name = name
         self.sdef = sdef
@@ -83,6 +78,12 @@ class SourceConnector(ABC):
         self.db = db
         self.state = state
         self.path = Path(sdef.path).expanduser()
+        #: 行が変わる書き込みを確定した後に呼ぶ(ビューのキャッシュを捨てる等)。
+        self.on_change = on_change
+        self._converter: RowConverter | None = None
+        #: DB の列の制限(サーバー DB だけ。最初に書き込むときに 1 度だけ作る — D3-06)。
+        self._limits: ValueLimits | None = None
+        self._limits_ready = False
 
     @abstractmethod
     def poll_once(self) -> int:
@@ -92,68 +93,110 @@ class SourceConnector(ABC):
     # 共通: raw レコード列挙 → 変換 → DB 挿入
     # ------------------------------------------------------------------
 
-    def _transform_and_insert(
-        self, raw_records: Iterator[Dict[str, Any]], *, replace: bool
-    ) -> int:
-        """raw レコードを変換して DB に挿入する。
+    @property
+    def converter(self) -> RowConverter:
+        """取り込み先テーブルの変換規則(最初に使うときに 1 度だけ作る)。"""
+        if self._converter is None:
+            self._converter = RowConverter(
+                self.config.tables[self.sdef.table], mapping=self.sdef.mapping
+            )
+        return self._converter
 
-        replace=True なら挿入前に既存行を全削除する。
-        変換失敗行はスキップして warning。
-        未知列は破棄。
+    @property
+    def snapshot(self) -> bool:
+        """変わるたびにファイル全体を読み直すソースか(json・watermark の無い query)。"""
+        if self.sdef.kind == "json":
+            return True
+        return (
+            self.sdef.kind == "sqlite"
+            and self.sdef.query is not None
+            and self.sdef.watermark_column is None
+        )
+
+    def _convert(self, raw_records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+        """raw レコードを列の論理型へ変換する。
+
+        変換失敗行はスキップして warning。未知列は破棄(mapping があれば mapping の列
+        だけを読む)。
         """
-        tdef = self.config.tables[self.sdef.table]
-        table = self.registry.get(self.sdef.table)
-        allowed = set(tdef.column_names)
-        mapping = self.sdef.mapping  # {dest_col: src_key_dotted}
-
-        rows: List[Dict[str, Any]] = []
+        converter = self.converter
+        rows: list[dict[str, Any]] = []
         for raw in raw_records:
-            record: Dict[str, Any] = {}
-            failed = False
-
-            if mapping:
-                # mapping あり: dest_col → src_key でドット記法走査
-                for dest_col, src_key in mapping.items():
-                    if dest_col not in allowed:
-                        continue
-                    try:
-                        raw_val = _dot_get(raw, src_key)
-                    except KeyError:
-                        raw_val = None
-                    raw_val = _flatten(raw_val)
-                    try:
-                        record[dest_col] = coerce(raw_val, tdef.column_type(dest_col))
-                    except CoercionError as exc:
-                        logger.warning(
-                            "source '%s': 型変換失敗(列 %s): %s — 行スキップ",
-                            self.name,
-                            dest_col,
-                            exc,
-                        )
-                        failed = True
-                        break
-            else:
-                # mapping なし: ソースキーをそのまま列名に使う
-                for src_key, raw_val in raw.items():
-                    if src_key not in allowed:
-                        continue
-                    raw_val = _flatten(raw_val)
-                    try:
-                        record[src_key] = coerce(raw_val, tdef.column_type(src_key))
-                    except CoercionError as exc:
-                        logger.warning(
-                            "source '%s': 型変換失敗(列 %s): %s — 行スキップ",
-                            self.name,
-                            src_key,
-                            exc,
-                        )
-                        failed = True
-                        break
-
-            if not failed and record:
+            try:
+                record = converter.from_record(raw)
+            except ColumnError as exc:
+                logger.warning(
+                    "source '%s': 型変換失敗(列 %s): %s — 行スキップ",
+                    self.name,
+                    exc.column,
+                    exc,
+                )
+                continue
+            if record:
                 rows.append(record)
+        return rows
 
-        with self.db.connect() as conn:
+    def _within_limits(self, conn, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """DB の列に入らない値(長すぎる文字列・範囲外の整数)の行を除く(D3-06)。"""
+        if not self._limits_ready:
+            self._limits = reflected_limits(conn, self.registry.get(self.sdef.table))
+            self._limits_ready = True
+        limits = self._limits
+        if limits is None:
+            return rows
+        kept = []
+        for row in rows:
+            for col, value in row.items():
+                reason = limits.violation(col, value)
+                if reason is not None:
+                    logger.warning("source '%s': %s — 行スキップ", self.name, reason)
+                    break
+            else:
+                kept.append(row)
+        return kept
+
+    def _skip_existing(self, rows: list[dict[str, Any]]) -> bool:
+        """追記で、主キーが既にある行を読み飛ばすか(ファイル全体を毎回読むソース)。
+
+        行に主キーが無い(DB が採番する)ときは読み飛ばせない(``check`` が警告する)。
+        """
+        if self.sdef.mode != "append" or not self.snapshot:
+            return False
+        pk = self.registry.primary_key(self.sdef.table)
+        return bool(rows) and all(row.get(pk) is not None for row in rows)
+
+    def _write(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        replace: bool,
+        cursor: str | None = None,
+        typed_cursor: Any = None,
+        expected: Any = None,
+        check_cursor: bool = False,
+    ) -> int:
+        """行と取り込みカーソルを 1 トランザクションで書き込み、挿入した行数を返す。
+
+        replace=True なら挿入前に既存行を全削除する(有効行 0 件なら削除しない — #16)。
+        ``cursor`` は文字列のまま、``typed_cursor`` は型付きで保存する(None なら保存
+        しない)。``check_cursor=True`` なら、書き込む前に保存済みのカーソルが
+        ``expected``(読み始めたときの値)のままかを同じトランザクションの中で確かめ、
+        ほかのプロセスが先に進めていれば何も書かずに 0 を返す(D4-12)。
+        """
+        table = self.registry.get(self.sdef.table)
+        changed = False
+        inserted = 0
+        with self.db.write_transaction() as conn:
+            if check_cursor:
+                current = self.state.get(self.name, conn=conn, for_update=True)
+                if current != expected:
+                    logger.info(
+                        "source '%s': ほかのプロセスが先に取り込んだため、今回は"
+                        "取り込みません",
+                        self.name,
+                    )
+                    return 0
+            rows = self._within_limits(conn, rows)
             if replace and not rows:
                 # 有効行 0 件での置換は既存データの全消去になるため中止する(#16)。
                 logger.warning(
@@ -163,16 +206,36 @@ class SourceConnector(ABC):
             else:
                 if replace:
                     conn.execute(delete(table))
+                    changed = True
                 if rows:
-                    insert_in_chunks(conn, table, rows)
+                    if self._skip_existing(rows):
+                        inserted = insert_in_chunks(
+                            conn, table, rows, on_conflict="ignore"
+                        )
+                    else:
+                        inserted = insert_in_chunks(conn, table, rows)
+                    changed = changed or inserted > 0
+            if typed_cursor is not None:
+                self.state.set_value(self.name, typed_cursor, conn=conn)
+            elif cursor is not None:
+                self.state.set(self.name, cursor, conn=conn)
 
         logger.info(
             "source '%s': %d 行取り込み (replace=%s)",
             self.name,
-            len(rows),
+            inserted,
             replace,
         )
-        return len(rows)
+        if changed and self.on_change is not None:
+            try:
+                self.on_change()
+            except Exception:  # noqa: BLE001 - 通知の失敗で取り込みを失敗にしない
+                logger.warning(
+                    "source '%s': 取り込み後の通知に失敗しました",
+                    self.name,
+                    exc_info=True,
+                )
+        return inserted
 
 
 # ---------------------------------------------------------------------------
@@ -188,12 +251,12 @@ class SqliteSourceConnector(SourceConnector):
             return 0
 
         wc = self.sdef.watermark_column
+        saved = self.state.get(self.name)
 
         # watermark なし: mtime:size を cursor に使う
         if wc is None and self.sdef.query is None:
             stat = self.path.stat()
             cursor_val = f"{stat.st_mtime_ns}:{stat.st_size}"
-            saved = self.state.get(self.name)
             if cursor_val == saved:
                 return 0
 
@@ -206,21 +269,30 @@ class SqliteSourceConnector(SourceConnector):
             return 0
 
         try:
-            return self._poll_sqlite(conn_src)
+            return self._poll_sqlite(conn_src, saved)
         finally:
             conn_src.close()
 
-    def _poll_sqlite(self, conn_src: sqlite3.Connection) -> int:
+    def _poll_sqlite(self, conn_src: sqlite3.Connection, saved: Any = _UNREAD) -> int:
         wc = self.sdef.watermark_column
         st = self.sdef.source_table
+        if saved is _UNREAD:
+            saved = self.state.get(self.name)
 
-        # SQL 決定
+        # SQL 決定。ウォーターマークは保存したときの型のまま渡す(文字列にすると、型の
+        # 無い列で整数と文字列の比較になり、以後の行を取り込めない — ARCH-03)。
+        # v2.3.1 までの文字列のカーソルは文字列のまま渡す(従来どおり)。
         if self.sdef.query:
             sql = self.sdef.query
-            params: Dict[str, Any] = {"wm": self.state.get(self.name)}
+            params: dict[str, Any] = {"wm": decode_cursor(saved)}
         elif wc:
-            sql = f"SELECT * FROM {st} WHERE (:wm IS NULL OR {wc} > :wm) ORDER BY {wc}"
-            params = {"wm": self.state.get(self.name)}
+            # ウォーターマークが NULL の行はカーソルで追えない(毎回取り込み直して
+            # 重複する)ため取り込まない。
+            sql = (
+                f"SELECT * FROM {st} WHERE {wc} IS NOT NULL"
+                f" AND (:wm IS NULL OR {wc} > :wm) ORDER BY {wc}"
+            )
+            params = {"wm": decode_cursor(saved)}
         else:
             sql = f"SELECT * FROM {st}"
             params = {}
@@ -239,21 +311,51 @@ class SqliteSourceConnector(SourceConnector):
                 self.state.set(self.name, f"{stat.st_mtime_ns}:{stat.st_size}")
             return 0
 
-        raw_dicts = (dict(r) for r in rows_raw)
-
         replace = self.sdef.mode == "replace" or (wc is None and not self.sdef.query)
-        inserted = self._transform_and_insert(raw_dicts, replace=replace)
 
         if wc:
-            # watermark 最大値を保存
-            max_wm = str(max(r[wc] for r in rows_raw if r[wc] is not None))
-            self.state.set(self.name, max_wm)
-        elif not self.sdef.query:
-            # mtime:size cursor を保存
-            stat = self.path.stat()
-            self.state.set(self.name, f"{stat.st_mtime_ns}:{stat.st_size}")
+            # 新しいカーソル(ウォーターマークの最大値)は挿入の前に決める。
+            try:
+                marked = [(r, r[wc]) for r in rows_raw]
+            except (IndexError, KeyError):
+                logger.warning(
+                    "source '%s': query の結果に watermark 列 '%s' がありません",
+                    self.name,
+                    wc,
+                )
+                return 0
+            usable = [r for r, value in marked if value is not None]
+            if len(usable) < len(marked):
+                logger.warning(
+                    "source '%s': watermark 列 '%s' が NULL の %d 行は取り込みません",
+                    self.name,
+                    wc,
+                    len(marked) - len(usable),
+                )
+            if not usable:
+                return 0
+            new_wm = max((r[wc] for r in usable), key=_sqlite_order)
+            rows = self._convert(dict(r) for r in usable)
+            return self._write(
+                rows,
+                replace=replace,
+                typed_cursor=new_wm,
+                expected=saved,
+                check_cursor=True,
+            )
 
-        return inserted
+        rows = self._convert(dict(r) for r in rows_raw)
+        if self.sdef.query:
+            return self._write(rows, replace=replace)
+        # mtime:size cursor を保存
+        stat = self.path.stat()
+        return self._write(
+            rows,
+            replace=replace,
+            cursor=f"{stat.st_mtime_ns}:{stat.st_size}",
+            expected=saved,
+            check_cursor=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -291,61 +393,51 @@ class JsonlSourceConnector(SourceConnector):
         if size == offset:
             return 0
 
-        raw_records: List[Dict[str, Any]] = []
-        new_offset = offset
+        raw_records: list[dict[str, Any]] = []
 
         try:
             with self.path.open("rb") as fh:
                 fh.seek(offset)
                 buf = fh.read()
-
-            # 末尾に改行がなければ最後の未完了行を消費しない
-            lines = buf.split(b"\n")
-            if buf.endswith(b"\n"):
-                # 最後が空要素になるので除去
-                lines = lines[:-1]
-                consume_all = True
-            else:
-                # 最後の行は未完了: 除外して持ち越し
-                lines = lines[:-1]
-                consume_all = False  # noqa: F841 (未使用変数だが意図明示のため残す)
-
-            pos = offset
-            for line in lines:
-                line_len = len(line) + 1  # +1 for \n
-                line_stripped = line.strip()
-                if not line_stripped:
-                    pos += line_len
-                    continue
-                try:
-                    obj = json.loads(line_stripped)
-                    if isinstance(obj, dict):
-                        raw_records.append(obj)
-                    else:
-                        logger.warning(
-                            "source '%s': JSONL 行が object でない — スキップ",
-                            self.name,
-                        )
-                except json.JSONDecodeError as exc:
-                    logger.warning(
-                        "source '%s': JSON パース失敗: %s — 行スキップ", self.name, exc
-                    )
-                pos += line_len
-
-            new_offset = pos
-
         except OSError as exc:
             logger.warning("source '%s': 読み取り失敗: %s", self.name, exc)
             return 0
 
+        # 改行で終わった行だけを消費する(末尾の書きかけの行は次回に持ち越す)。
+        lines = buf.split(b"\n")[:-1]
+        pos = offset
+        for line in lines:
+            pos += len(line) + 1  # +1 for \n
+            line_stripped = line.strip()
+            if not line_stripped:
+                continue
+            try:
+                obj = json.loads(line_stripped)
+            except json.JSONDecodeError as exc:
+                logger.warning(
+                    "source '%s': JSON パース失敗: %s — 行スキップ", self.name, exc
+                )
+                continue
+            if isinstance(obj, dict):
+                raw_records.append(obj)
+            else:
+                logger.warning(
+                    "source '%s': JSONL 行が object でない — スキップ",
+                    self.name,
+                )
+
         if not raw_records:
-            if new_offset > offset:
-                self.state.set(self.name, str(new_offset))
+            if pos > offset:
+                self.state.set(self.name, str(pos))
             return 0
 
-        inserted = self._transform_and_insert(iter(raw_records), replace=False)
-        self.state.set(self.name, str(new_offset))
-        return inserted
+        return self._write(
+            self._convert(raw_records),
+            replace=False,
+            cursor=str(pos),
+            expected=saved,
+            check_cursor=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +459,8 @@ class JsonSourceConnector(SourceConnector):
             return 0
 
         cursor_val = f"{stat.st_mtime_ns}:{stat.st_size}"
-        if cursor_val == self.state.get(self.name):
+        saved = self.state.get(self.name)
+        if cursor_val == saved:
             return 0
 
         try:
@@ -401,10 +494,21 @@ class JsonSourceConnector(SourceConnector):
             )
             return 0
 
+        records = [r for r in data if isinstance(r, dict)]
+        if len(records) < len(data):
+            logger.warning(
+                "source '%s': object でないレコード %d 件をスキップ",
+                self.name,
+                len(data) - len(records),
+            )
         replace = self.sdef.mode == "replace"
-        inserted = self._transform_and_insert(iter(data), replace=replace)
-        self.state.set(self.name, cursor_val)
-        return inserted
+        return self._write(
+            self._convert(records),
+            replace=replace,
+            cursor=cursor_val,
+            expected=saved,
+            check_cursor=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -423,9 +527,14 @@ def build_connectors(
     registry: TableRegistry,
     db: Database,
     state: IngestStateStore,
-) -> Dict[str, SourceConnector]:
-    """config.sources を回して kind に応じたコネクタを生成して返す。"""
-    connectors: Dict[str, SourceConnector] = {}
+    *,
+    on_change: Callable[[], None] | None = None,
+) -> dict[str, SourceConnector]:
+    """config.sources を回して kind に応じたコネクタを生成して返す。
+
+    ``on_change`` は各コネクタが行を書き込んだ後に呼ぶ(ビューのキャッシュを捨てる等)。
+    """
+    connectors: dict[str, SourceConnector] = {}
     for name, sdef in config.sources.items():
         cls = _KIND_MAP[sdef.kind]
         connectors[name] = cls(
@@ -435,5 +544,6 @@ def build_connectors(
             registry=registry,
             db=db,
             state=state,
+            on_change=on_change,
         )
     return connectors

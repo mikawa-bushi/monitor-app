@@ -1,0 +1,548 @@
+{
+  "components": {
+    "Body_login_api_login_post": [
+      {
+        "object": {
+          "properties": {
+            "key": ["string"]
+          },
+          "required": ["key"]
+        }
+      }
+    ],
+    "HTTPValidationError": [
+      {
+        "object": {
+          "properties": {
+            "detail": [
+              {
+                "array": [
+                  {
+                    "ref": "ValidationError"
+                  }
+                ]
+              }
+            ]
+          },
+          "required": []
+        }
+      }
+    ],
+    "MessageResponse": [
+      {
+        "object": {
+          "properties": {
+            "message": ["string"],
+            "success": ["boolean"]
+          },
+          "required": ["message"]
+        }
+      }
+    ],
+    "RecordResponse": [
+      {
+        "object": {
+          "properties": {
+            "data": ["object"],
+            "success": ["boolean"]
+          },
+          "required": ["data"]
+        }
+      }
+    ],
+    "SchemaResponse": [
+      {
+        "object": {
+          "properties": {
+            "success": ["boolean"],
+            "tables": ["object"]
+          },
+          "required": ["tables"]
+        }
+      }
+    ],
+    "TableDataResponse": [
+      {
+        "object": {
+          "properties": {
+            "columns": [
+              {
+                "array": ["string"]
+              }
+            ],
+            "count": ["integer"],
+            "data": [
+              {
+                "array": ["object"]
+              }
+            ],
+            "table_name": ["string"]
+          },
+          "required": ["columns", "count", "data", "table_name"]
+        }
+      }
+    ],
+    "ValidationError": [
+      {
+        "object": {
+          "properties": {
+            "ctx": ["object"],
+            "input": ["any"],
+            "loc": [
+              {
+                "array": ["integer", "string"]
+              }
+            ],
+            "msg": ["string"],
+            "type": ["string"]
+          },
+          "required": ["loc", "msg", "type"]
+        }
+      }
+    ],
+    "ViewDataResponse": [
+      {
+        "object": {
+          "properties": {
+            "alerts": [
+              {
+                "array": ["object"]
+              }
+            ],
+            "cell_styles": ["object"],
+            "column_labels": ["object"],
+            "columns": [
+              {
+                "array": ["string"]
+              }
+            ],
+            "data": [
+              {
+                "array": ["object"]
+              }
+            ],
+            "description": ["string"],
+            "title": ["string"],
+            "view_name": ["string"]
+          },
+          "required": ["cell_styles", "columns", "data", "description", "title", "view_name"]
+        }
+      }
+    ]
+  },
+  "operations": {
+    "DELETE /api/tables/{table_name}/{record_id}": {
+      "parameters": {
+        "path:record_id": {
+          "required": true,
+          "type": ["string"]
+        },
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "MessageResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/alerts": {
+      "parameters": {},
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/audit": {
+      "parameters": {
+        "query:limit": {
+          "default": 100,
+          "required": false,
+          "type": ["integer"]
+        },
+        "query:table": {
+          "required": false,
+          "type": ["null", "string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/health": {
+      "parameters": {},
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        }
+      },
+      "security": []
+    },
+    "GET /api/kpis": {
+      "parameters": {},
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/schema": {
+      "parameters": {},
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "SchemaResponse"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/tables/{table_name}": {
+      "parameters": {
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        },
+        "query:limit": {
+          "required": false,
+          "type": ["integer", "null"]
+        },
+        "query:offset": {
+          "default": 0,
+          "required": false,
+          "type": ["integer"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "TableDataResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/tables/{table_name}/{record_id}": {
+      "parameters": {
+        "path:record_id": {
+          "required": true,
+          "type": ["string"]
+        },
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "RecordResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/views/batch": {
+      "parameters": {
+        "query:names": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/views/{view_name}": {
+      "parameters": {
+        "path:view_name": {
+          "required": true,
+          "type": ["string"]
+        },
+        "query:limit": {
+          "required": false,
+          "type": ["integer", "null"]
+        },
+        "query:offset": {
+          "default": 0,
+          "required": false,
+          "type": ["integer"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "ViewDataResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/views/{view_name}/export": {
+      "parameters": {
+        "path:view_name": {
+          "required": true,
+          "type": ["string"]
+        },
+        "query:format": {
+          "default": "csv",
+          "required": false,
+          "type": ["string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "GET /api/views/{view_name}/stream": {
+      "parameters": {
+        "path:view_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "POST /api/ingest/{table_name}": {
+      "parameters": {
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": {
+        "content": {
+          "application/json": [
+            "object",
+            {
+              "array": ["object"]
+            }
+          ]
+        },
+        "required": true
+      },
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "POST /api/login": {
+      "parameters": {},
+      "request_body": {
+        "content": {
+          "application/x-www-form-urlencoded": [
+            {
+              "ref": "Body_login_api_login_post"
+            }
+          ]
+        },
+        "required": true
+      },
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": []
+    },
+    "POST /api/logout": {
+      "parameters": {},
+      "request_body": null,
+      "responses": {
+        "200": {
+          "application/json": ["any"]
+        }
+      },
+      "security": []
+    },
+    "POST /api/tables/{table_name}": {
+      "parameters": {
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": {
+        "content": {
+          "application/json": ["object"]
+        },
+        "required": true
+      },
+      "responses": {
+        "201": {
+          "application/json": [
+            {
+              "ref": "RecordResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    },
+    "PUT /api/tables/{table_name}/{record_id}": {
+      "parameters": {
+        "path:record_id": {
+          "required": true,
+          "type": ["string"]
+        },
+        "path:table_name": {
+          "required": true,
+          "type": ["string"]
+        }
+      },
+      "request_body": {
+        "content": {
+          "application/json": ["object"]
+        },
+        "required": true
+      },
+      "responses": {
+        "200": {
+          "application/json": [
+            {
+              "ref": "RecordResponse"
+            }
+          ]
+        },
+        "422": {
+          "application/json": [
+            {
+              "ref": "HTTPValidationError"
+            }
+          ]
+        }
+      },
+      "security": ["APIKeyHeader"]
+    }
+  },
+  "security_schemes": {
+    "APIKeyHeader": {
+      "in": "header",
+      "name": "X-API-Key",
+      "type": "apiKey"
+    }
+  }
+}

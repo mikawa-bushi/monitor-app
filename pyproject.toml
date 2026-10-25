@@ -1,10 +1,11 @@
 [project]
 name = "monitor-app"
-version = "2.3.1"
+version = "2.4.0"
 description = "Drop in a CSV, write one config file, and get a live-updating Web UI + REST API. FastAPI-based data monitoring for shop floors and small teams."
 authors = [{ name = "hardwork9047", email = "tomatosimple1104@gmail.com" }]
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 keywords = ["dashboard", "monitoring", "csv", "fastapi", "andon", "spc", "manufacturing"]
 classifiers = [
@@ -23,29 +24,45 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
 ]
 dependencies = [
     # fastapi <0.133 は starlette を <1.0 に固定しており、starlette の脆弱性修正
     # (>=1.3.1) と両立しない。0.133 で starlette の上限が外れた
-    "fastapi (>=0.133,<1.0)",
-    "uvicorn[standard] (>=0.30,<1.0)",
-    "pydantic (>=2.7,<3.0)",
-    "pydantic-settings (>=2.3,<3.0)",
-    "sqlalchemy (>=2.0,<3.0)",
-    "typer (>=0.12,<1.0)",
-    # typer 0.12 系は click 8.2 の API 変更と非互換
-    "click (>=8.1,<8.2)",
-    "jinja2 (>=3.1,<4.0)",
+    "fastapi>=0.133,<1.0",
+    # 0.47 未満は SSE 接続中に SIGTERM で停止できない(sse-starlette の
+    # handle_exit パッチが間に合わない)。0.47 以降は即時に停止する
+    "uvicorn[standard]>=0.47,<1.0",
+    "pydantic>=2.7,<3.0",
+    "pydantic-settings>=2.3,<3.0",
+    # 2.0.8 未満は PostgreSQL で 256 文字以上の文字列が 255 文字に切り詰められて
+    # 保存される(バインド値に ::VARCHAR(255) のキャストが付くため)
+    "sqlalchemy>=2.0.8,<3.0",
+    # 0.26 以降は click を同梱し(typer._click)、click への依存と 8.2 未満の
+    # 固定が不要。0.23 以降は例外表示でローカル変数(秘密情報)を出さない
+    "typer>=0.26,<1.0",
+    # 3.1.6 未満には既知の脆弱性がある(CVE-2024-22195・CVE-2024-34064・
+    # CVE-2024-56201・CVE-2024-56326・CVE-2025-27516)
+    "jinja2>=3.1.6,<4.0",
     # CORSMiddleware を直接 import するため明示宣言。複数 CVE のため下限を固定
-    "starlette (>=1.3.1,<2.0)",
-    "python-multipart (>=0.0.31)",
-    "sse-starlette (>=2.1,<3.0)",
-    "pymysql (>=1.1,<2.0)",   # MySQL 対応
-    "pg8000 (>=1.31.5,<2.0)",   # PostgreSQL 対応（CVE-2025-61385 修正）
+    "starlette>=1.3.1,<2.0",
+    "python-multipart>=0.0.31",
+    # 3.1 未満は停止用のイベントが最初のイベントループに結び付き、ループが変わると
+    # SSE が動かない(2.x)、または SIGTERM での停止が数秒遅れる(3.0)。3.3 未満には
+    # 停止の合図(shutdown_event)が無く、停止のたびに接続ごとの ERROR がログに残る
+    "sse-starlette>=3.3,<4.0",
+    # MySQL 対応。1.2 未満は MySQL 8 の既定の認証方式(caching_sha2_password)で、
+    # サーバーの再起動後やパスワード違いのときに cryptography が無いと RuntimeError になる
+    # (正しいパスワードでも接続できない)
+    "pymysql>=1.2,<2.0",
+    "pg8000>=1.31.5,<2.0",  # PostgreSQL 対応(CVE-2025-61385 修正)
 ]
 
 [project.optional-dependencies]
-xlsx = ["openpyxl (>=3.1,<4.0)"]  # Excel エクスポート
+xlsx = ["openpyxl>=3.1,<4.0"]  # Excel エクスポート
+# 高速な PostgreSQL ドライバ(postgresql+psycopg://)。pg8000 比で取り込みが十数倍速い
+postgres = ["psycopg[binary]>=3.2,<4.0"]
 
 [project.urls]
 Homepage = "https://github.com/mikawa-bushi/monitor-app"
@@ -56,21 +73,33 @@ Changelog = "https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md"
 [project.scripts]
 monitor-app = "monitor_app.cli:app"
 
-[tool.poetry]
-packages = [{ include = "monitor_app" }]
-include = [
-    "monitor_app/web/templates/*",
-    "monitor_app/web/static/**/*",
-    "monitor_app/scaffold/**/*",
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3,<10",
+    "pytest-cov>=7.0,<8",
+    # starlette の TestClient 用。httpx2 は Python 3.11 以上のみ
+    "httpx>=0.27,<0.29; python_version < '3.11'",
+    "httpx2>=2.0,<3; python_version >= '3.11'",
+    "black>=26.3.1,<27",
+    "ruff>=0.15,<0.16",
+    "pre-commit>=4.0,<5",
 ]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^9.0.3"
-pytest-cov = "^7.0"
-httpx = "^0.27.0"
-black = "^26.3.1"
-ruff = "^0.15"
-pre-commit = "^4.0"
+[tool.hatch.build.targets.wheel]
+packages = ["monitor_app"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/monitor_app",
+    "/tests",
+    # tests/test_docker_*.py が使うコンテナのスクリプト(sdist からテストを実行できるように)
+    "/docker/entrypoint.sh",
+    "/docker/healthcheck.py",
+    "/README.md",
+    "/README_ja.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -82,7 +111,7 @@ source = ["monitor_app"]
 [tool.coverage.report]
 show_missing = true
 # 品質ゲート: ここを下回ると CI が落ちる。テスト追加に合わせて引き上げる
-# ラチェット値(現状の総カバレッジ約 91% に対し、3.10〜3.13 の差を見込んだ下限)。
+# ラチェット値(現状の総カバレッジ約 91% に対し、3.10〜3.14 の差を見込んだ下限)。
 fail_under = 88
 
 [tool.black]
@@ -94,12 +123,66 @@ skip-string-normalization = false
 [tool.ruff]
 target-version = "py310"
 line-length = 88
+# 凍結したゴールデンフィクスチャ(v2.3.1 の利用者プロジェクト・v1 形式の config.py)は
+# バイト列そのものが契約の一部なので lint の対象外にする(自動修正で書き換えない)。
+extend-exclude = ["tests/contract/fixtures"]
+# pre-commit はファイル名を明示して ruff を呼ぶため、その場合も exclude を効かせる。
+force-exclude = true
 
 [tool.ruff.lint]
-# まずは import 整列(isort 相当)のみ。差分ノイズと並び不統一(#M3)を解消する。
-# 段階的にルール(F: pyflakes 等)を追加してゲートを強化できる。
-select = ["I"]
+select = [
+    "I",    # import の並び(isort 相当)
+    "F",    # pyflakes(未使用の import・未定義の名前など)
+    "E",    # pycodestyle のエラー
+    "W",    # pycodestyle の警告
+    "B",    # flake8-bugbear(ありがちな誤り)
+    "UP",   # pyupgrade(Python 3.10 以降の書き方。typing.List → list など)
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff 独自のルール
+    # 意図して広く捕まえる except には `# noqa: BLE001 - 理由` を付ける慣習がある。
+    # BLE001 を有効にして目印を検査し続ける(無効だと RUF100 が「未使用」として消す)。
+    "BLE",
+    # 関数の複雑さ(McCabe)の上限。上限を超える関数は分けるか、理由を添えた
+    # `# noqa: C901 - 理由` を付ける(max-complexity は下の [tool.ruff.lint.mccabe])。
+    "C901",
+]
+ignore = [
+    "E501",  # 行の長さは black に任せる
+    # 全角の句読点・括弧(「、」「。」「(」など)を「紛らわしい文字」と見なすルール。
+    # 日本語の文字列・docstring・コメントでは意図どおりなので対象外にする。
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    # zip() に strict= を付けるとキーワード引数のため速い呼び出し経路が使えず、行ごとの
+    # dict(zip(列名, 行)) が約 35% 遅くなる(Python 3.10〜3.14 で実測)。長さは呼び出し側で
+    # 揃えているので、取り込み・表示の速度を優先する。
+    "B905",
+    # __slots__ は __init__ の代入順に並べている(読みやすさ)。並べ替えても利点がない。
+    "RUF023",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.ruff.lint.per-file-ignores]
+# 雛形は利用者のプロジェクトへそのままコピーされる。コメントアウトした記入例で使う
+# 名前(Retention など)の import は、未使用でも残す。
+"monitor_app/scaffold/*.py" = ["F401"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI の依存性・パラメータの宣言と Typer の引数の宣言は、既定値に呼び出しを書くのが
+# 正しい使い方なので B008(既定値での関数呼び出し)の対象外にする。
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.Form",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+    "typer.Argument",
+    "typer.Option",
+]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"

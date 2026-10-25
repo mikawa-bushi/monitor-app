@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from ..settings.declarative import (
     AlertRule,
     KpiCard,
@@ -20,11 +18,11 @@ from ..settings.declarative import (
 def merge(
     config: MonitorConfig,
     *,
-    tables: Optional[Dict[str, TableDef]] = None,
-    views: Optional[Dict[str, ViewDef]] = None,
-    kpis: Optional[Dict[str, KpiCard]] = None,
-    alerts: Optional[List[AlertRule]] = None,
-    sources: Optional[Dict[str, SourceDef]] = None,
+    tables: dict[str, TableDef] | None = None,
+    views: dict[str, ViewDef] | None = None,
+    kpis: dict[str, KpiCard] | None = None,
+    alerts: list[AlertRule] | None = None,
+    sources: dict[str, SourceDef] | None = None,
 ) -> MonitorConfig:
     """フラグメントを合成した新しい MonitorConfig を返す(元は変更しない)。
 

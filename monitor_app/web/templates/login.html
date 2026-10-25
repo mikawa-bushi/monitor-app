@@ -8,17 +8,19 @@
 
   コンテキスト(pages.py の login_page() が渡す):
     app_title / header_text / favicon_path / error(bool)
+  フォームの送信先は url_for('login')(サブパス配信でもプレフィックスの内側に送る)。
 #}
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="monitor-root" content="{{ root_path() }}">
     <title>ログイン - {{ app_title }}</title>
-    <link rel="icon" href="{{ url_for('static', path=favicon_path) }}">
-    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/app.css') }}" rel="stylesheet">
-    <script src="{{ url_for('static', path='js/theme.js') }}"></script>
+    <link rel="icon" href="{{ static_url(favicon_path) }}">
+    <link href="{{ static_url('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ static_url('css/app.css') }}" rel="stylesheet">
+    <script src="{{ static_url('js/theme.js') }}"></script>
     <style>
         /* 中央寄せの自己完結レイアウト(app.css の sidebar flex を打ち消す) */
         body.login-body { display: flex; align-items: center; justify-content: center;
@@ -36,7 +38,7 @@
         {% if error %}
         <p class="form-message error">API キーが正しくありません</p>
         {% endif %}
-        <form method="post" action="/api/login">
+        <form method="post" action="{{ url_for('login') }}">
             <div class="form-row">
                 <label for="key">API キー</label>
                 <input type="password" id="key" name="key" required autofocus

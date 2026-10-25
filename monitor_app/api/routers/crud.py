@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Body, Depends, Query
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/tables", tags=["CRUD"])
 @router.get("/{table_name}", response_model=TableDataResponse)
 def list_records(
     table_name: str,
-    limit: Optional[int] = Query(None, ge=1, description="返す最大行数(#17)"),
+    limit: int | None = Query(None, ge=1, description="返す最大行数(#17)"),
     offset: int = Query(0, ge=0, description="先頭からのスキップ行数(#17)"),
     service: CrudService = Depends(get_crud_service),
     _: None = Depends(require_read_auth),
@@ -48,7 +48,7 @@ def get_record(
 @router.post("/{table_name}", response_model=RecordResponse, status_code=201)
 def create_record(
     table_name: str,
-    payload: Dict[str, Any] = Body(...),
+    payload: dict[str, Any] = Body(...),
     service: CrudService = Depends(get_crud_service),
     actor: str = Depends(get_actor),
     _: None = Depends(require_write_auth),
@@ -61,7 +61,7 @@ def create_record(
 def update_record(
     table_name: str,
     record_id: str,
-    payload: Dict[str, Any] = Body(...),
+    payload: dict[str, Any] = Body(...),
     service: CrudService = Depends(get_crud_service),
     actor: str = Depends(get_actor),
     _: None = Depends(require_write_auth),
