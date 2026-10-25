@@ -561,7 +561,9 @@ def test_names_that_break_sql_parameters_or_links_are_skipped(tmp_path):
     assert [f.table for f in project.files] == ["ok"]
     notes = "\n".join(project.notes)
     assert len(project.notes) == len(names) - 1, notes
-    assert "使えない文字(:)" in notes and "使えない文字(#)" in notes
+    assert "使えない文字(#)" in notes
+    if os.name != "nt":
+        assert "使えない文字(:)" in notes
     assert "~$ok.csv: Excel などがファイルを開いている間" in notes
     assert ".hidden.csv: 隠しファイル" in notes
 
