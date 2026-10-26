@@ -243,9 +243,11 @@ the tests and the public behaviour above stay the same.
 CI runs on every pull request: lint (`uv lock --check`, black, ruff), the tests on the
 Python/OS matrix with the coverage gate, the lowest-dependency job, the PostgreSQL 16 /
 MySQL 8.4 job, a smoke test of the built wheel and a smoke test of the Docker image.
-The workflows pin every action by commit SHA (the version is in a comment) and check out
-without persisting credentials; Dependabot (`.github/dependabot.yml`) proposes action
-updates weekly. Keep both when you edit a workflow.
+`dependency-audit.yml` runs pip-audit on the dependencies locked in `uv.lock`, on every pull
+request and weekly. The workflows pin every action by commit SHA (the version is in a comment)
+and check out without persisting credentials; Dependabot (`.github/dependabot.yml`) proposes
+action and Python dependency updates weekly, and security fixes as soon as an advisory is
+published. Keep both when you edit a workflow.
 
 ### Pull request checklist
 

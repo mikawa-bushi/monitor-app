@@ -1,0 +1,45 @@
+name: Dependency Audit
+
+# uv.lock に固定した依存に、既知の脆弱性がないかを pip-audit で調べる。
+# 依存を変えていなくても新しい脆弱性は公開されるので、週 1 回も実行する。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"  # 毎週月曜 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # uv のバージョンは Dockerfile の UV_VERSION とそろえる。
+  UV_VERSION: "0.12.9"
+  PIP_AUDIT_VERSION: "2.10.1"
+
+jobs:
+  pip-audit:
+    name: pip-audit (uv.lock)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: export the locked dependencies
+        # 本体は PyPI に無いので除く(--no-emit-project)。extras と dev も含めて調べる。
+        run: >
+          uv export --locked --all-extras --all-groups --no-emit-project
+          --format requirements-txt -o requirements-audit.txt
+      - name: pip-audit
+        run: >
+          uvx "pip-audit==${PIP_AUDIT_VERSION}" -r requirements-audit.txt
+          --require-hashes --disable-pip --progress-spinner off
