@@ -45,6 +45,8 @@ We are committed to providing a welcoming and inspiring community for all.
    ```bash
    uv run pre-commit install
    ```
+   The dev group installs pre-commit on Python 3.11 and later only (its dependency
+   filelock has security fixes only for 3.11+). On Python 3.10, use `uvx pre-commit install`.
 4. **Run the tests** to make sure everything works:
    ```bash
    uv run pytest -q

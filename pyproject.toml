@@ -82,7 +82,10 @@ dev = [
     "httpx2>=2.0,<3; python_version >= '3.11'",
     "black>=26.3.1,<27",
     "ruff>=0.15,<0.16",
-    "pre-commit>=4.0,<5",
+    # git フック用。pre-commit → virtualenv → filelock の filelock は、脆弱性の修正版
+    # (4.2.1 以上)が Python 3.11 以上にしか無い。3.10 では修正版を入れられないため
+    # 入れない(3.10 の環境では `uvx pre-commit install` を使う)
+    "pre-commit>=4.0,<5; python_version >= '3.11'",
 ]
 
 [tool.hatch.build.targets.wheel]

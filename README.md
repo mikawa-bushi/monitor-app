@@ -947,7 +947,7 @@ git clone https://github.com/mikawa-bushi/monitor-app.git
 cd monitor-app
 uv sync --all-extras                  # .venv with all extras and the dev tools, from uv.lock
 uv run pytest                         # full test suite
-uv run pre-commit install             # hooks (see below)
+uv run pre-commit install             # hooks (see below; Python 3.11+)
 
 # Try your working copy on a project in another folder:
 uv run monitor-app startproject ../demo
@@ -967,6 +967,9 @@ formatting locally, before code leaves your machine. Enable it once per clone:
 uv run pre-commit install          # installs the commit + pre-push hooks
 uv run pre-commit run --all-files  # optional: run across the repo now
 ```
+
+`uv sync` installs pre-commit only on Python 3.11 and later (its dependency filelock has
+security fixes only for 3.11+). On Python 3.10, run it with `uvx pre-commit install` instead.
 
 - **gitleaks** — blocks hard-coded secrets (PyPI/AWS/GCP tokens, GitHub PATs, private keys)
 - **detect-private-key / check-added-large-files / check-merge-conflict**, plus **black / ruff** (the hooks pin their own versions in `.pre-commit-config.yaml`; CI uses the versions in `uv.lock`)
