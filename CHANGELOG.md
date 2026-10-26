@@ -182,6 +182,7 @@
 - **Docker** — コンテナはマウントしたフォルダの所有者のユーザーに切り替え、そのとき Linux の特権(capability)をすべて捨てて `no_new_privs` を設定する。`/project` が root の所有なら uid 0 のまま特権を持たずに動き、rootful Docker では `chown` の直し方を 1 行で警告する。ヘルスチェックは `python -I` で、プロキシの環境変数を無視し、nobody で動く。スクリプトの権限を固定し(0755 / 0644)、setuid / setgid の実行ファイルを残さず、`chown` はシンボリックリンクを辿らない。イメージにはコンパイラ・curl・sqlite3 を入れない
 - **GitHub Actions** — actions をコミットの SHA で固定し、チェックアウトは認証情報を残さない(Changed を参照)。リリースの `pypi` 環境には承認者を置き、`v*` タグだけに限ることを推奨する
 - **依存の下限** — jinja2 >= 3.1.6(既知の脆弱性を除く)
+- **開発用の依存** — `uv.lock` の virtualenv を 21.14.13(GHSA-cx6f-vjhg-g3cc)、filelock を 4.2.4(GHSA-v4x8-3wr5-3wq8 など 6 件)に更新。filelock の修正版は Python 3.11 以上にしか無いため、dev グループの pre-commit は Python 3.11 以上でだけ入れる(3.10 では `uvx pre-commit`)。パッケージの実行時の依存には影響しない
 
 ### Removed
 - 使われていなかった画像 `img/background.webp`・`img/logo.webp`(wheel が約 478 KB 小さくなった。`favicon_path` にこれらを指定していた場合のみ影響)
