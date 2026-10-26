@@ -49,7 +49,7 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 
 ## 🚀 インストール
 
-Monitor App には **Python 3.10 以降** が必要です。次のどれか 1 つの方法で入れます。
+Monitor App には **Python 3.11 以降** が必要です。次のどれか 1 つの方法で入れます。
 
 ```sh
 pipx install monitor-app         # pipx で
@@ -654,8 +654,6 @@ uv run --project ../monitor-app monitor-app runserver --import-csv-if-empty
 uv run pre-commit install          # commit と pre-push の両フックを設定
 uv run pre-commit run --all-files  # 任意: いますぐ全ファイルに実行
 ```
-
-`uv sync` が pre-commit を入れるのは Python 3.11 以上のときだけです(依存する filelock の脆弱性の修正版が 3.11 以上にしか無いため)。Python 3.10 では `uvx pre-commit install` を使ってください。
 
 - **gitleaks** — ハードコードされた秘密情報を検出してブロック(PyPI/AWS/GCP トークン・GitHub PAT・秘密鍵 等)
 - **detect-private-key / check-added-large-files / check-merge-conflict**、および **black / ruff**(フックのバージョンは `.pre-commit-config.yaml` で固定。CI は `uv.lock` のバージョンを使う)

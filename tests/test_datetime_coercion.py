@@ -29,7 +29,7 @@ def _local(aware: dt.datetime) -> dt.datetime:
     return aware.astimezone().replace(tzinfo=None)
 
 
-UTC = dt.timezone.utc
+UTC = dt.UTC
 JST = dt.timezone(dt.timedelta(hours=9))
 
 

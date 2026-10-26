@@ -26,7 +26,7 @@ We are committed to providing a welcoming and inspiring community for all.
 
 - Git
 - [uv](https://docs.astral.sh/uv/) 0.12.9 or newer (the version CI and the Dockerfile use).
-  uv installs the Python versions it needs; Monitor App supports Python 3.10–3.14.
+  uv installs the Python versions it needs; Monitor App supports Python 3.11–3.14.
 - Optional: Docker (PostgreSQL/MySQL tests, image builds), Node.js 18+ (JavaScript unit
   tests), Chrome or Chromium (browser tests).
 
@@ -45,8 +45,6 @@ We are committed to providing a welcoming and inspiring community for all.
    ```bash
    uv run pre-commit install
    ```
-   The dev group installs pre-commit on Python 3.11 and later only (its dependency
-   filelock has security fixes only for 3.11+). On Python 3.10, use `uvx pre-commit install`.
 4. **Run the tests** to make sure everything works:
    ```bash
    uv run pytest -q
@@ -90,11 +88,11 @@ uv run pytest -q                       # the whole suite (tests that need a serv
 uv run pytest -q --cov=monitor_app     # with coverage; CI fails below 88 % (pyproject.toml)
 uv run pytest -q -m "not e2e"          # without the tests that start real server processes
 uv run pytest -q tests/test_view_cache.py
-uv run --python 3.10 --isolated --all-extras --with-editable . --group dev python -m pytest -q
+uv run --python 3.11 --isolated --all-extras --with-editable . --group dev python -m pytest -q
 ```
 
-The last line runs the suite on Python 3.10, the oldest supported version (use it when you
-touch version-sensitive APIs). CI runs Python 3.10–3.14 on Linux, 3.12 on Windows and 3.13
+The last line runs the suite on Python 3.11, the oldest supported version (use it when you
+touch version-sensitive APIs). CI runs Python 3.11–3.14 on Linux, 3.12 on Windows and 3.13
 on macOS.
 
 ### Test markers and opt-in suites
@@ -189,7 +187,7 @@ the tests and the public behaviour above stay the same.
 
 ## 📏 Coding conventions
 
-- **Python 3.10+**, with `from __future__ import annotations` as in the existing modules.
+- **Python 3.11+**, with `from __future__ import annotations` as in the existing modules.
 - **Formatting and lint**: black (88 columns) and ruff, configured in `pyproject.toml`
   and pinned in `uv.lock`:
   ```bash

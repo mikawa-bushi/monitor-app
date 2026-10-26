@@ -115,7 +115,7 @@ def test_text_order_matches_time_order():
 def test_aware_dates_and_strings_are_bound_in_the_same_form(sqlite_db):
     db, registry, path = sqlite_db
     table = registry.get("m")
-    utc = dt.datetime(2026, 10, 21, 8, 0, tzinfo=dt.timezone.utc)
+    utc = dt.datetime(2026, 10, 21, 8, 0, tzinfo=dt.UTC)
     with db.connect() as conn:
         conn.execute(insert(table), [{"id": 1, "ts": utc}])
         conn.execute(insert(table), [{"id": 2, "ts": dt.date(2026, 10, 22)}])
@@ -256,7 +256,7 @@ def test_legacy_text_values_are_read_leniently(tmp_path):
 
 def test_parse_stored_datetime_handles_offsets_and_garbage():
     utc = parse_stored_datetime("2026-10-21T08:00:00Z")
-    expected = dt.datetime(2026, 10, 21, 8, tzinfo=dt.timezone.utc).astimezone()
+    expected = dt.datetime(2026, 10, 21, 8, tzinfo=dt.UTC).astimezone()
     assert utc == expected.replace(tzinfo=None)
     assert parse_stored_datetime("2026-10-21") == dt.datetime(2026, 10, 21)
     assert parse_stored_datetime("??") == "??"

@@ -16,7 +16,7 @@ import re
 import shutil
 import stat
 import subprocess
-import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -28,11 +28,6 @@ from typer.testing import CliRunner
 from monitor_app import deploy as deploy_mod
 from monitor_app.cli import app
 from monitor_app.deploy import DeployError, ensure_api_key, plan_deploy_files
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - Python 3.10
-    import tomli as tomllib
 
 ROOT = Path(__file__).parent.parent
 

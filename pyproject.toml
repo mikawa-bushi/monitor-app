@@ -6,7 +6,7 @@ authors = [{ name = "hardwork9047", email = "tomatosimple1104@gmail.com" }]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["dashboard", "monitoring", "csv", "fastapi", "andon", "spc", "manufacturing"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -20,7 +20,6 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -77,15 +76,10 @@ monitor-app = "monitor_app.cli:app"
 dev = [
     "pytest>=9.0.3,<10",
     "pytest-cov>=7.0,<8",
-    # starlette の TestClient 用。httpx2 は Python 3.11 以上のみ
-    "httpx>=0.27,<0.29; python_version < '3.11'",
-    "httpx2>=2.0,<3; python_version >= '3.11'",
+    "httpx2>=2.0,<3",  # starlette の TestClient 用
     "black>=26.3.1,<27",
     "ruff>=0.15,<0.16",
-    # git フック用。pre-commit → virtualenv → filelock の filelock は、脆弱性の修正版
-    # (4.2.1 以上)が Python 3.11 以上にしか無い。3.10 では修正版を入れられないため
-    # 入れない(3.10 の環境では `uvx pre-commit install` を使う)
-    "pre-commit>=4.0,<5; python_version >= '3.11'",
+    "pre-commit>=4.0,<5",  # git フック用
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -114,17 +108,17 @@ source = ["monitor_app"]
 [tool.coverage.report]
 show_missing = true
 # 品質ゲート: ここを下回ると CI が落ちる。テスト追加に合わせて引き上げる
-# ラチェット値(現状の総カバレッジ約 91% に対し、3.10〜3.14 の差を見込んだ下限)。
+# ラチェット値(現状の総カバレッジ約 91% に対し、3.11〜3.14 の差を見込んだ下限)。
 fail_under = 88
 
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ['py311']
 include = '\.pyi?$'
 skip-string-normalization = false
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 88
 # 凍結したゴールデンフィクスチャ(v2.3.1 の利用者プロジェクト・v1 形式の config.py)は
 # バイト列そのものが契約の一部なので lint の対象外にする(自動修正で書き換えない)。
@@ -139,7 +133,7 @@ select = [
     "E",    # pycodestyle のエラー
     "W",    # pycodestyle の警告
     "B",    # flake8-bugbear(ありがちな誤り)
-    "UP",   # pyupgrade(Python 3.10 以降の書き方。typing.List → list など)
+    "UP",   # pyupgrade(Python 3.11 以降の書き方。typing.List → list など)
     "SIM",  # flake8-simplify
     "RUF",  # Ruff 独自のルール
     # 意図して広く捕まえる except には `# noqa: BLE001 - 理由` を付ける慣習がある。

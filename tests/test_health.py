@@ -6,7 +6,7 @@ DB への ``SELECT 1`` の結果で 200 / 503 を返すこと、バージョン�
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -110,7 +110,7 @@ def test_health_shows_background_tasks_while_running(make_app):
 def test_health_renders_last_tick_and_last_error(make_app):
     app = make_app(_config_with_alert(), _settings())
     (task,) = app.state.services.background_tasks
-    task.last_tick = datetime(2026, 10, 21, 3, 4, 5, tzinfo=timezone.utc)
+    task.last_tick = datetime(2026, 10, 21, 3, 4, 5, tzinfo=UTC)
     task.last_error = "OperationalError"
 
     status = TestClient(app).get("/api/health").json()["tasks"]["alert scheduler"]

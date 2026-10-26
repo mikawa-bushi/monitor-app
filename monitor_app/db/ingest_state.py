@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -181,7 +181,7 @@ class IngestStateStore:
         self.set(source, encode_cursor(value), conn=conn)
 
     def _write(self, conn: Connection, source: str, cursor: str) -> None:
-        updated_at = datetime.now(timezone.utc).isoformat()
+        updated_at = datetime.now(UTC).isoformat()
         conn.execute(delete(self._table).where(self._table.c.source == source))
         conn.execute(
             insert(self._table).values(

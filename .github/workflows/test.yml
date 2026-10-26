@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.11", "3.12", "3.13", "3.14"]
         include:
           - os: windows-latest
             python: "3.12"
@@ -71,7 +71,7 @@ jobs:
 
   lowest-direct:
     # pyproject.toml の下限(>=)どおりの古い直接依存で動くか(下限が正しいか)を確かめる。
-    name: test (lowest direct dependencies, Python 3.10)
+    name: test (lowest direct dependencies, Python 3.11)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,7 +80,7 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: "3.10"
+          python-version: "3.11"
       - name: Install the lowest allowed versions into a fresh venv
         run: |
           uv venv .venv-lowest

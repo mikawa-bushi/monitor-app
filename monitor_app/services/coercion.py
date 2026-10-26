@@ -56,7 +56,7 @@ def finite_or_none(value: float) -> float | None:
 
 def _parse_offset(text: str) -> _dt.timezone:
     if text in ("Z", "z"):
-        return _dt.timezone.utc
+        return _dt.UTC
     sign = -1 if text[0] == "-" else 1
     digits = text[1:].replace(":", "")
     hours, minutes = int(digits[:2]), int(digits[2:] or 0)

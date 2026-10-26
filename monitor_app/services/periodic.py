@@ -28,7 +28,7 @@ import contextlib
 import logging
 import threading
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..cancel import TaskStopped, stop_requested, stop_scope
 
@@ -100,7 +100,7 @@ class PeriodicTask:
         elif noted is not None:
             self.last_error = noted
         else:
-            self.last_tick = datetime.now(timezone.utc)
+            self.last_tick = datetime.now(UTC)
             self.last_error = None
 
     def _log_started(self) -> None:
