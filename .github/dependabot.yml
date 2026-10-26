@@ -1,5 +1,7 @@
 # ワークフローのアクションはコミットの SHA で固定している(タグはコメント)。
 # Dependabot が新しい版の SHA に更新する PR を作る(公開から 7 日待ってから)。
+# Python の依存(pyproject.toml と uv.lock)も週 1 回、1 つの PR にまとめて更新する。
+# 脆弱性の修正(security updates)は待たずに別の PR で届く。
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -10,4 +12,18 @@ updates:
       default-days: 7
     groups:
       github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python-dependencies:
+        applies-to: version-updates
+        patterns: ["*"]
+      python-security:
+        applies-to: security-updates
         patterns: ["*"]

@@ -383,4 +383,8 @@ def test_trusted_publisher_contract_is_kept():
     dependabot = yaml.safe_load(
         (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
     )
-    assert {u["package-ecosystem"] for u in dependabot["updates"]} == {"github-actions"}
+    # アクションの SHA 固定を Dependabot が更新し、Python の依存(uv.lock)も見張る。
+    assert {u["package-ecosystem"] for u in dependabot["updates"]} == {
+        "github-actions",
+        "uv",
+    }
