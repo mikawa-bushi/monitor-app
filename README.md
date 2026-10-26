@@ -79,7 +79,7 @@ Coming from 2.3? Read **Upgrading from 2.3.x** below.
 
 ## 🚀 Installation
 
-Monitor App needs **Python 3.10 or newer**. Pick one of these ways:
+Monitor App needs **Python 3.11 or newer**. Pick one of these ways:
 
 ```sh
 pipx install monitor-app         # with pipx
@@ -967,9 +967,6 @@ formatting locally, before code leaves your machine. Enable it once per clone:
 uv run pre-commit install          # installs the commit + pre-push hooks
 uv run pre-commit run --all-files  # optional: run across the repo now
 ```
-
-`uv sync` installs pre-commit only on Python 3.11 and later (its dependency filelock has
-security fixes only for 3.11+). On Python 3.10, run it with `uvx pre-commit install` instead.
 
 - **gitleaks** — blocks hard-coded secrets (PyPI/AWS/GCP tokens, GitHub PATs, private keys)
 - **detect-private-key / check-added-large-files / check-merge-conflict**, plus **black / ruff** (the hooks pin their own versions in `.pre-commit-config.yaml`; CI uses the versions in `uv.lock`)

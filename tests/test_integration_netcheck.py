@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
@@ -144,7 +144,7 @@ def test_attach_summary_view_styles():
 
 def _now_str() -> str:
     """現在時刻を SQLite の datetime() 互換形式で返す。"""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 @pytest.fixture()

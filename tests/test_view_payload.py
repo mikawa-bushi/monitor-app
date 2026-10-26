@@ -12,7 +12,7 @@ import json
 import logging
 import math
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -45,7 +45,7 @@ FAKE_ROWS = [
     (
         2,
         Decimal("3"),
-        datetime(2026, 1, 2, 3, 4, 5, 678000, tzinfo=timezone.utc),
+        datetime(2026, 1, 2, 3, 4, 5, 678000, tzinfo=UTC),
         date(2026, 12, 31),
         time(23, 59, 59, 1),
         timedelta(days=-1, microseconds=5),

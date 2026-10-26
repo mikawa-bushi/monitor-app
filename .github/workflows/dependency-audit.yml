@@ -40,6 +40,8 @@ jobs:
           uv export --locked --all-extras --all-groups --no-emit-project
           --format requirements-txt -o requirements-audit.txt
       - name: pip-audit
+        # pip-audit は実行中の環境に合わないマーカーの依存を飛ばす。Linux で動かすため、
+        # Windows 専用の colorama・tzdata は調べない(Dependabot の警告が見張る)。
         run: >
           uvx "pip-audit==${PIP_AUDIT_VERSION}" -r requirements-audit.txt
           --require-hashes --disable-pip --progress-spinner off

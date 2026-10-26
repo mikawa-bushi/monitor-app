@@ -28,7 +28,7 @@
   - docker: 公開イメージを使い、フォルダをマウントする `compose.yaml` と `.dockerignore`(`.env` の `MONITOR_PORT`・`TZ`・`MONITOR_IMAGE`・`MONITOR_IMAGE_TAG` を使う。自分でビルドしたイメージは `MONITOR_IMAGE=monitor-app`)。`cap_drop: [ALL]`・`cap_add: [SETUID, SETGID, CHOWN]`・`no-new-privileges` で権限を絞り、ヘルスチェックは `python -I` で動かす
   - systemd: 今の Python で `runserver --import-csv-if-empty` を動かす `monitor-app.service`(異常終了時に再起動、停止は 15 秒以内、今のユーザーで実行)
   - windows: ダブルクリックで起動する `start-monitor.bat`(ログは `logs\monitor.log`)と、タスク スケジューラに登録する `install-task.ps1`(PC の起動時に登録したユーザーで動かす。S4U でパスワードを保存せず、管理者の権限も使わない / `-AtLogon` / `-Uninstall` / `-AsSystem` で SYSTEM。プロジェクトのフォルダ・`config.py`・`start-monitor.bat` をすべてのユーザーが変更できるときは警告する)
-  - `start-monitor.bat` と systemd のユニットは `PYTHONSAFEPATH=1` を設定する(Python 3.11 以降で、プロジェクトのフォルダに置かれたモジュールを読み込まない)
+  - `start-monitor.bat` と systemd のユニットは `PYTHONSAFEPATH=1` を設定する(プロジェクトのフォルダに置かれたモジュールを読み込まない)
 - **`monitor-app check` の強化** — `--data`(CSV の見出し・型・文字コードも点検)、`--strict`(警告でも終了コード 1。CI 向け)、`--fix-schema`(足りない列を追加)を追加。次も報告する:
   - config.py のキーの綴りの誤り(行番号と正しい候補つき)、SQL の誤り(全ビュー・KPI を空の DB で試行)、存在しないアラート・グラフ・色分け・ラベルの列
   - `.env` と環境変数の `MONITOR_*` の綴りの誤り(`MONITOR_API_KEY`・`MONITOR_PROTECT_READS` の誤りは認証が無効のままになるためエラー)、API キーなしの LAN 公開、届かない通知先
@@ -71,6 +71,7 @@
 - **アクセシビリティ** — アラートのバナーをスクリーンリーダーが読み上げる(重大は割り込み)。ナビゲーションに名前を付け、モバイルのメニューは Esc で閉じる
 
 ### Changed
+- **Python 3.11 以上が必要**(従来は 3.10 以上) — Python 3.10 は 2026-10 にサポートが終わった。starlette 1.8 以降・SQLAlchemy 2.1・pydantic-settings 2.16・websockets 17 や、filelock の脆弱性の修正版は 3.11 以上にしか無く、3.10 では脆弱性の修正が届かなくなる。生成する起動ファイルの `PYTHONSAFEPATH=1` も 3.11 以上で効く
 - **SQLite を WAL モード・`synchronous=normal`・`busy_timeout=5000` で使う** — 読み書きが互いを待たず、書き込みのたびの fsync も大幅に減る。DB の隣に `-wal`・`-shm` ができる。稼働中に `database.db` だけをコピーすると最新の行が欠けるため、`monitor-app backup` を使う。ネットワーク共有(UNC・ネットワークドライブ・NFS/SMB・WSL の `/mnt/c`・Docker Desktop の共有フォルダ)では自動で `delete`。従来に戻すには `MONITOR_SQLITE_JOURNAL_MODE=delete`
 - **CSV の文字コードの既定を `auto` に**(`MONITOR_CSV_ENCODING`。旧既定は `utf-8-sig`) — UTF-8(BOM の有無を問わない)で読めなければ `MONITOR_CSV_ENCODING_FALLBACK`(既定 cp932)で読み、どの文字コードを使ったかを警告する。どれでも読めなければファイル名と設定名を示す短いエラー。UTF-8 のファイルに壊れたバイトが少しあっても、ファイル全体(追記の監視では以後のすべての行)を cp932 で読み直さず、その行だけを行番号つきの警告(「m.csv 29001行目: 文字コード UTF-8 として読めないバイトを含むため、この行は取り込みません」)で読み飛ばす。文字コードを決めた設定(`MONITOR_CSV_ENCODING=cp932` など)でも 1 行だけなら読み飛ばすが、ほとんど読めないファイルは従来どおりエラー(追記の監視はその位置で止まり、行を捨てない)。**移行**: 西欧の Windows の CSV(cp1252)は失敗せずに文字化けして取り込まれるため、`MONITOR_CSV_ENCODING=cp1252` を設定する
 - **置き換えの取り込みが、宣言した列の無い CSV を拒否する** — 主キー以外の列が CSV の見出しに無いと、そのテーブルは置き換えずに既存の行を残す(従来はその列を NULL で置き換えていた)。`import-csv` は終了コード 1、`runserver --import-csv` は警告して起動する。**移行**: 意図どおりなら `--force`
@@ -117,7 +118,7 @@
 - **メール** — `MONITOR_SMTP_SECURITY=ssl` / `none` で `MONITOR_SMTP_PORT` を省略すると 465 / 25 を使う(既定の `starttls` は従来どおり 587)
 - **雛形(startproject)** — config.py は列の型を明示し、`datetime`・`Retention`・`max_rows` の例をコメントで示す。`orders_summary` は新しい 500 件を表示する。`.env.example` はすべての `MONITOR_*` を説明する
 - **依存パッケージの下限** — SQLAlchemy 2.0.8(未満は PostgreSQL で 256 文字以上の文字列を 255 文字に切り詰める)、sse-starlette 3.3(未満はリアルタイム更新や停止が不安定。3.3 から停止時に SSE をきれいに閉じられる)、jinja2 3.1.6(未満に既知の脆弱性)、PyMySQL 1.2(未満は MySQL 8 の再起動後に cryptography なしで接続できない)、uvicorn 0.47(SSE の接続中でも SIGTERM で止まる)、typer 0.26(click の固定が不要。`click<8.2` の制約を外した)。extra **`[postgres]`**(psycopg。高速な PostgreSQL ドライバ)を追加
-- **開発・CI** — Poetry から uv + hatchling に移行(`uv sync --all-extras`、`uv.lock`)。CI は Python 3.10〜3.14(Linux)・Windows・macOS、最低バージョンの依存、PostgreSQL 16 / MySQL 8.4、wheel と Docker イメージのスモークテストを実行する。リリースは `v*` タグからだけ行い、全テストに通った版を PyPI と GHCR に公開する。GitHub Actions はコミットの SHA で固定し(版はコメント)、チェックアウトは認証情報を残さない。Dependabot(`.github/dependabot.yml`)が actions の更新を週 1 回、公開から 7 日後に提案する。sdist に `docker/entrypoint.sh`・`docker/healthcheck.py` を含め、sdist からテストを実行できる。テストは開発者のシェルの `MONITOR_*`(`MONITOR_TEST_*` は除く)とリポジトリ直下の `.env` を無視し、各テストを空の一時フォルダで実行する。ruff で関数の複雑さ(C901、上限 20)を検査する
+- **開発・CI** — Poetry から uv + hatchling に移行(`uv sync --all-extras`、`uv.lock`)。CI は Python 3.11〜3.14(Linux)・Windows・macOS、最低バージョンの依存、PostgreSQL 16 / MySQL 8.4、wheel と Docker イメージのスモークテストを実行する。リリースは `v*` タグからだけ行い、全テストに通った版を PyPI と GHCR に公開する。GitHub Actions はコミットの SHA で固定し(版はコメント)、チェックアウトは認証情報を残さない。Dependabot(`.github/dependabot.yml`)が actions と Python の依存(`uv.lock`)の更新を週 1 回、公開から 7 日後に提案する(脆弱性の修正は待たずに届く)。`dependency-audit.yml` が `uv.lock` の依存を pip-audit で調べる(PR ごと・週 1 回)。sdist に `docker/entrypoint.sh`・`docker/healthcheck.py` を含め、sdist からテストを実行できる。テストは開発者のシェルの `MONITOR_*`(`MONITOR_TEST_*` は除く)とリポジトリ直下の `.env` を無視し、各テストを空の一時フォルダで実行する。ruff で関数の複雑さ(C901、上限 20)を検査する
 
 ### Fixed
 - **PostgreSQL / MySQL で使えない問題を修正**
@@ -182,7 +183,7 @@
 - **Docker** — コンテナはマウントしたフォルダの所有者のユーザーに切り替え、そのとき Linux の特権(capability)をすべて捨てて `no_new_privs` を設定する。`/project` が root の所有なら uid 0 のまま特権を持たずに動き、rootful Docker では `chown` の直し方を 1 行で警告する。ヘルスチェックは `python -I` で、プロキシの環境変数を無視し、nobody で動く。スクリプトの権限を固定し(0755 / 0644)、setuid / setgid の実行ファイルを残さず、`chown` はシンボリックリンクを辿らない。イメージにはコンパイラ・curl・sqlite3 を入れない
 - **GitHub Actions** — actions をコミットの SHA で固定し、チェックアウトは認証情報を残さない(Changed を参照)。リリースの `pypi` 環境には承認者を置き、`v*` タグだけに限ることを推奨する
 - **依存の下限** — jinja2 >= 3.1.6(既知の脆弱性を除く)
-- **開発用の依存** — `uv.lock` の virtualenv を 21.14.13(GHSA-cx6f-vjhg-g3cc)、filelock を 4.2.4(GHSA-v4x8-3wr5-3wq8 など 6 件)に更新。filelock の修正版は Python 3.11 以上にしか無いため、dev グループの pre-commit は Python 3.11 以上でだけ入れる(3.10 では `uvx pre-commit`)。パッケージの実行時の依存には影響しない
+- **開発用の依存** — `uv.lock` の virtualenv を 21.14.13(GHSA-cx6f-vjhg-g3cc)、filelock を 4.2.4(GHSA-v4x8-3wr5-3wq8 など 6 件)に更新。パッケージの実行時の依存には影響しない
 
 ### Removed
 - 使われていなかった画像 `img/background.webp`・`img/logo.webp`(wheel が約 478 KB 小さくなった。`favicon_path` にこれらを指定していた場合のみ影響)
@@ -191,6 +192,7 @@
 - 依存の `click<8.2` の固定(typer 0.26 以降は click を同梱する)
 
 ### Upgrade notes
+- **Python 3.10 の環境**: 2.4 は Python 3.11 以上が必要で、3.10 の `pipx upgrade` / `pip install -U` は 2.3.1 のまま更新しない。`uv tool install monitor-app`(3.11 以上の Python を自動で取得する)か、3.11 以上の Python で入れ直す(`pipx reinstall --python python3.12 monitor-app`)
 - **更新**: `pipx upgrade monitor-app`(または `uv tool upgrade monitor-app` / `pip install -U monitor-app`)。そのあと `monitor-app check --data` で、直すべき点(綴りの誤り・DB の表との違い・CSV の問題)を確かめる(DB は変更しない)
 - **起動コマンド**: `runserver --import-csv` を起動のたびに使っていた場合は `runserver --import-csv-if-empty` に変える(画面・フォームから入力した行が消えなくなる)
 - **バックアップ**: 初回の起動で SQLite が WAL になる。DB ファイルのコピーによるバックアップは `monitor-app backup` か `MONITOR_BACKUP_DIR` に切り替える

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from monitor_app.services.periodic import PeriodicTask
 
@@ -55,11 +55,11 @@ def test_new_task_has_no_results():
 
 def test_successful_tick_records_the_time_in_utc():
     task = _Scripted([])
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     asyncio.run(_run_until(task, lambda: task.last_tick is not None))
     assert task.last_tick is not None
-    assert task.last_tick.tzinfo is timezone.utc
-    assert before <= task.last_tick <= datetime.now(timezone.utc) + timedelta(seconds=1)
+    assert task.last_tick.tzinfo is UTC
+    assert before <= task.last_tick <= datetime.now(UTC) + timedelta(seconds=1)
     assert task.last_error is None
 
 
