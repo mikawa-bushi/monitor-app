@@ -229,7 +229,7 @@ class SourceConnector(ABC):
         if changed and self.on_change is not None:
             try:
                 self.on_change()
-            except Exception:  # noqa: BLE001 - 通知の失敗で取り込みを失敗にしない
+            except Exception:  # 通知の失敗で取り込みを失敗にしない
                 logger.warning(
                     "source '%s': 取り込み後の通知に失敗しました",
                     self.name,

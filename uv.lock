@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'emscripten'",
@@ -671,7 +671,7 @@ dev = [
     { name = "pre-commit", specifier = ">=4.0,<5" },
     { name = "pytest", specifier = ">=9.0.3,<10" },
     { name = "pytest-cov", specifier = ">=7.0,<8" },
-    { name = "ruff", specifier = ">=0.15,<0.18" },
+    { name = "ruff", specifier = ">=0.17,<0.18" },
 ]
 
 [[package]]

@@ -78,7 +78,9 @@ dev = [
     "pytest-cov>=7.0,<8",
     "httpx2>=2.0,<3",  # starlette の TestClient 用
     "black>=26.3.1,<27",
-    "ruff>=0.15,<0.18",
+    # 0.17 から BLE001 が exc_info=True でログに残す except を対象外にした。どの except に
+    # `# noqa: BLE001` が要るかが版で変わるため、0.17 系に固定する
+    "ruff>=0.17,<0.18",
     "pre-commit>=4.0,<5",  # git フック用
 ]
 
@@ -138,6 +140,8 @@ select = [
     "RUF",  # Ruff 独自のルール
     # 意図して広く捕まえる except には `# noqa: BLE001 - 理由` を付ける慣習がある。
     # BLE001 を有効にして目印を検査し続ける(無効だと RUF100 が「未使用」として消す)。
+    # exc_info=True などで例外をログに残す except は BLE001 の対象外なので、目印は付けず
+    # 理由だけをコメントに書く。
     "BLE",
     # 関数の複雑さ(McCabe)の上限。上限を超える関数は分けるか、理由を添えた
     # `# noqa: C901 - 理由` を付ける(max-complexity は下の [tool.ruff.lint.mccabe])。

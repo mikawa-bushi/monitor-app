@@ -106,7 +106,7 @@ class TableRepository:
         try:
             with self.db.connect() as conn:
                 lag = repair_sequence(conn, table, pk_name)
-        except Exception:  # noqa: BLE001 - 直せなければ元のエラーを返す
+        except Exception:  # 直せなければ元のエラーを返す
             logger.warning(
                 "テーブル '%s' の連番を直せませんでした", table_name, exc_info=True
             )
