@@ -152,7 +152,7 @@ class AlertEngine:
                     retries=0 if closing.is_set() else retries,
                     wait=closing.wait,
                 )
-            except Exception:  # noqa: BLE001 - 通知失敗・終了時の logging 失敗で
+            except Exception:  # 通知失敗・終了時の logging 失敗で
                 # ワーカースレッドを死なせない(ベストエフォートで記録)。
                 with contextlib.suppress(Exception):
                     logger.warning("通知ディスパッチに失敗しました", exc_info=True)

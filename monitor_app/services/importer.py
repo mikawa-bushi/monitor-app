@@ -2022,7 +2022,7 @@ class CsvImporter:
             return
         try:
             self.on_change()
-        except Exception:  # noqa: BLE001 - 通知の失敗で取り込みを失敗にしない
+        except Exception:  # 通知の失敗で取り込みを失敗にしない
             logger.warning("取り込み後の通知(on_change)に失敗しました", exc_info=True)
 
     @staticmethod

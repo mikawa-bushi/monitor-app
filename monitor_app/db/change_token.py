@@ -142,7 +142,7 @@ def change_token_for(db: Database) -> SqliteDataVersion | None:
         # SQLAlchemy がコネクションを開くときと同じファイル名を得る
         # (相対パスの絶対化・``?uri=true`` の扱いを含む)。
         args, kwargs = engine.dialect.create_connect_args(engine.url)
-    except Exception:  # noqa: BLE001 - 判定できない URL はトークンなし(TTL)で扱う
+    except Exception:  # 判定できない URL はトークンなし(TTL)で扱う
         logger.debug("SQLite のファイル名を判定できません", exc_info=True)
         return None
     filename = args[0] if args else None

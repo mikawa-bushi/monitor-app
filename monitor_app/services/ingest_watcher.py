@@ -269,7 +269,7 @@ class IngestWatcher(PeriodicTask):
         if rows_changed and self.on_change is not None:
             try:
                 self.on_change()
-            except Exception:  # noqa: BLE001 - 通知の失敗で監視を止めない
+            except Exception:  # 通知の失敗で監視を止めない
                 logger.warning(
                     "取り込み後の通知(on_change)に失敗しました", exc_info=True
                 )
@@ -335,7 +335,7 @@ class IngestWatcher(PeriodicTask):
         if rows_changed and self.on_change is not None:
             try:
                 self.on_change()
-            except Exception:  # noqa: BLE001 - 通知の失敗で監視を止めない
+            except Exception:  # 通知の失敗で監視を止めない
                 logger.warning(
                     "取り込み後の通知(on_change)に失敗しました", exc_info=True
                 )
