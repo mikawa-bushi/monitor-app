@@ -283,6 +283,9 @@ published. Keep both when you edit a workflow.
 
 ## 🐛 Reporting issues
 
+Do not report security vulnerabilities in a public issue; follow [SECURITY.md](SECURITY.md)
+instead.
+
 Search the existing issues first, and try the latest version. A good bug report contains:
 
 ```markdown
