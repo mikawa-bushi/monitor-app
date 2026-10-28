@@ -194,6 +194,12 @@ def _root_path(context: dict) -> str:
     return app_root_path(context["request"])
 
 
+@jinja2.pass_context
+def _config_revision(context: dict) -> str:
+    """使う設定の版(``<meta name="monitor-config">``)。変わったら画面が読み直す。"""
+    return context["request"].app.state.services.config_revision
+
+
 def create_templates(directory: str | os.PathLike[str]) -> Jinja2Templates:
     """UI 用の Jinja2Templates。
 
@@ -201,12 +207,14 @@ def create_templates(directory: str | os.PathLike[str]) -> Jinja2Templates:
       ``url_for(name, **params)`` … ルート相対の URL(Starlette 既定の絶対 URL を置き換え)
       ``static_url(path)``        … バージョン付きの静的ファイル URL
       ``root_path()``             … サブパス(``/monitor`` または空文字)
+      ``config_revision()``       … 使う設定の版(画面で設定を変えたら読み直すため)
     """
     templates = Jinja2Templates(directory=str(directory))
     templates.env.globals.update(
         url_for=_url_for,
         static_url=_static_url,
         root_path=_root_path,
+        config_revision=_config_revision,
     )
     return templates
 

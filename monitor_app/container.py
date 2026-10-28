@@ -4,6 +4,10 @@
 生成し、:class:`Services` が lifespan での起動/停止と DB の後片付けを受け持つ。
 ``main.create_app`` は HTTP 層(ルーター・ミドルウェア・テンプレート)の配線だけを
 行うため、テストや CLI からも HTTP を介さずに同じ配線を使える。
+
+使う設定は、config.py の設定に画面で変えた差分(DB の ``_settings`` 表)を重ねたもの
+(:class:`~monitor_app.services.settings_service.SettingsEditor`)。画面で保存したら
+:meth:`Services.sync_config` で、サーバーを止めずに差し替える。
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from sqlalchemy.pool import StaticPool
 
@@ -21,6 +26,7 @@ from .db.ingest_state import IngestStateStore
 from .db.registry import TableRegistry
 from .db.repository import TableRepository
 from .db.schema import inspect_schema
+from .db.settings_store import SettingsStore
 from .services.alert_scheduler import AlertScheduler
 from .services.alert_service import AlertEngine
 from .services.audit_service import AuditService
@@ -32,9 +38,11 @@ from .services.ingest_watcher import IngestWatcher
 from .services.kpi_service import KpiService
 from .services.periodic import PeriodicTask
 from .services.retention import build_retention_task
+from .services.settings_service import SettingsEditor
 from .services.view_cache import ViewCache
 from .services.view_service import ViewService
 from .settings.declarative import MonitorConfig
+from .settings.overrides import config_revision
 from .settings.runtime import AppSettings
 
 logger = logging.getLogger("monitor_app.db")
@@ -67,14 +75,76 @@ class Services:
     audit_service: AuditService
     crud_service: CrudService
     kpi_service: KpiService
+    #: 画面での設定の編集(config.py の設定と、画面で変えた差分)。
+    settings_editor: SettingsEditor
     #: 起動順に並んだバックグラウンドタスク(フォルダ監視・アラート評価・
     #: 保持期間の削除・定期バックアップ)。
     background_tasks: list[PeriodicTask] = field(default_factory=list)
+    #: 使う設定が変わったときに呼ぶ関数(HTTP の層がアプリのタイトルなどを合わせる)。
+    config_listeners: list[Callable[[MonitorConfig], None]] = field(
+        default_factory=list
+    )
+    #: 使う設定の版。応答の ``X-Monitor-Config`` ヘッダで画面に知らせ、変わったら
+    #: 開いている画面が読み直す。
+    config_revision: str = field(init=False)
+    #: バックグラウンドタスクを起動済みか(lifespan の開始から終了まで)。
+    _started: bool = field(default=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.config_revision = config_revision(self.config)
 
     async def start(self) -> None:
         """バックグラウンドタスクを起動する(lifespan の開始時に呼ぶ)。"""
+        self._started = True
         for task in self.background_tasks:
             task.start()
+
+    def sync_config(self) -> None:
+        """画面で保存した設定(:attr:`settings_editor` の設定)を、サーバーを止めずに反映する。
+
+        イベントループの上で呼ぶ(アラートの評価を始めるときに asyncio のタスクを作るため)。
+        同じ設定なら何もしない。保存の結果ではなく SettingsEditor の今の設定を使うので、
+        続けて 2 回保存されて反映の順が入れ替わっても、最後に保存した設定になる。
+        """
+        config = self.settings_editor.config
+        if config is not self.config:
+            self.apply_config(config)
+
+    def apply_config(self, config: MonitorConfig) -> None:
+        """設定を差し替える(:meth:`sync_config` から呼ぶ)。
+
+        テーブル・ソースの定義は画面で変えられないため、DB・取り込み・保持期間の削除・
+        CRUD はそのまま。ビュー・KPI・アラートの設定を差し替え、ビューか KPI が変わったら
+        ビューのキャッシュを捨てる(計算中だった古い定義の結果はキャッシュに残らない)。
+        アラートが初めて定義されたら評価のスケジューラを足す(起動済みなら、すぐ動かす)。
+        """
+        old, self.config = self.config, config
+        self.view_service.config = config
+        self.kpi_service.config = config
+        self.alert_engine.reconfigure(config)
+        scheduler = next(
+            (t for t in self.background_tasks if isinstance(t, AlertScheduler)), None
+        )
+        if scheduler is not None:
+            scheduler.set_interval(alert_interval(config))
+        elif config.alerts:
+            scheduler = AlertScheduler(
+                self.alert_engine, self.view_service, alert_interval(config)
+            )
+            self.background_tasks.append(scheduler)
+            if self._started:
+                scheduler.start()
+        if config.views != old.views or config.kpis != old.kpis:
+            self.view_cache.clear()
+        self.config_revision = config_revision(config)
+        for listener in self.config_listeners:
+            listener(config)
+
+    def csv_importer(self, folder: Path) -> CsvImporter:
+        """``folder`` の CSV を取り込む CsvImporter(画面からのアップロードで使う)。"""
+        return build_csv_importer(
+            self.config, self.registry, self.db, self.settings, folder, self.view_cache
+        )
 
     async def stop(self, timeout: float = SHUTDOWN_TIMEOUT) -> None:
         """バックグラウンドタスクを止め、アラート通知を送り切る(何度呼んでもよい)。
@@ -83,6 +153,7 @@ class Services:
         まとめて待つ。待つのは全体で最大 ``timeout`` 秒(各タスクの ``stop_timeout`` も
         超えない)で、残りの時間でキューに残ったアラート通知を送り切る。
         """
+        self._started = False
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
         await asyncio.gather(
@@ -126,6 +197,35 @@ def build_source_connectors(
     return build_connectors(config, registry, db, state, on_change=on_change)
 
 
+def build_csv_importer(
+    config: MonitorConfig,
+    registry: TableRegistry,
+    db: Database,
+    settings: AppSettings,
+    folder: Path,
+    view_cache: ViewCache,
+) -> CsvImporter:
+    """CSV の取り込み(フォルダ監視・画面からのアップロード)。
+
+    文字コードは .env の設定に従う。取り込みで行が変わったらビューのキャッシュを捨て、
+    PostgreSQL / MySQL でも新しいデータをすぐ表示する。
+    """
+    return CsvImporter(
+        config,
+        registry,
+        db,
+        folder,
+        encoding=settings.csv_encoding,
+        encoding_fallback=settings.csv_encoding_fallback,
+        on_change=view_cache.clear,
+    )
+
+
+def alert_interval(config: MonitorConfig) -> float:
+    """アラートをバックグラウンドで評価する間隔(秒)。画面の更新間隔と同じ(最短 1 秒)。"""
+    return max(config.refresh_interval_ms, 1000) / 1000.0
+
+
 def _warn_schema_drift(db: Database, registry: TableRegistry) -> None:
     """config.py と DB の表定義のずれを 1 件ずつログに出す(起動は止めない)。"""
     try:
@@ -145,12 +245,20 @@ def build_services(
     ``init_db=False`` なら設定上のテーブルを作成しない(既存 DB をそのまま使う)。
     サーバー DB(MySQL/PostgreSQL)は ``db_wait_timeout`` 秒まで起動を待ってから
     テーブルを作る。作成後に config.py と DB の表定義のずれを警告する。
+
+    ``config`` は config.py の設定。画面で変えた差分が DB にあれば重ねて使う
+    (:class:`SettingsEditor`)。
     """
     db = Database.from_settings(settings)
     try:
         logger.info("データベース: %s", db.describe())
         if db.backend != "sqlite" and settings.db_wait_timeout > 0:
             db.wait_until_ready(settings.db_wait_timeout)
+        audit_service = AuditService(db, settings.audit_enabled)
+        settings_editor = SettingsEditor(
+            config, SettingsStore(db), settings, audit=audit_service
+        )
+        config = settings_editor.config  # 画面で変えた差分を重ねた、使う設定
         registry = TableRegistry(config)
         if init_db:
             registry.create_all(db)
@@ -177,14 +285,8 @@ def build_services(
         background_tasks: list[PeriodicTask] = []
         # フォルダ監視(フェーズ1・C)。
         if settings.ingest_watch:
-            importer = CsvImporter(
-                config,
-                registry,
-                db,
-                settings.csv_dir,
-                encoding=settings.csv_encoding,
-                encoding_fallback=settings.csv_encoding_fallback,
-                on_change=view_cache.clear,
+            importer = build_csv_importer(
+                config, registry, db, settings, settings.csv_dir, view_cache
             )
             background_tasks.append(
                 IngestWatcher(
@@ -197,9 +299,8 @@ def build_services(
         # アラートのバックグラウンド評価(#13)。alerts があれば常に起動し、
         # 画面を誰も開いていなくても閾値を評価・通知する。
         if config.alerts:
-            interval_s = max(config.refresh_interval_ms, 1000) / 1000.0
             background_tasks.append(
-                AlertScheduler(alert_engine, view_service, interval_s)
+                AlertScheduler(alert_engine, view_service, alert_interval(config))
             )
         # 保持期間(TableDef.retention)を過ぎた行の定期削除。削除したらビューの
         # キャッシュを捨てる。
@@ -213,7 +314,6 @@ def build_services(
         if backup_task is not None:
             background_tasks.append(backup_task)
 
-        audit_service = AuditService(db, settings.audit_enabled)
         crud_service = CrudService(
             config, registry, repository, audit_service, view_cache=view_cache
         )
@@ -236,5 +336,6 @@ def build_services(
         audit_service=audit_service,
         crud_service=crud_service,
         kpi_service=kpi_service,
+        settings_editor=settings_editor,
         background_tasks=background_tasks,
     )

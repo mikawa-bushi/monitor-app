@@ -53,16 +53,20 @@ async function flush() {
   for (let i = 0; i < 10; i++) await Promise.resolve();
 }
 
-function load({ root = "/monitor", fetchImpl, abort = false } = {}) {
+function load({ root = "/monitor", revision = null, fetchImpl, abort = false } = {}) {
   const clock = fakeClock();
-  const window = {};
+  const reloads = [];
+  const window = { location: { reload: () => reloads.push(1) } };
+  const metas = { "monitor-root": root, "monitor-config": revision };
   const context = {
     window,
     document: {
-      querySelector: (sel) =>
-        sel === 'meta[name="monitor-root"]' && root !== null
-          ? { getAttribute: () => root }
-          : null,
+      querySelector: (sel) => {
+        const name = (sel.match(/^meta\[name="(.+)"\]$/) || [])[1];
+        return name && metas[name] !== null && metas[name] !== undefined
+          ? { getAttribute: () => metas[name] }
+          : null;
+      },
     },
     fetch: fetchImpl || (() => Promise.reject(new Error("no fetch"))),
     setTimeout: clock.setTimeout,
@@ -75,7 +79,7 @@ function load({ root = "/monitor", fetchImpl, abort = false } = {}) {
   };
   if (abort) context.AbortController = AbortController; // 無い古いブラウザも再現できるように
   vm.runInNewContext(source, context);
-  return { core: window.MonitorCore, clock };
+  return { core: window.MonitorCore, clock, reloads };
 }
 
 // 応答を手動で返す fetch(返すまで保留。signal で中断されたら reject)
@@ -98,12 +102,13 @@ function manualFetch() {
   return { impl, calls };
 }
 
-function response(body, { status = 200, etag = null } = {}) {
+function response(body, { status = 200, etag = null, config = null } = {}) {
   let read = 0;
+  const headers = { etag: etag, "x-monitor-config": config };
   return {
     ok: status >= 200 && status < 300,
     status,
-    headers: { get: (name) => (name.toLowerCase() === "etag" ? etag : null) },
+    headers: { get: (name) => headers[name.toLowerCase()] ?? null },
     body: { cancel: () => Promise.resolve() },
     text: async () => {
       read += 1;
@@ -340,4 +345,59 @@ test("poll() falls back to 1 s for an invalid interval instead of spinning", asy
     assert.equal(calls, 1);
     assert.deepEqual(clock.pending(), [2000], String(bad)); // 1 秒 × 2(失敗の後退)
   }
+});
+
+test("getJson() reloads the page once when the settings revision changes", async () => {
+  const replies = [
+    response('{"a":1}', { config: "rev1" }),
+    response('{"a":1}', { config: "rev2" }),
+    response('{"a":1}', { config: "rev3", status: 500 }),
+  ];
+  const { core, reloads } = load({ revision: "rev1", fetchImpl: async () => replies.shift() });
+  await core.getJson("/api/alerts");
+  assert.equal(reloads.length, 0); // 同じ版なら読み直さない
+  await core.getJson("/api/alerts");
+  assert.equal(reloads.length, 1); // 設定ページで保存した → 読み直す
+  await assert.rejects(core.getJson("/api/alerts"));
+  assert.equal(reloads.length, 1); // 読み直しは 1 回だけ(エラーの応答でも)
+});
+
+test("checkRevision() does nothing on pages without the revision meta", async () => {
+  const { core, reloads } = load({
+    revision: null,
+    fetchImpl: async () => response("{}", { config: "other" }),
+  });
+  await core.getJson("/api/views/x");
+  assert.equal(core.checkRevision(response("{}", { config: "x" })), false);
+  assert.equal(reloads.length, 0);
+});
+
+test("send() posts JSON and returns the status and body without rejecting on HTTP errors", async () => {
+  const calls = [];
+  const { core } = load({
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return response('{"detail":{"code":"STALE_SETTINGS","message":"先に保存されました"}}', { status: 409 });
+    },
+  });
+  const r = await core.send("PUT", "/api/settings", { settings: {} });
+  assert.equal(calls[0].url, "/monitor/api/settings");
+  assert.equal(calls[0].init.method, "PUT");
+  assert.equal(calls[0].init.headers["Content-Type"], "application/json");
+  assert.equal(calls[0].init.body, '{"settings":{}}');
+  assert.deepEqual([r.status, r.ok], [409, false]);
+  assert.equal(core.errorMessage(r.data, r.status), "先に保存されました");
+  assert.equal(core.errorMessage({}, 502), "HTTP 502");
+});
+
+test("send() gives up on a stalled request like getJson()", async () => {
+  const net = manualFetch();
+  const { core, clock } = load({ fetchImpl: net.impl, abort: true });
+  let error = null;
+  core.send("GET", "/api/settings").catch((e) => (error = e));
+  await flush();
+  assert.equal(net.calls[0].init.body, undefined);
+  await clock.advance(core.REQUEST_TIMEOUT_MS);
+  assert.equal(error && error.name, "TimeoutError");
+  assert.equal(net.calls[0].aborted, true);
 });

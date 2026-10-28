@@ -10,6 +10,12 @@
 //       同じ応答(ETag、無ければ本文)のとき MonitorCore.UNCHANGED を返す(DOM 更新を省ける)。
 //       opts.timeout(既定は MonitorCore.REQUEST_TIMEOUT_MS = 60 秒)を過ぎても応答が
 //       終わらなければ打ち切って reject する(MonitorCore.TimeoutError)。
+//   MonitorCore.send(method, path, body?, opts?)
+//       body を JSON で送り(省略可)、応答を { status, ok, data } で返す(data は JSON の本文、
+//       読めなければ {})。HTTP エラーでは reject しない(呼び出し側が status で分ける)。
+//       通信エラーと打ち切り(opts.timeout。getJson と同じ)は reject。
+//   MonitorCore.errorMessage(data, status)
+//       エラー応答の本文の detail.message。無ければ "HTTP <status>"。
 //   MonitorCore.tracker()
 //       getJson 用の変化検出器。reset() で「次の応答は必ず変化あり」にできる
 //       (表示対象を切り替えたとき・取得や描画に失敗したとき)。getJson は応答を受けた時点で
@@ -23,12 +29,29 @@
 //       fn の Promise が終わらないと次は始まらないため、fn の通信は getJson(打ち切りあり)で行う。
 //   MonitorCore.worstLevel(alerts)
 //       アラート配列の最も重いレベル("critical" > "warning" > "info")。空なら null。
+//   MonitorCore.checkRevision(response)
+//       応答の X-Monitor-Config(使う設定の版)が、ページの <meta name="monitor-config"> と
+//       違えば(設定ページで保存した)ページを読み直す。getJson は自動で呼ぶ。meta の無い
+//       ページ(設定ページなど)では何もしない。
 
 (function () {
   "use strict";
 
   var meta = document.querySelector('meta[name="monitor-root"]');
   var ROOT = ((meta && meta.getAttribute("content")) || "").replace(/\/+$/, "");
+  var revisionMeta = document.querySelector('meta[name="monitor-config"]');
+  var REVISION = (revisionMeta && revisionMeta.getAttribute("content")) || "";
+  var reloading = false;
+
+  // 設定ページで保存すると、応答の版が変わる。タイトル・グラフの管理限界線などは
+  // ページを描いたときの設定なので、読み直して新しい設定にする(大型表示も自動で追従)。
+  function checkRevision(res) {
+    var current = res && res.headers ? res.headers.get("X-Monitor-Config") : null;
+    if (!REVISION || !current || current === REVISION || reloading) return false;
+    reloading = true;
+    window.location.reload();
+    return true;
+  }
 
   function url(path) {
     path = path || "/";
@@ -75,28 +98,47 @@
   // 既定値は MonitorCore.REQUEST_TIMEOUT_MS で変えられる(呼び出しごとなら opts.timeout)。
   var REQUEST_TIMEOUT_MS = 60000;
 
-  function getJson(path, track, opts) {
-    var timeout = (opts && opts.timeout) || api.REQUEST_TIMEOUT_MS;
+  // run(signal) を timeout ミリ秒で打ち切る(AbortController があれば接続ごと。本文の
+  // 読み込み中も)。打ち切ったら onExpire() を呼んで TimeoutError で reject する。
+  function withTimeout(run, timeout, onExpire) {
     var controller = typeof AbortController === "function" ? new AbortController() : null;
-    var expired = false;
     var timer = null;
     var deadline = new Promise(function (resolve, reject) {
       timer = setTimeout(function () {
-        expired = true;
-        if (controller) controller.abort(); // 接続ごと打ち切る(本文の読み込み中も)
+        if (onExpire) onExpire();
+        if (controller) controller.abort();
         reject(new TimeoutError(timeout));
       }, timeout);
     });
+    return Promise.race([run(controller ? controller.signal : null), deadline]).then(
+      function (value) {
+        clearTimeout(timer);
+        return value;
+      },
+      function (error) {
+        clearTimeout(timer);
+        throw error;
+      }
+    );
+  }
+
+  function timeoutOf(opts) {
+    return (opts && opts.timeout) || api.REQUEST_TIMEOUT_MS;
+  }
+
+  function getJson(path, track, opts) {
+    var expired = false;
 
     // 打ち切った後に届いた応答で tracker を進めない(描いていない応答を「描画済み」にしない)
     function same(key) {
       return !expired && track.same(key);
     }
 
-    async function request() {
+    async function request(signal) {
       var init = { headers: { Accept: "application/json" } };
-      if (controller) init.signal = controller.signal;
+      if (signal) init.signal = signal;
       var res = await fetch(url(path), init);
+      checkRevision(res);
       if (!res.ok) throw new HttpError(res.status);
       if (!track) return await res.json();
       // ETag(サーバーが付ける版)が前回と同じなら本文を読まずに済ませる
@@ -110,18 +152,33 @@
       return JSON.parse(text);
     }
 
-    return Promise.race([request(), deadline]).then(
-      function (value) {
-        clearTimeout(timer);
-        return value;
-      },
-      function (error) {
-        clearTimeout(timer);
-        // 失敗後の最初の成功は必ず描画させる(stale 表示を確実に解除するため)
-        if (track) track.reset();
-        throw error;
+    return withTimeout(request, timeoutOf(opts), function () {
+      expired = true;
+    }).catch(function (error) {
+      // 失敗後の最初の成功は必ず描画させる(stale 表示を確実に解除するため)
+      if (track) track.reset();
+      throw error;
+    });
+  }
+
+  function send(method, path, body, opts) {
+    return withTimeout(async function (signal) {
+      var init = { method: method, headers: { Accept: "application/json" } };
+      if (signal) init.signal = signal;
+      if (body !== undefined) {
+        init.headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(body);
       }
-    );
+      var res = await fetch(url(path), init);
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      return { status: res.status, ok: res.ok, data: data };
+    }, timeoutOf(opts));
+  }
+
+  function errorMessage(data, status) {
+    return data && data.detail && data.detail.message ? data.detail.message : "HTTP " + status;
   }
 
   function poll(fn, ms, opts) {
@@ -222,6 +279,8 @@
     root: ROOT,
     url: url,
     getJson: getJson,
+    send: send,
+    errorMessage: errorMessage,
     tracker: tracker,
     UNCHANGED: UNCHANGED,
     HttpError: HttpError,
@@ -229,6 +288,7 @@
     REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS,
     poll: poll,
     worstLevel: worstLevel,
+    checkRevision: checkRevision,
   };
   window.MonitorCore = api;
 })();

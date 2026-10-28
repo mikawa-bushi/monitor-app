@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from typing import Any
 
@@ -58,10 +57,9 @@ class KpiService:
         except (SQLAlchemyError, TypeError, ValueError):
             failed = True
             logger.exception("KPI '%s' の評価に失敗しました", key)
-            # 共有コネクションを後続 KPI のため健全な状態へ戻す(PostgreSQL 等で
-            # 失敗トランザクションが残ると後続クエリが全滅するのを防ぐ)。
-            with contextlib.suppress(SQLAlchemyError):
-                conn.rollback()
+            # 共有コネクションを後続 KPI のため健全な状態(読み取り専用)へ戻す。
+            # 戻せなければ、残りの KPI を評価せずに失敗させる。
+            self.db.rollback_readonly(conn)
 
         return {
             "key": key,
@@ -80,7 +78,8 @@ class KpiService:
             return "—"
         try:
             return card.format.format(value)
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, IndexError, TypeError):
+            # 書けない形式("{}{}"・"{:d}" など)は値をそのまま出す(check が警告する)
             return str(value)
 
     @staticmethod

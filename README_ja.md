@@ -37,6 +37,7 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 | トレンド / SPC グラフ | UCL / LCL / 目標線つきの折れ線・棒グラフ | `ViewDef(chart=ChartDef(...))` |
 | 閾値アラート | 画面のバナー・ブラウザ通知・Webhook(Slack・Teams)・メール。状態が変わったときに 1 回通知し、失敗は再試行 | `alerts=[AlertRule(...)]` |
 | 作業者の入力フォーム | テーブル定義からタッチ操作向けのフォームを自動生成 | `TableDef(form=FormDef(...))`、`/form/{table}` |
+| 画面での設定・CSV の取り込み | 表示・ビュー(SQL)・色分け・グラフ・KPI・アラート・大型表示を画面で編集し、サーバーを止めずに反映(開いている画面も読み直す)。CSV をブラウザから取り込む | `/settings`、`/upload` |
 | データの取り込み | CSV(UTF-8・Excel の cp932)、フォルダ監視(置き換え / 追記)、PLC・MES・センサからの一括 `POST`、読み取り専用の `sources`(SQLite / JSONL / JSON) | `import-csv`、`MONITOR_INGEST_WATCH`、`/api/ingest/{table}` |
 | REST API | テーブルごとの CRUD・ビューのデータ・CSV / Excel エクスポート・OpenAPI ドキュメント | `/api/...`、`/docs`、`/redoc` |
 | Python API | 自分のプログラムからアプリを組み立てる・`config.py` を読み込んで検証する | `create_app`、`load_config`(「**Python API**」を参照) |
@@ -286,6 +287,36 @@ monitor-app check --strict        # 警告も失敗(終了コード 1)にする�
 
 旧形式(v1)の dict 形式の `config.py`(`ALLOWED_TABLES` など)もそのまま読めます。下の「**v0.x からの移行**」を参照してください。
 
+## 🖱 画面で設定を変える・CSV を取り込む
+
+サイドバーの「⚙️ 設定」(`/settings`)で、`config.py` を書き換えずに次の項目を変えられます。保存するとサーバーを止めずにすぐ反映され、開いている画面(大型表示を含む)も自動で読み直します。
+
+| タブ | 変えられる項目 |
+|---|---|
+| 全般 | アプリの名前・画面上部の見出し・画面下部の文言・更新の間隔と方式 |
+| ビュー | タイトル・説明・グループ・最大の行数・SQL・列の見出し・セルの色分け・グラフ(管理限界線・目標線)。ビューの追加と削除 |
+| KPI | タイトル・SQL・単位・目標値・表示形式・クリックで開くビュー。KPI の追加と削除 |
+| アラート | ビュー・列・条件・値・レベル・メッセージ・通知先。アラートの追加と削除 |
+| 大型表示・ダッシュボード | 大型表示の切り替えの間隔・配色・表示するビュー、トップページのグラフの数と並べるグラフ |
+
+- テーブルの定義・外部ソース(`sources`)・favicon は画面では変えられません(表の作り替えや、サーバーのファイルの読み取りになるため)。`config.py` で変えます。
+- 画面で変えた値は、`config.py` との差分だけを DB(内部テーブル `_settings`)に保存し、再起動しても残ります。画面で変えた項目は `config.py` の同じ項目より優先し、変えていない項目は今までどおり `config.py` の値を使います(アラートの一覧のようなリストは丸ごと画面の値になります)。「config.py の設定に戻す」で差分を消せます。SQLite のバックアップにも含まれます。
+- 保存の前に `monitor-app check` と同じ点検(SQL の空実行・アラートとグラフの列・通知先)を行い、エラーがあれば保存しません。「点検」ボタンで保存せずに確かめられます。画面から入れる SQL は `SELECT` 文 1 つだけで(`;` で区切った複数の文は保存しない)、読み取り専用で実行します。
+- ほかの人が先に保存していたら上書きせず、読み込み直すよう知らせます。`MONITOR_AUDIT_ENABLED=true` なら、変更を監査ログ(`/api/audit?table=_settings`)に残します。
+- `config.py` からビューを消したなどで、保存してある差分を重ねられなくなったときは、`config.py` の設定だけで起動し、設定ページで知らせます。
+
+「📤 CSV の取り込み」(`/upload`)では、CSV ファイルを選んでテーブルに取り込めます。`monitor-app import-csv` と同じ処理なので、文字コード(UTF-8・Excel の Shift_JIS)の自動判別、見出しの表記ゆれの吸収、1 回の処理での取り込み(途中で失敗したら何も変わらない)、見出しに列が丸ごと無い CSV での置き換えの拒否も同じです。「追記」(主キーが同じ行は読み飛ばす)と「置き換え」(今の行をすべて CSV の行にする)を選べます。送ったファイルはサーバーに残しません。
+
+**だれが使えるか。** 設定と CSV の取り込みは「管理の機能」です。
+
+| 設定 | 管理の機能を使える人 |
+|---|---|
+| `MONITOR_ADMIN_KEY` あり | 管理者の鍵でログインした人(または `X-API-Key` に管理者の鍵)。`MONITOR_API_KEY` を渡した作業者・閲覧者は使えない |
+| `MONITOR_API_KEY` だけ | API キーでログインした人(書き込みと同じ) |
+| どちらも無し | この PC から開いた人だけ(`MONITOR_HOST=127.0.0.1` で、リバースプロキシの設定も無いとき)。LAN やプロキシの先に公開しているときは使えない |
+
+ほかのサイトのページから送られた要求(CSRF)は断ります。作業者の入力フォームに API キーでログインしてもらう現場では、`MONITOR_ADMIN_KEY` を別に設定すると、作業者は設定を変えられません。
+
 ## ⚙️ 実行時設定(`MONITOR_*` / `.env`)
 
 PC ごとに変わる設定(DB の接続先・ポート・パスワード)は `config.py` に書きません。プロジェクトのフォルダの `.env` に書くか(`.env.example` をコピー。全設定の説明つき)、環境変数で設定します。環境変数は `.env` より優先します。
@@ -309,6 +340,7 @@ PC ごとに変わる設定(DB の接続先・ポート・パスワード)は `c
 | **認証・セキュリティ** | | |
 | `MONITOR_API_KEY` | (未設定) | 設定すると認証が有効になる。書き込み(API・フォーム・取り込み)にキーが必要(`X-API-Key` ヘッダ、またはブラウザでログイン。ログインは 12 時間有効)。16 文字以上の推測されにくい文字列にする。`monitor-app deploy` が生成して `.env` に書く。空の値は未設定と同じ |
 | `MONITOR_PROTECT_READS` | `false` | 閲覧(画面・読み取り系 API・API ドキュメント)にもキーを必要にする |
+| `MONITOR_ADMIN_KEY` | (未設定) | 管理の機能(画面での設定の編集・CSV の取り込み)だけに使う鍵。設定すると、管理の機能はこの鍵でだけ使える(この鍵でログインすれば閲覧・書き込みもできる)。未設定なら `MONITOR_API_KEY` で使える。上の「**画面で設定を変える・CSV を取り込む**」を参照 |
 | `MONITOR_ALLOWED_HOSTS` | (未設定) | 受け付けるホスト名(カンマ区切り。`*.example.com` でサブドメイン、`*` で確かめない)。未設定なら、`127.0.0.1` で待ち受けるサーバーは `localhost`・自分の名前・IP アドレス以外のホスト名を断る(DNS リバインディング対策)。LAN・Docker・下のリバースプロキシの設定では確かめない。一覧を書くと、どのアドレスで待ち受けても確かめる |
 | `MONITOR_CORS_ORIGINS` | `[]` | API を呼べる別オリジンの Web アプリ(JSON の配列。例: `["http://localhost:3000"]`)。空なら同一オリジンのみ |
 | **CSV の取り込み** | | |
@@ -516,7 +548,9 @@ DB が `SELECT 1` に応答すれば `200`、応答しなければ `503`(`"statu
 | `/table/{view}` | リアルタイムの表 / グラフ |
 | `/kiosk` | Andon 大型表示(全画面・自動で切り替え) |
 | `/form/{table}` | 作業者の入力フォーム |
-| `/login` | ログイン画面(`MONITOR_API_KEY` を設定したときに使う) |
+| `/settings` | 設定ページ(管理の機能) |
+| `/upload` | CSV の取り込み(管理の機能) |
+| `/login` | ログイン画面(`MONITOR_API_KEY`・`MONITOR_ADMIN_KEY` を設定したときに使う) |
 | `/docs`、`/redoc` | OpenAPI ドキュメント(この 2 つのページは版を固定した Swagger UI / ReDoc を CDN から読み込む。`MONITOR_PROTECT_READS` ではログインが必要。`MONITOR_API_DOCS=false` で出さない) |
 | `GET/POST /api/tables/{table}` | 行の一覧(`?limit=`、`?offset=`。ページは主キーの順)/ 行の追加 |
 | `GET/PUT/DELETE /api/tables/{table}/{id}` | 1 行 |
@@ -527,6 +561,9 @@ DB が `SELECT 1` に応答すれば `200`、応答しなければ `503`(`"statu
 | `GET /api/views/{view}/export` | `?format=csv` か `xlsx`。`?bom=1` で UTF-8 の BOM を付ける(Excel で日本語が化けない)。`=` `+` `-` `@` で始まる文字列は、表計算ソフトが数式として実行しない形で書き出す。`?raw=1` なら保存した値そのまま |
 | `GET /api/kpis`、`/api/alerts`、`/api/schema` | KPI の値・発生中のアラート・表定義 |
 | `GET /api/audit` | 変更履歴(`?table=`、`?limit=`)。`MONITOR_AUDIT_ENABLED=true` のとき |
+| `GET/PUT/DELETE /api/settings` | 画面で編集できる設定の取得 / 点検して保存(`{"settings": {...}, "revision": "..."}`。エラーは `422`、ほかの人が先に保存していたら `409`)/ `config.py` の設定に戻す。管理の機能 |
+| `POST /api/settings/check` | 保存せずに点検する(`monitor-app check` と同じ判定)。管理の機能 |
+| `POST /api/upload/{table}` | CSV の取り込み(multipart の `file`、`mode=append` か `replace`、`force`)。管理の機能 |
 | `GET/HEAD /api/health` | 死活監視(上を参照) |
 
 `MONITOR_API_KEY` を設定したら、キーを `X-API-Key` ヘッダで送ります:

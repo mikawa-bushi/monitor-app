@@ -9,6 +9,7 @@
     favicon_path : str  — favicon の static パス(例 "img/favicon.ico")
     nav_groups   : list[dict]  — [{group: str, views: [{name, title}, ...]}]
     current_view : str  — 現在表示中のビュー名(強調に使う)
+    current_page : str  — 管理の画面("settings" / "upload")を開いているとき(強調に使う)
 
   子テンプレートが上書きできるブロック:
     title   — <title> の中身(既定は app_title)
@@ -24,6 +25,8 @@
     url_for(...)     … ルート相対の URL(サブパス配信でも正しい。スキーム・ホストなし)
     static_url(path) … 静的ファイルのバージョン付き URL(長期キャッシュされる)
     root_path()      … サブパス。<meta name="monitor-root"> で JS(core.js)へ渡す
+    config_revision() … 使う設定の版。<meta name="monitor-config"> で core.js へ渡し、
+                       応答の X-Monitor-Config と違えば(設定ページで保存した)読み直す
 #}
 <!DOCTYPE html>
 <html lang="ja">
@@ -31,6 +34,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="monitor-root" content="{{ root_path() }}">
+    <meta name="monitor-config" content="{{ config_revision() }}">
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
     <link rel="icon" href="{{ static_url(favicon_path) }}">
     <link href="{{ static_url('css/bootstrap.min.css') }}" rel="stylesheet">
@@ -65,6 +69,13 @@
             {% endfor %}
             <div class="nav-section-divider"></div>
             <a href="{{ url_for('kiosk') }}" class="nav-link nav-link--kiosk">📺 大型表示</a>
+            {% set page = current_page | default('') %}
+            <a href="{{ url_for('upload_page') }}"
+               class="nav-link nav-link--admin{% if page == 'upload' %} active{% endif %}"
+               {% if page == 'upload' %}aria-current="page"{% endif %}>📤 CSV の取り込み</a>
+            <a href="{{ url_for('settings_page') }}"
+               class="nav-link nav-link--admin{% if page == 'settings' %} active{% endif %}"
+               {% if page == 'settings' %}aria-current="page"{% endif %}>⚙️ 設定</a>
         </nav>
     </aside>
 

@@ -10,7 +10,13 @@ from fastapi.responses import HTMLResponse
 from ...exceptions import TableNotFoundError, ViewNotFoundError
 from ...settings.declarative import MonitorConfig
 from ...web import static_asset_path
-from ..deps import get_config, page_auth_guard
+from ..deps import (
+    RedirectToLogin,
+    admin_access_problem,
+    get_config,
+    page_auth_guard,
+)
+from .auth import safe_next
 
 router = APIRouter(tags=["Pages"], include_in_schema=False)
 
@@ -222,10 +228,13 @@ def kiosk(
 def login_page(
     request: Request,
     error: int = 0,
+    next: str = "/",
     config: MonitorConfig = Depends(get_config),
 ):
-    """ログインページ(#11)。protect_reads 有効時に未認証だと誘導される。"""
+    """ログインページ(#11)。protect_reads 有効時・管理の画面で未認証だと誘導される。"""
     templates = request.app.state.templates
+    target = safe_next(next)
+    settings = request.app.state.settings
     return templates.TemplateResponse(
         request,
         "login.html",
@@ -234,7 +243,75 @@ def login_page(
             "header_text": config.header_text,
             "favicon_path": _favicon(config),
             "error": bool(error),
+            "next": target,
+            # 管理の画面から来たときは、管理者の鍵でログインすることを示す
+            "admin_login": target in _ADMIN_PAGES and bool(settings.admin_key),
+            "has_admin_key": bool(settings.admin_key),
         },
+    )
+
+
+#: 管理の画面(設定の編集・CSV のアップロード)のパス。
+_ADMIN_PAGES = ("/settings", "/upload")
+
+
+def _admin_page_problem(request: Request, path: str) -> str | None:
+    """管理の画面を開けない理由(開けるなら None)。ログインが要れば /login へ送る。
+
+    ページを開くだけ(GET)なので、ほかのサイトのリンクから開いてもよい(保存などの要求は
+    API の require_admin が CSRF を確かめる)。
+    """
+    settings = request.app.state.settings
+    problem = admin_access_problem(settings, request, request.headers.get("x-api-key"))
+    if problem is None:
+        return None
+    if problem.status_code == 401:
+        raise RedirectToLogin(path)
+    return problem.detail["message"]
+
+
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page(
+    request: Request,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
+):
+    """設定ページ(管理の機能)。表示・ビュー・KPI・アラートなどを画面で編集する。
+
+    設定の内容は settings.js が /api/settings から読み、保存する。
+    """
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        _ctx(
+            config,
+            current_page="settings",
+            admin_disabled=_admin_page_problem(request, "/settings"),
+        ),
+    )
+
+
+@router.get("/upload", response_class=HTMLResponse)
+def upload_page(
+    request: Request,
+    config: MonitorConfig = Depends(get_config),
+    _: None = Depends(page_auth_guard),
+):
+    """CSV のアップロード(管理の機能)。送信は upload.js が /api/upload/{table} へ行う。"""
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "upload.html",
+        _ctx(
+            config,
+            current_page="upload",
+            admin_disabled=_admin_page_problem(request, "/upload"),
+            tables=[
+                {"name": name, "columns": tdef.column_names}
+                for name, tdef in config.tables.items()
+            ],
+        ),
     )
 
 

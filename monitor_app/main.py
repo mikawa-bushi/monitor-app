@@ -26,9 +26,20 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__
 from .api.errors import register_exception_handlers
-from .api.routers import alerts, audit, auth, crud, ingest, meta, pages, views
-from .container import build_services
-from .security import api_key_problems, host_policy
+from .api.routers import (
+    alerts,
+    audit,
+    auth,
+    crud,
+    ingest,
+    meta,
+    pages,
+    uploads,
+    views,
+)
+from .api.routers import settings as settings_router
+from .container import Services, build_services
+from .security import configured_key_problems, host_policy
 from .settings.declarative import MonitorConfig
 from .settings.runtime import AppSettings
 from .web.api_docs import install_api_docs
@@ -52,6 +63,8 @@ _ROUTERS = (
     audit.router,
     auth.router,
     meta.router,
+    settings_router.router,
+    uploads.router,
     pages.router,
 )
 
@@ -129,9 +142,38 @@ class _SecurityHeadersMiddleware:
             raise
 
 
+#: 使う設定の版を知らせる応答ヘッダ(画面で設定を変えたら、開いている画面が読み直す)。
+CONFIG_REVISION_HEADER = "X-Monitor-Config"
+
+
+class _ConfigRevisionMiddleware:
+    """全レスポンスに使う設定の版(:data:`CONFIG_REVISION_HEADER`)を付ける。
+
+    画面(core.js)はページの版(``<meta name="monitor-config">``)と比べ、違えば読み直す
+    (設定ページで閾値やタイトルを変えたら、大型表示などがそのまま新しい設定になる)。
+    """
+
+    def __init__(self, app: ASGIApp, services: Services) -> None:
+        self.app = app
+        self.services = services
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_revision(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers[CONFIG_REVISION_HEADER] = self.services.config_revision
+            await send(message)
+
+        await self.app(scope, receive, send_with_revision)
+
+
 def _warn_about_weak_api_key(settings: AppSettings) -> None:
     """説明用の値・短すぎる・ASCII 以外の API キーを起動時に警告する(#D6-17・#D6-07)。"""
-    for problem in api_key_problems(settings.api_key):
+    for problem in configured_key_problems(settings.api_key, settings.admin_key):
         logger.warning("%s(%s)", problem.message, problem.hint)
 
 
@@ -143,6 +185,8 @@ def create_app(
 ) -> FastAPI:
     settings = settings or AppSettings()
     services = build_services(config, settings, init_db=init_db)
+    # 画面で変えた設定(DB に保存した差分)を重ねた、使う設定
+    config = services.config
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -167,6 +211,14 @@ def create_app(
         openapi_url=None,
         lifespan=lifespan,
     )
+
+    def follow_config(new: MonitorConfig) -> None:
+        # 画面で設定を変えたら、API ドキュメントのタイトルも合わせる
+        app.state.config = new
+        app.title = new.app_title
+        app.openapi_schema = None
+
+    services.config_listeners.append(follow_config)
 
     # --- 状態(app.state に保持し、依存から参照する)---
     app.state.services = services
@@ -206,6 +258,7 @@ def create_app(
         )
     if settings.compress_responses:
         app.add_middleware(CompressionMiddleware)
+    app.add_middleware(_ConfigRevisionMiddleware, services=services)
     app.add_middleware(RootPathMiddleware, root_path=settings.root_path)
     # DNS リバインディング対策(この PC だけで待ち受けるとき・MONITOR_ALLOWED_HOSTS)。
     # 断る応答にもセキュリティヘッダを付けるため、その内側に置く。

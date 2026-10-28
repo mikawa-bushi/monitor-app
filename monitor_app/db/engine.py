@@ -13,13 +13,18 @@ import signal
 import threading
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, create_engine, event, text
 from sqlalchemy.engine import URL, Engine, make_url
-from sqlalchemy.exc import ArgumentError, DBAPIError, OperationalError
+from sqlalchemy.exc import (
+    ArgumentError,
+    DBAPIError,
+    OperationalError,
+    SQLAlchemyError,
+)
 from sqlalchemy.pool import StaticPool
 
 from ..cancel import raise_if_stop_requested, stop_requested
@@ -590,6 +595,21 @@ class Database:
                 # 破棄済み(処理の打ち切りなど)のコネクションはプールへ戻らないため解除不要。
                 if end_sql and not conn.invalidated:
                     conn.execute(text(end_sql))
+
+    def rollback_readonly(self, conn: Connection) -> None:
+        """:meth:`readonly` のコネクションで失敗した文を取り消し、読み取り専用に戻す。
+
+        失敗したトランザクションが残ると、PostgreSQL では後続の文がすべて失敗するため
+        取り消す。PostgreSQL / MySQL の ``SET TRANSACTION READ ONLY`` はそのトランザクション
+        にしか効かず、取り消した後の文は読み書きできる新しいトランザクションで始まるため、
+        かけ直す(かけ直せなければ例外。後続の文を読み書きできるまま実行しない)。
+        SQLite の ``PRAGMA query_only`` はコネクション単位で、取り消しても外れない。
+        """
+        with suppress(SQLAlchemyError):
+            conn.rollback()
+        begin_sql, end_sql = _READONLY_SQL.get(self.engine.dialect.name, (None, None))
+        if begin_sql and end_sql is None:
+            conn.execute(text(begin_sql))
 
     def wait_until_ready(
         self,

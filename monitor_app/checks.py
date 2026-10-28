@@ -24,7 +24,7 @@ import importlib.resources
 import os
 import re
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +47,7 @@ _LEVEL_ORDER = {"error": 0, "warning": 1, "info": 2}
 _AUTH_ENV_KEYS = {
     "MONITOR_API_KEY": "api_key",
     "MONITOR_PROTECT_READS": "protect_reads",
+    "MONITOR_ADMIN_KEY": "admin_key",
 }
 #: 一覧として表示する列名などの最大数。
 _MAX_LISTED = 12
@@ -193,12 +194,11 @@ def _settings_issues(
                     ".env に MONITOR_API_KEY を設定してください",
                 )
             )
-    else:
-        # 説明用の値(change-me など)・短すぎる・ASCII 以外のキー(#D6-17・#D6-07)
-        from .security import api_key_problems
+    # 説明用の値(change-me など)・短すぎる・ASCII 以外のキー(#D6-17・#D6-07)
+    from .security import configured_key_problems
 
-        for problem in api_key_problems(settings.api_key):
-            issues.append(Issue("warning", problem.code, problem.message, problem.hint))
+    for problem in configured_key_problems(settings.api_key, settings.admin_key):
+        issues.append(Issue("warning", problem.code, problem.message, problem.hint))
 
     for found in find_unknown_env_keys(env_files=env_files):
         field = _AUTH_ENV_KEYS.get(found.suggestion or "")
@@ -485,6 +485,8 @@ class _SqlChecker:
         self.sqlite = backend == "sqlite"
         self.backend = backend
         self.issues: list[Issue] = []
+        #: ビュー名 → 画面・アラートが使う結果の列名(実行できたビューだけ)。
+        self.view_columns: dict[str, list[str]] = {}
         self._real = None
 
     def _level(self) -> Level:
@@ -587,6 +589,11 @@ class _SqlChecker:
             db.dispose()
             if self._real:
                 self._real.dispose()
+        self.view_columns = {
+            name: run.columns
+            for name, run in view_runs.items()
+            if run is not None and run.columns is not None
+        }
         self._check_columns(view_runs)
         self._check_kpi_formats()
         return self.issues
@@ -1090,6 +1097,16 @@ def run_checks(
     ]
     if data:
         stages.append(("CSV", lambda: _DataChecker(cfg, settings).check()))
+    return _run_stages(stages)
+
+
+def _run_stages(
+    stages: Iterable[tuple[str, Callable[[], Iterable[Issue]]]],
+) -> list[Issue]:
+    """点検を順に行い、見つかった問題を重要度の順に返す。
+
+    途中で失敗した点検は警告にして、残りの点検を続ける。
+    """
     issues: list[Issue] = []
     for name, stage in stages:
         try:
@@ -1104,6 +1121,21 @@ def run_checks(
                 )
             )
     return sort_issues(issues)
+
+
+def check_ui_settings(
+    cfg: MonitorConfig, settings: AppSettings
+) -> tuple[list[Issue], dict[str, list[str]]]:
+    """画面で編集した設定の点検(ビュー・KPI の SQL の空実行、列の照合、通知先)。
+
+    ``monitor-app check`` と同じ判定。戻り値は (重要度の順の問題, ビュー名 → 結果の
+    列名)。列名は画面の入力欄の候補に使う。
+    """
+    checker = _SqlChecker(cfg, settings)
+    issues = _run_stages(
+        [("SQL", checker.check), ("通知", lambda: _notify_issues(cfg, settings))]
+    )
+    return issues, checker.view_columns
 
 
 def check_project(

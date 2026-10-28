@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from monitor_app import ChartDef, MonitorConfig, TableDef, ViewDef
@@ -97,3 +98,65 @@ def test_security_headers_present():
     assert res.headers["x-content-type-options"] == "nosniff"
     assert res.headers["x-frame-options"] == "SAMEORIGIN"
     assert res.headers["referrer-policy"] == "same-origin"
+
+
+# ---------------------------------------------------------------------------
+# 画面から保存する SQL(複数の文)
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1",
+        "SELECT ';' AS sep",
+        "SELECT 'it''s; fine'",
+        'SELECT "a;b" FROM t',
+        "SELECT 1 -- note; here\nFROM t",
+        "SELECT 1 /* ; */ FROM t",
+        "SELECT 1 /* nested /* ; */ still comment ; */ FROM t",
+        "SELECT $$;$$",
+        "SELECT $tag$ ; $$ ; $tag$",
+        "SELECT a$b$ FROM t",  # 識別子の中の $ はドル引用ではない
+        "SELECT E'\\';' AS q",  # E'' の中の \' は引用の中
+    ],
+)
+def test_single_statements_pass(sql):
+    from monitor_app.security import has_multiple_statements
+
+    assert has_multiple_statements(sql) is False
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1; DELETE FROM t",
+        "SELECT 1;COMMIT",
+        "SELECT $$'$$; DELETE FROM t; SELECT $$'$$",  # ドル引用で ' の数を合わせる
+        "SELECT E'\\'' ; DELETE FROM t --'",  # E'' の \' で引用を閉じたように見せる
+        "SELECT 'a\\' ; DELETE FROM t; SELECT '",  # 標準の文字列の \ はエスケープではない
+        "SELECT 'unterminated",
+        "SELECT 1 /* not closed",
+        "SELECT $$ not closed",
+        # バックスラッシュの扱いが分からないときは断る(見逃すより断る)
+        "SELECT 'C:\\' , 'x'",
+    ],
+)
+def test_multiple_or_unclear_statements_are_detected(sql):
+    from monitor_app.security import has_multiple_statements
+
+    assert has_multiple_statements(sql) is True
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        ({"bound_host": "127.0.0.1"}, True),
+        ({"bound_host": "localhost"}, True),
+        ({"bound_host": "0.0.0.0"}, False),
+        ({"bound_host": "127.0.0.1", "root_path": "/monitor"}, False),
+        ({"bound_host": "127.0.0.1", "forwarded_allow_ips": "*"}, False),
+    ],
+)
+def test_serves_this_machine_only(kwargs, expected):
+    from monitor_app.security import serves_this_machine_only
+
+    assert serves_this_machine_only(**kwargs) is expected

@@ -60,11 +60,12 @@ SYNTHETIC_PK = "_row_id"
 #: ブラウザ(JavaScript の数値)で正確に表せる整数の上限。超える整数はコード扱い(str)。
 _MAX_SAFE_INT = 2**53 - 1
 #: monitor-app が内部で使うテーブル名(CSV のテーブル名にできない)。
-_INTERNAL_TABLES = frozenset({"_audit", "_ingest_state"})
-#: テーブル名(ファイル名)に使えない文字。引用符・スラッシュ・カンマは SQL・URL・
-#: ビューの一括取得の区切りを壊す。``:`` は SQL の ``:名前`` がパラメータとして扱われ
-#: (``x :y`` のビューが実行できない)、``# ? %`` は画面のリンク(URL)を壊す。
-_UNSAFE_NAME_CHARS = frozenset("'\"/\\,:#?%")
+_INTERNAL_TABLES = frozenset({"_audit", "_ingest_state", "_settings"})
+#: テーブル名(ファイル名)・ビュー名に使えない文字。引用符・スラッシュ・カンマは SQL・
+#: URL・ビューの一括取得の区切りを壊す。``:`` は SQL の ``:名前`` がパラメータとして
+#: 扱われ(``x :y`` のビューが実行できない)、``# ? %`` は画面のリンク(URL)を壊す。
+#: 画面で追加するビュー・KPI の名前にも使う(services/settings_service.py)。
+UNSAFE_NAME_CHARS = frozenset("'\"/\\,:#?%")
 #: 1 列ごとに記憶しておく値の種類の上限(同じ値の判定を省くためのキャッシュ)。
 _CACHE_LIMIT = 4096
 
@@ -281,7 +282,7 @@ class CsvScan:
     id_problem: str | None = None
 
 
-def _has_control(text: str) -> bool:
+def has_control_chars(text: str) -> bool:
     """改行・タブ・NUL などの制御文字を含むか(外字などの私用領域の文字は含めない)。"""
     return any(unicodedata.category(ch) == "Cc" for ch in text)
 
@@ -297,7 +298,7 @@ def _plan_columns(header: list[str], notes: list[str]) -> list[tuple[str, int]]:
         if not name:
             empty += 1
             continue
-        if _has_control(name):
+        if has_control_chars(name):
             notes.append(
                 f"見出し {name!r} は制御文字を含むため、この列は取り込みません"
             )
@@ -722,10 +723,10 @@ def _unsafe_table_reason(name: str) -> str | None:
         return "隠しファイル(名前が . で始まる)の"
     if name != name.strip():
         return "ファイル名の前後に空白がある"
-    unsafe = sorted({ch for ch in name if ch in _UNSAFE_NAME_CHARS})
+    unsafe = sorted({ch for ch in name if ch in UNSAFE_NAME_CHARS})
     if unsafe:
         return f"ファイル名にテーブル名として使えない文字({' '.join(unsafe)})を含む"
-    if _has_control(name):
+    if has_control_chars(name):
         return "ファイル名に制御文字を含む"
     folded = name.casefold()
     if folded.startswith("sqlite_"):
@@ -994,7 +995,7 @@ def _lit(value: str) -> str:
 
 def _comment_text(text: str) -> str:
     """コメントに書く文字列(改行などの制御文字は ? に置き換える)。"""
-    return "".join("?" if _has_control(ch) else ch for ch in text)
+    return "".join("?" if has_control_chars(ch) else ch for ch in text)
 
 
 def _encoding_label(encoding: str) -> str:

@@ -4,6 +4,8 @@
   そのまま使うと危ないキー(説明用の値・短すぎる・ASCII 以外)の判定(#D6-07)。
 - **表計算ソフトの数式** … CSV・Excel のエクスポートで、``=`` などで始まる文字列が
   数式として実行されないようにする(#D6-10。CSV インジェクション対策)。
+- **画面から保存する SQL** … 1 回で複数の文を送らせない(読み取り専用の制限を抜けられる
+  ため)。
 - **Host ヘッダ** … このパソコンだけで待ち受けている(127.0.0.1 など)サーバーへの
   DNS リバインディング対策(#D6-03)。悪意のある Web ページが自分のドメイン名を
   127.0.0.1 に向け直すと、ブラウザはそのページと同じオリジンとして API を呼べて
@@ -18,6 +20,7 @@ FastAPI・Starlette には依存しない(CLI の起動を重くしない)。
 from __future__ import annotations
 
 import ipaddress
+import re
 import secrets
 import socket
 from collections.abc import Iterable
@@ -73,8 +76,13 @@ def is_placeholder_api_key(key: str) -> bool:
     return normalized.startswith("<") and normalized.endswith(">")
 
 
-def api_key_problems(key: str | None) -> list[KeyProblem]:
-    """設定された API キーの問題(未設定なら空)。キーの値はメッセージに含めない。"""
+def api_key_problems(
+    key: str | None, name: str = "MONITOR_API_KEY"
+) -> list[KeyProblem]:
+    """設定された API キーの問題(未設定なら空)。キーの値はメッセージに含めない。
+
+    ``name`` はメッセージに出す変数名(管理者の鍵 ``MONITOR_ADMIN_KEY`` にも使う)。
+    """
     if not key:
         return []
     problems: list[KeyProblem] = []
@@ -82,7 +90,7 @@ def api_key_problems(key: str | None) -> list[KeyProblem]:
         problems.append(
             KeyProblem(
                 "api-key-placeholder",
-                "MONITOR_API_KEY が説明用の例の値のままです。誰でも推測できます",
+                f"{name} が説明用の例の値のままです。誰でも推測できます",
                 f"推測されにくい長い文字列に変えてください(作り方: {KEYGEN_COMMAND})",
             )
         )
@@ -90,7 +98,7 @@ def api_key_problems(key: str | None) -> list[KeyProblem]:
         problems.append(
             KeyProblem(
                 "api-key-short",
-                f"MONITOR_API_KEY が短すぎます({len(key)} 文字)。推測されやすいため"
+                f"{name} が短すぎます({len(key)} 文字)。推測されやすいため"
                 f" {MIN_API_KEY_LENGTH} 文字以上にしてください",
                 f"作り方: {KEYGEN_COMMAND}",
             )
@@ -99,13 +107,23 @@ def api_key_problems(key: str | None) -> list[KeyProblem]:
         problems.append(
             KeyProblem(
                 "api-key-non-ascii",
-                "MONITOR_API_KEY に ASCII 以外の文字(日本語など)が含まれています。"
+                f"{name} に ASCII 以外の文字(日本語など)が含まれています。"
                 "画面のログインでは使えますが、X-API-Key ヘッダでは送れないクライアントが"
                 "あります",
                 "API から使うなら、英数字と記号だけのキーにしてください",
             )
         )
     return problems
+
+
+def configured_key_problems(
+    api_key: str | None, admin_key: str | None
+) -> list[KeyProblem]:
+    """.env の API キー(``MONITOR_API_KEY``)と管理者の鍵(``MONITOR_ADMIN_KEY``)の問題。"""
+    return [
+        *api_key_problems(api_key),
+        *api_key_problems(admin_key, "MONITOR_ADMIN_KEY"),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +141,98 @@ def neutralize_formula(value: object) -> object:
     if isinstance(value, str) and value.startswith(FORMULA_PREFIXES):
         return "'" + value
     return value
+
+
+# ---------------------------------------------------------------------------
+# 画面から保存する SQL
+# ---------------------------------------------------------------------------
+#: PostgreSQL のドル引用の開始(``$$`` か ``$tag$``)。
+_DOLLAR_TAG_RE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
+
+
+def _is_word_char(ch: str) -> bool:
+    return ch.isalnum() or ch in "_$"
+
+
+def _separator_outside_quotes(sql: str, *, all_backslash: bool) -> bool:
+    """引用・コメントの外に ``;`` があるか。引用・コメントが閉じていなければ True。
+
+    PostgreSQL の字句の規則で読む: ``'...'``(``''`` が引用の中の ``'``。バックスラッシュは
+    ``E'...'`` の中でだけエスケープ)・``"..."``・ドル引用・``--`` と入れ子にできる
+    ``/* */`` のコメント。``all_backslash=True`` は、どの引用の中のバックスラッシュも
+    エスケープとして読む(MySQL や standard_conforming_strings=off の PostgreSQL)。
+    """
+    i, n = 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch == ";":
+            return True
+        if ch in "'\"`":
+            e_string = (
+                ch == "'"
+                and i > 0
+                and sql[i - 1] in "eE"
+                and (i < 2 or not _is_word_char(sql[i - 2]))
+            )
+            escapes = all_backslash or e_string
+            i += 1
+            while True:
+                if i >= n:
+                    return True  # 閉じていない(読み違えている恐れがあるため断る)
+                if escapes and sql[i] == "\\":
+                    i += 2
+                elif sql[i] == ch:
+                    if sql.startswith(ch * 2, i):  # '' は引用の中の '
+                        i += 2
+                        continue
+                    i += 1
+                    break
+                else:
+                    i += 1
+            continue
+        if sql.startswith("--", i):
+            end = sql.find("\n", i)
+            if end == -1:
+                return False
+            i = end + 1
+            continue
+        if sql.startswith("/*", i):
+            depth, i = 1, i + 2
+            while depth:
+                if i >= n:
+                    return True
+                if sql.startswith("/*", i):
+                    depth, i = depth + 1, i + 2
+                elif sql.startswith("*/", i):
+                    depth, i = depth - 1, i + 2
+                else:
+                    i += 1
+            continue
+        if ch == "$" and (i == 0 or not _is_word_char(sql[i - 1])):
+            tag = _DOLLAR_TAG_RE.match(sql, i)
+            if tag:
+                end = sql.find(tag.group(), tag.end())
+                if end == -1:
+                    return True
+                i = end + len(tag.group())
+                continue
+        i += 1
+    return False
+
+
+def has_multiple_statements(sql: str) -> bool:
+    """SQL が複数の文(引用・コメントの外の ``;``)を含むか。
+
+    画面から保存するビュー・KPI の SQL に使う。読み取り専用の制限(PostgreSQL / MySQL の
+    ``SET TRANSACTION READ ONLY``)は 1 つのトランザクションにしか効かないため、1 回で
+    複数の文を送れるドライバ(psycopg)では ``SELECT 1; COMMIT; DELETE ...`` で制限を
+    抜けられる。引用の中のバックスラッシュの扱いは DB と設定によって違うため、2 通りの
+    読み方のどちらかで ``;`` が見つかれば True にする(見逃すより断る方に倒す)。末尾の
+    ``;`` は設定の読み込み時に取り除かれる。
+    """
+    return _separator_outside_quotes(
+        sql, all_backslash=False
+    ) or _separator_outside_quotes(sql, all_backslash=True)
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +342,20 @@ class HostPolicy:
         return any(name.endswith(suffix) for suffix in self.suffixes)
 
 
+def serves_this_machine_only(
+    bound_host: str | None,
+    *,
+    root_path: str = "",
+    forwarded_allow_ips: str | None = None,
+) -> bool:
+    """このパソコンからしか使えない待ち受けか(ループバックで、リバースプロキシの設定も無い)。
+
+    リバースプロキシの後ろでは、ループバックで待ち受けていても外から届く。``root_path`` /
+    ``forwarded_allow_ips`` を設定していれば、プロキシの後ろとみなす。
+    """
+    return is_loopback_host(bound_host) and not root_path and not forwarded_allow_ips
+
+
 def host_policy(
     *,
     bound_host: str,
@@ -260,6 +384,8 @@ def host_policy(
         names = base | {e for e in entries if not e.startswith("*.")}
         suffixes = tuple(e[1:] for e in entries if e.startswith("*."))
         return HostPolicy(frozenset(names), suffixes)
-    if not is_loopback_host(bound_host) or root_path or forwarded_allow_ips:
+    if not serves_this_machine_only(
+        bound_host, root_path=root_path, forwarded_allow_ips=forwarded_allow_ips
+    ):
         return None
     return HostPolicy(frozenset(base), loopback_only=True)

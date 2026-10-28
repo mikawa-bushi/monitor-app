@@ -183,6 +183,11 @@
       sseErrors = 0;
       render(JSON.parse(ev.data));
     };
+    // 設定ページで保存した(サーバーが配信を終える)。新しい設定でページを読み直す。
+    es.addEventListener("reload", function () {
+      closeStream();
+      window.location.reload();
+    });
     es.onerror = function () {
       if (source !== es) return; // 自分で閉じた古い接続
       // EventSource はネットワーク瞬断時、自動で再接続を試みる(readyState=

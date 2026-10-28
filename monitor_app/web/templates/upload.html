@@ -1,0 +1,73 @@
+{#
+  upload.html — CSV のアップロード(管理の機能)。
+
+  base.html を継承する。共通コンテキストに加えて受け取る変数(pages.py の upload_page()):
+    admin_disabled : str | None — 管理の機能を使えない理由(LAN に公開していて鍵が無い)
+    tables         : list[dict] — [{name, columns: [列名, ...]}](config.py の tables)
+
+  送信は static/js/upload.js が POST /api/upload/{table} で行う(monitor-app import-csv と
+  同じ取り込み)。upload.js との契約:
+    #upload-form           … フォーム(table・file・mode・force)
+    #u-table option[data-columns] … テーブルの列(選んだテーブルの列を #u-columns に出す)
+    #u-force-row           … 置き換えを断ったときに出す「それでも置き換える」
+    #upload-result         … 取り込みの結果
+#}
+{% extends "base.html" %}
+
+{% block title %}CSV の取り込み - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="page-head__main">
+        <h1>CSV の取り込み</h1>
+        <p class="page-subtitle">CSV ファイルをテーブルに取り込みます。取り込みは 1 回の処理で行い、途中で失敗したときは何も変わりません。</p>
+    </div>
+    <a class="back-link" href="{{ url_for('settings_page') }}">⚙️ 設定</a>
+</div>
+
+{% if admin_disabled %}
+<div class="card settings-disabled">
+    <p>{{ admin_disabled }}</p>
+</div>
+{% elif not tables %}
+<div class="card">
+    <p class="empty">取り込み先のテーブルがありません。config.py の <code>tables</code> にテーブルを定義してください。</p>
+</div>
+{% else %}
+<div class="card form-card upload-card">
+    <form id="upload-form" novalidate>
+        <div class="form-row">
+            <label for="u-table">取り込み先のテーブル</label>
+            <select id="u-table" name="table">
+                {% for table in tables %}
+                <option value="{{ table.name }}" data-columns="{{ table.columns | join(', ') }}">{{ table.name }}</option>
+                {% endfor %}
+            </select>
+            <p class="form-hint" id="u-columns"></p>
+        </div>
+        <div class="form-row">
+            <label for="u-file">CSV ファイル</label>
+            <input type="file" id="u-file" name="file" accept=".csv,text/csv" required>
+            <p class="form-hint">1 行目は見出し(列名)にします。文字コードは UTF-8 と Excel の CSV(Shift_JIS)のどちらでも読めます。</p>
+        </div>
+        <fieldset class="form-row upload-mode">
+            <legend>取り込み方</legend>
+            <label><input type="radio" name="mode" value="append" checked> 追記 — 今の行は残し、CSV の行を足します(主キーが同じ行は読み飛ばします)</label>
+            <label><input type="radio" name="mode" value="replace"> 置き換え — 今の行をすべて消して、CSV の行にします</label>
+        </fieldset>
+        <div class="form-row" id="u-force-row" hidden>
+            <label class="upload-force"><input type="checkbox" id="u-force" name="force"> 見出しに無い列があっても置き換える(その列は空になります)</label>
+        </div>
+        <button type="submit" class="btn-submit">取り込む</button>
+        <div id="upload-result" class="upload-result" aria-live="polite" hidden></div>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<link href="{{ static_url('css/settings.css') }}" rel="stylesheet">
+{% if tables and not admin_disabled %}
+<script src="{{ static_url('js/upload.js') }}"></script>
+{% endif %}
+{% endblock %}

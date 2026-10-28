@@ -163,7 +163,8 @@ body {
   border-top: 1px solid var(--border);
 }
 
-.nav-link--kiosk {
+.nav-link--kiosk,
+.nav-link--admin {
   font-size: 0.85rem;
   color: var(--muted);
 }

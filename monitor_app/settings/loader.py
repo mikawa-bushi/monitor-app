@@ -359,6 +359,11 @@ def _format_validation_error(
     return "\n".join(lines)
 
 
+def validation_messages(exc: ValidationError) -> list[str]:
+    """ValidationError を ``位置: 説明`` の日本語の行にする(画面での設定の編集に使う)。"""
+    return _format_errors(exc.errors())
+
+
 def _format_syntax_error(exc: SyntaxError, path: Path) -> str:
     # config.py が import した別のファイルの誤りなら、そのファイル名を示す
     name = Path(exc.filename).name if exc.filename else path.name

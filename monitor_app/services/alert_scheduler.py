@@ -35,7 +35,6 @@ class AlertScheduler(PeriodicTask):
         super().__init__(max(interval_seconds, 1.0))
         self.engine = engine
         self.view_service = view_service
-        self._views = engine.alert_views()
 
     def _evaluate(self, view_name: str) -> None:
         get_snapshot = getattr(self.view_service, "get_snapshot", None)
@@ -48,9 +47,16 @@ class AlertScheduler(PeriodicTask):
         snap = get_snapshot(view_name)
         evaluate(view_name, snap.digest, snap.rows, version=snap.seq)
 
+    def set_interval(self, interval_seconds: float) -> None:
+        """評価の間隔を変える(次の待ちから効く。画面で更新間隔を変えたとき)。"""
+        self.interval = max(interval_seconds, 1.0)
+
     def run_once(self) -> None:
-        """全アラート対象ビューを 1 回評価する(同期)。"""
-        for view_name in self._views:
+        """全アラート対象ビューを 1 回評価する(同期)。
+
+        対象のビューは毎回エンジンから得る(画面でアラートを変えたら次の評価から効く)。
+        """
+        for view_name in self.engine.alert_views():
             try:
                 self._evaluate(view_name)
             except Exception as exc:  # noqa: BLE001 - 1 ビューの失敗で全体を止めない
@@ -66,5 +72,5 @@ class AlertScheduler(PeriodicTask):
         self._log.info(
             "alert scheduler started (interval=%.1fs, views=%d)",
             self.interval,
-            len(self._views),
+            len(self.engine.alert_views()),
         )
