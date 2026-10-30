@@ -7,6 +7,12 @@
 保存しない)。セッションは発行から :data:`SESSION_MAX_AGE` 秒で失効し、ログアウトした
 セッションはサーバー側でも無効にする(#D6-13)。
 
+管理の機能(画面での設定の編集・CSV のアップロード)は :func:`require_admin` で守る。
+``admin_key`` を設定すればその鍵(ヘッダか管理者のセッション Cookie)でだけ使え、
+未設定なら書き込みと同じ ``api_key`` で使える。どちらの鍵も無ければ、このパソコンから
+だけ使える(LAN に公開しているときは使えない)。Cookie や鍵なしで使う要求は、ほかの
+サイトから送られたもの(CSRF)を断る。
+
 キーの比較はバイト列で行う(#D6-07)。ASCII 以外の文字を含むキーやヘッダでも
 500 にならず、一致しなければ 401 になる。
 """
@@ -16,14 +22,17 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
+from urllib.parse import urlsplit
 
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 
+from ..security import serves_this_machine_only
 from ..services.alert_service import AlertEngine
 from ..services.audit_service import AuditService
 from ..services.crud_service import CrudService
 from ..services.kpi_service import KpiService
+from ..services.settings_service import SettingsEditor
 from ..services.view_service import ViewService
 from ..settings.declarative import MonitorConfig
 from ..settings.runtime import AppSettings
@@ -32,6 +41,8 @@ _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 #: セッション Cookie 名(#11)。
 SESSION_COOKIE = "monitor_session"
+#: 管理者のセッション Cookie 名(``admin_key`` でログインしたとき)。
+ADMIN_SESSION_COOKIE = "monitor_admin_session"
 #: セッションの有効期間(秒)。Cookie の Max-Age と同じ 12 時間。
 SESSION_MAX_AGE = 60 * 60 * 12
 #: 発行時刻が未来になっているセッションを受け付ける幅(秒。時計の補正に備える)。
@@ -64,7 +75,7 @@ def _same_secret(provided: bytes, expected: bytes) -> bool:
     return hmac.compare_digest(provided, expected)
 
 
-def api_key_matches(provided: str, api_key: str | None) -> bool:
+def api_key_matches(provided: str | None, api_key: str | None) -> bool:
     """X-API-Key ヘッダの値がキーと一致するか。
 
     Starlette はヘッダを latin-1 で文字列にするため、latin-1 で戻すと送られたバイト列に
@@ -111,10 +122,12 @@ def session_is_valid(
     )
 
 
-def revoke_session(request: Request, token: str | None) -> None:
-    """ログアウトしたセッションを、有効期間が切れるまでサーバー側でも無効にする。"""
-    settings: AppSettings = request.app.state.settings
-    if not session_is_valid(token, settings.api_key):
+def revoke_session(request: Request, token: str | None, key: str | None) -> None:
+    """ログアウトしたセッションを、有効期間が切れるまでサーバー側でも無効にする。
+
+    ``key`` はそのセッションを発行した鍵(``api_key`` か ``admin_key``)。
+    """
+    if not session_is_valid(token, key):
         return
     now = time.time()
     revoked = _revoked_sessions(request)
@@ -130,7 +143,8 @@ def get_settings(request: Request) -> AppSettings:
 
 
 def get_config(request: Request) -> MonitorConfig:
-    return request.app.state.config
+    """使う設定(画面で変えた差分を重ねたもの。保存するとすぐ差し替わる)。"""
+    return request.app.state.services.config
 
 
 def get_crud_service(request: Request) -> CrudService:
@@ -156,16 +170,30 @@ def get_audit_service(request: Request) -> AuditService:
     return request.app.state.audit_service
 
 
+def get_settings_editor(request: Request) -> SettingsEditor:
+    """画面での設定の編集(SettingsEditor)を返す。"""
+    return request.app.state.services.settings_editor
+
+
+def _session_ok(request: Request, cookie_name: str, key: str | None) -> bool:
+    cookie = request.cookies.get(cookie_name)
+    return session_is_valid(cookie, key) and cookie not in _revoked_sessions(request)
+
+
 def _is_authed(settings: AppSettings, request: Request, provided: str | None) -> bool:
-    """ヘッダ or セッション Cookie で認証済みか。api_key 未設定(空を含む)なら常に True。"""
+    """ヘッダ or セッション Cookie で認証済みか。api_key 未設定(空を含む)なら常に True。
+
+    管理者の鍵(``admin_key``)で認証していれば、API キーでの認証の代わりにもなる。
+    """
     if not settings.api_key:
         return True
-    if provided and api_key_matches(provided, settings.api_key):
-        return True
-    cookie = request.cookies.get(SESSION_COOKIE)
-    return session_is_valid(
-        cookie, settings.api_key
-    ) and cookie not in _revoked_sessions(request)
+    return any(
+        api_key_matches(provided, key) or _session_ok(request, cookie, key)
+        for cookie, key in (
+            (SESSION_COOKIE, settings.api_key),
+            (ADMIN_SESSION_COOKIE, settings.admin_key),
+        )
+    )
 
 
 def get_actor(
@@ -174,13 +202,15 @@ def get_actor(
 ) -> str:
     """監査用の実行主体を表す文字列(フェーズ4・G)。
 
-    ヘッダ認証なら "api"、Cookie セッションなら "ui"、いずれも無ければ "anon"。
-    クライアント IP を添える。
+    ヘッダ認証なら "api"、Cookie セッション(管理者のものも)なら "ui"、いずれも無ければ
+    "anon"。クライアント IP を添える。
     """
     client = request.client.host if request.client else "unknown"
     if provided:
         who = "api"
-    elif request.cookies.get(SESSION_COOKIE):
+    elif request.cookies.get(SESSION_COOKIE) or request.cookies.get(
+        ADMIN_SESSION_COOKIE
+    ):
         who = "ui"
     else:
         who = "anon"
@@ -214,8 +244,94 @@ def require_read_auth(
         _check_auth(settings, request, provided)
 
 
+def _is_cross_site(request: Request) -> bool:
+    """ほかのサイトのページからブラウザが送った要求か(CSRF の判定)。
+
+    ブラウザが付ける ``Sec-Fetch-Site`` を使う。付けない古いブラウザでは ``Origin`` と
+    ``Host`` を比べる。どちらも無い要求(curl など、ブラウザ以外)はほかのサイトとみなさない。
+    """
+    site = request.headers.get("sec-fetch-site")
+    if site is not None:
+        return site == "cross-site"
+    origin = request.headers.get("origin")
+    if origin is None:
+        return False
+    host = request.headers.get("host", "")
+    return origin == "null" or urlsplit(origin).netloc.lower() != host.lower()
+
+
+def _admin_key_sent(settings: AppSettings, provided: str | None) -> bool:
+    """管理に使う鍵(管理者の鍵、無ければ API キー)を X-API-Key ヘッダで送ったか。"""
+    return api_key_matches(provided, settings.admin_key or settings.api_key)
+
+
+def admin_access_problem(
+    settings: AppSettings, request: Request, provided: str | None
+) -> HTTPException | None:
+    """管理の機能を使えない理由(使えるなら None)。CSRF は :func:`require_admin` が確かめる。"""
+    if _admin_key_sent(settings, provided):
+        return None
+    if settings.admin_key:
+        allowed = _session_ok(request, ADMIN_SESSION_COOKIE, settings.admin_key)
+    elif settings.api_key:
+        allowed = _session_ok(request, SESSION_COOKIE, settings.api_key)
+    elif serves_this_machine_only(
+        settings.host,
+        root_path=settings.root_path,
+        forwarded_allow_ips=settings.forwarded_allow_ips,
+    ):
+        allowed = True
+    else:
+        return HTTPException(
+            status_code=403,
+            detail={
+                "code": "ADMIN_DISABLED",
+                "message": "LAN やプロキシの先に公開しているため、管理の機能(設定の"
+                "編集・CSV のアップロード)は使えません。.env に MONITOR_ADMIN_KEY か "
+                "MONITOR_API_KEY を設定すると使えます",
+            },
+        )
+    if not allowed:
+        who = "管理者の鍵(MONITOR_ADMIN_KEY)" if settings.admin_key else "API キー"
+        return HTTPException(
+            status_code=401,
+            detail={"code": "UNAUTHORIZED", "message": f"{who}でログインしてください"},
+        )
+    return None
+
+
+def require_admin(
+    request: Request,
+    settings: AppSettings = Depends(get_settings),
+    provided: str | None = Security(_api_key_header),
+) -> None:
+    """管理の機能(設定の編集・CSV のアップロード)で必須。
+
+    使える人かは :func:`admin_access_problem` で決める。鍵をヘッダで送った要求はほかの
+    サイトから送れない(鍵を知らない)ので、Cookie や鍵なしで使う要求だけ CSRF を確かめる。
+    """
+    problem = admin_access_problem(settings, request, provided)
+    if problem is not None:
+        raise problem
+    if not _admin_key_sent(settings, provided) and _is_cross_site(request):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "CROSS_SITE_REQUEST",
+                "message": "ほかのサイトから送られた要求は受け付けません",
+            },
+        )
+
+
 class RedirectToLogin(Exception):
-    """HTML ページが未認証のとき送出。/login へのリダイレクトに変換される(#11)。"""
+    """HTML ページが未認証のとき送出。/login へのリダイレクトに変換される(#11)。
+
+    ``next`` はログインの後に戻るアプリ内のパス(``/settings`` など。サブパスは含めない)。
+    """
+
+    def __init__(self, next_path: str | None = None) -> None:
+        super().__init__(next_path)
+        self.next_path = next_path
 
 
 def page_auth_guard(

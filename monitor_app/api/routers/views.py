@@ -399,16 +399,24 @@ async def _sse_event_stream(
     interval: float,
     is_disconnected,
     stop: anyio.Event | None = None,
+    *,
+    revision: Callable[[], str] | None = None,
 ):
     """SSE イベントを生成する。データかアラートが変わったときだけ ``message`` を送る。
 
     ``is_disconnected`` は ``request.is_disconnected``(テストでは差し替え可能)。
     ブロッキングなクエリ/JSON 化はスレッドへ逃がす(:func:`_next_frame`)。
     ``stop`` が立ったら(サーバーの停止)、次の確認を待たずに配信を終える。
+    ``revision`` は使う設定の版を返す関数。接続したときから変わったら(画面で設定を
+    変えた)、``reload`` イベントを送って配信を終える(画面が読み直す)。
     """
     last_key: tuple | None = None
+    started = revision() if revision is not None else None
     while True:
         if (stop is not None and stop.is_set()) or await is_disconnected():
+            break
+        if revision is not None and revision() != started:
+            yield {"event": "reload", "data": "settings changed"}
             break
         frame = await _next_frame(service, engine, view_name, last_key)
         if frame is not None:
@@ -440,17 +448,19 @@ async def stream_view(
         # 配信を始めてからでは 404 を返せない(再接続のたびにエラーになる)ため先に確かめる
         raise ViewNotFoundError(f"ビュー '{view_name}' は定義されていません")
     interval = max(config.refresh_interval_ms, 250) / 1000.0
-    if not _SSE_HAS_SHUTDOWN_EVENT:  # pragma: no cover - sse-starlette 3.3 未満
-        return EventSourceResponse(
-            _sse_event_stream(
-                service, engine, view_name, interval, request.is_disconnected
-            )
-        )
-    stop = anyio.Event()
+    services = request.app.state.services
+    stop = anyio.Event() if _SSE_HAS_SHUTDOWN_EVENT else None
+    stream = _sse_event_stream(
+        service,
+        engine,
+        view_name,
+        interval,
+        request.is_disconnected,
+        stop,
+        revision=lambda: services.config_revision,
+    )
+    if stop is None:  # pragma: no cover - sse-starlette 3.3 未満
+        return EventSourceResponse(stream)
     return EventSourceResponse(
-        _sse_event_stream(
-            service, engine, view_name, interval, request.is_disconnected, stop
-        ),
-        shutdown_event=stop,
-        shutdown_grace_period=_SSE_SHUTDOWN_GRACE,
+        stream, shutdown_event=stop, shutdown_grace_period=_SSE_SHUTDOWN_GRACE
     )

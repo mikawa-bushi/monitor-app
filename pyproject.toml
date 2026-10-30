@@ -176,6 +176,7 @@ max-complexity = 20
 extend-immutable-calls = [
     "fastapi.Body",
     "fastapi.Depends",
+    "fastapi.File",
     "fastapi.Form",
     "fastapi.Path",
     "fastapi.Query",

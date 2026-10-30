@@ -90,6 +90,10 @@ class AppSettings(BaseSettings):
     api_key: str | None = None
     #: True なら読み取り系エンドポイントも API キーで保護する。
     protect_reads: bool = False
+    #: 管理の機能(画面での設定の編集・CSV のアップロード)の鍵。設定すると、管理の
+    #: 機能はこの鍵でだけ使える(API キーを渡した作業者・閲覧者は設定を変えられない)。
+    #: 未設定なら API キーで使える(API キーも無ければ、この PC からだけ使える)。
+    admin_key: str | None = None
 
     #: CORS を許可するオリジン。空ならクロスオリジンを許可しない(同一オリジンのみ)。
     cors_origins: list[str] = Field(default_factory=list)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -126,7 +127,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RedirectToLogin)
-    async def _handle_login_redirect(request: Request, _exc: RedirectToLogin):
+    async def _handle_login_redirect(request: Request, exc: RedirectToLogin):
         # 未認証の HTML ページアクセスはログインページへ誘導する(#11)。
         # サブパス配信(MONITOR_ROOT_PATH)ではサブパスの内側のログインページへ。
-        return RedirectResponse(url=app_root_path(request) + "/login", status_code=303)
+        url = app_root_path(request) + "/login"
+        if exc.next_path:
+            url += "?next=" + quote(exc.next_path)
+        return RedirectResponse(url=url, status_code=303)

@@ -1,0 +1,73 @@
+{#
+  settings.html — 設定ページ(管理の機能)。
+
+  base.html を継承する。共通コンテキストに加えて受け取る変数(pages.py の settings_page()):
+    admin_disabled : str | None — 管理の機能を使えない理由(LAN に公開していて鍵が無い)。
+                     None なら編集画面を出す
+
+  このテンプレートは器だけを出力する。設定の読み込み・編集・点検・保存は
+  static/js/settings.js が /api/settings を使って行う。
+
+  settings.js との契約(JS はこれらの id / data-* 属性に依存している):
+    #settings-app            … 編集画面の全体(aria-busy は読み込み中)
+    #settings-notice         … 読み込みのエラー・画面で変えた設定があることの知らせ
+    [data-tab] / [data-panel] … タブのボタンと、その中身を描く場所(同じ値で対応)
+    #settings-issues         … 点検の結果(エラー・警告)
+    #settings-status         … 保存の状態(未保存の変更・保存しました など)
+    #btn-check / #btn-save / #btn-discard / #btn-reset … 操作のボタン
+#}
+{% extends "base.html" %}
+
+{% block title %}設定 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="page-head__main">
+        <h1>設定</h1>
+        <p class="page-subtitle">表示・ビュー・KPI・アラートを画面で変えられます。保存すると、サーバーを止めずにすぐ反映され、開いている画面も読み直されます。</p>
+    </div>
+    <a class="back-link" href="{{ url_for('upload_page') }}">📤 CSV の取り込み</a>
+</div>
+
+{% if admin_disabled %}
+<div class="card settings-disabled">
+    <p>{{ admin_disabled }}</p>
+</div>
+{% else %}
+<div id="settings-app" class="settings" aria-busy="true">
+    <div id="settings-notice"></div>
+    <div id="settings-issues" class="settings-issues" aria-live="polite" hidden></div>
+
+    <div class="settings-tabs" role="tablist" aria-label="設定の種類">
+        <button type="button" role="tab" data-tab="general" aria-selected="true">全般</button>
+        <button type="button" role="tab" data-tab="views" aria-selected="false">ビュー</button>
+        <button type="button" role="tab" data-tab="kpis" aria-selected="false">KPI</button>
+        <button type="button" role="tab" data-tab="alerts" aria-selected="false">アラート</button>
+        <button type="button" role="tab" data-tab="display" aria-selected="false">大型表示・ダッシュボード</button>
+    </div>
+
+    <section class="settings-panel" role="tabpanel" data-panel="general" aria-label="全般"></section>
+    <section class="settings-panel" role="tabpanel" data-panel="views" aria-label="ビュー" hidden></section>
+    <section class="settings-panel" role="tabpanel" data-panel="kpis" aria-label="KPI" hidden></section>
+    <section class="settings-panel" role="tabpanel" data-panel="alerts" aria-label="アラート" hidden></section>
+    <section class="settings-panel" role="tabpanel" data-panel="display" aria-label="大型表示・ダッシュボード" hidden></section>
+
+    <div class="settings-bar">
+        <span id="settings-status" class="settings-status" role="status">読み込み中…</span>
+        <div class="settings-bar__actions">
+            <button type="button" id="btn-reset" class="settings-btn settings-btn--quiet" disabled>config.py の設定に戻す</button>
+            <button type="button" id="btn-discard" class="settings-btn" disabled>変更を取り消す</button>
+            <button type="button" id="btn-check" class="settings-btn" disabled>点検</button>
+            <button type="button" id="btn-save" class="settings-btn settings-btn--primary" disabled>保存</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<link href="{{ static_url('css/settings.css') }}" rel="stylesheet">
+{% if not admin_disabled %}
+<script src="{{ static_url('js/settings.js') }}"></script>
+{% endif %}
+{% endblock %}

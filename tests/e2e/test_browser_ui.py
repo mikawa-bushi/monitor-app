@@ -30,6 +30,8 @@ from contract import helpers
 pytestmark = pytest.mark.e2e
 
 CHROME = os.environ.get("MONITOR_TEST_CHROME")
+#: E2E のサーバーの管理者の鍵(MONITOR_ADMIN_KEY)。
+ADMIN_KEY = "e2e-admin-key-0123456789"
 CONTRAST_JS = (Path(__file__).parent / "browser_contrast.js").read_text(
     encoding="utf-8"
 )
@@ -164,11 +166,15 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _request(port: int, method: str, path: str, body=None) -> tuple[int, bytes]:
+def _request(
+    port: int, method: str, path: str, body=None, headers: dict | None = None
+) -> tuple[int, bytes]:
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     try:
         payload = json.dumps(body).encode() if body is not None else None
-        headers = {"Content-Type": "application/json"} if payload else {}
+        headers = dict(headers or {})
+        if payload:
+            headers["Content-Type"] = "application/json"
         conn.request(method, path, body=payload, headers=headers)
         res = conn.getresponse()
         return res.status, res.read()
@@ -181,6 +187,8 @@ def server(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("browser-ui")
     env = helpers.child_env()
     env["MONITOR_ROOT_PATH"] = ROOT
+    # 管理の機能(設定・CSV の取り込み)だけに鍵をかける(閲覧と書き込みは鍵なしのまま)
+    env["MONITOR_ADMIN_KEY"] = ADMIN_KEY
     created = helpers.run_cli("startproject", "proj", cwd=tmp, env=env)
     assert created.returncode == 0, created.stderr.decode("utf-8", "replace")
     project = tmp / "proj"
@@ -626,3 +634,197 @@ def test_empty_alert_banner_stays_in_the_accessibility_tree(server, tab):
         return [el.getAttribute("role"), el.getAttribute("aria-live"),
                 el.getBoundingClientRect().height > 10]; })()""")
     assert banner == ["alert", "assertive", True]
+
+
+# ---------------------------------------------------------------------------
+# 管理の画面(設定ページ・CSV の取り込み)
+# ---------------------------------------------------------------------------
+ADMIN = {"X-API-Key": ADMIN_KEY}
+
+
+def _login_as_admin(tab: Tab, server: int, page: str) -> None:
+    """管理の画面を開き、ログインの画面で管理者の鍵を入れて戻る。"""
+    tab.goto(_url(server, page))
+    assert tab.eval("location.pathname") == ROOT + "/login"
+    assert tab.eval("location.search") == f"?next={page}"
+    tab.eval(
+        f'document.getElementById("key").value = "{ADMIN_KEY}";'
+        ' document.querySelector("form").submit(); 1'
+    )
+    tab.wait_for(f'location.pathname === "{ROOT}{page}"')
+    tab.wait_for("document.readyState === 'complete'")
+
+
+def _reset_settings(server: int) -> None:
+    status, body = _request(server, "GET", ROOT + "/api/settings", headers=ADMIN)
+    assert status == 200
+    revision = json.loads(body)["revision"]
+    status, _ = _request(
+        server, "DELETE", f"{ROOT}/api/settings?revision={revision}", headers=ADMIN
+    )
+    assert status == 200
+
+
+def _settings_loaded(tab: Tab) -> None:
+    tab.wait_for(
+        'document.getElementById("settings-app").getAttribute("aria-busy") === "false"'
+    )
+
+
+def _type(tab: Tab, selector: str, value: str) -> None:
+    """入力欄に値を入れ、input イベントを出す(利用者の入力と同じ)。"""
+    tab.eval(f"""(() => {{ const el = document.querySelector({json.dumps(selector)});
+        el.value = {json.dumps(value)};
+        el.dispatchEvent(new Event("input", {{ bubbles: true }})); return 1; }})()""")
+
+
+def test_settings_page_edits_a_view_and_saves_it(server, tab):
+    try:
+        _login_as_admin(tab, server, "/settings")
+        _settings_loaded(tab)
+        tab.eval('document.querySelector("[data-tab=views]").click(); 1')
+        tab.eval('document.querySelector("[data-panel=views] details").open = true; 1')
+        title = '[data-panel=views] details input[type="text"]'
+        assert tab.eval(f"document.querySelector({json.dumps(title)}).value") == (
+            "ユーザー一覧"
+        )
+        _type(tab, title, "利用者の一覧")
+        tab.wait_for('!document.getElementById("btn-save").disabled')
+        tab.eval('document.getElementById("btn-save").click(); 1')
+        tab.wait_for(
+            'document.getElementById("settings-status").className.includes("ok")'
+        )
+        status, body = _request(server, "GET", ROOT + "/api/views/users_view")
+        assert status == 200 and json.loads(body)["title"] == "利用者の一覧"
+        assert "views" in tab.eval("location.hash")  # 保存の後も同じタブのまま
+        assert tab.errors() == []
+    finally:
+        _reset_settings(server)
+
+
+def test_settings_check_reports_sql_errors_without_saving(server, tab):
+    _login_as_admin(tab, server, "/settings")
+    _settings_loaded(tab)
+    tab.eval('document.querySelector("[data-tab=views]").click(); 1')
+    tab.eval('document.querySelector("[data-panel=views] details").open = true; 1')
+    _type(tab, "[data-panel=views] details textarea", "SELECT * FROM userz")
+    tab.eval('document.getElementById("btn-check").click(); 1')
+    tab.wait_for('!document.getElementById("settings-issues").hidden')
+    text = tab.eval('document.getElementById("settings-issues").textContent')
+    assert "userz" in text and "エラー" in text
+    tab.eval('document.getElementById("btn-save").click(); 1')
+    tab.wait_for(
+        'document.getElementById("settings-status").className.includes("error")'
+    )
+    status, _ = _request(server, "GET", ROOT + "/api/views/users_view")
+    assert status == 200  # 保存していないので、元の SQL のまま動く
+    assert tab.errors() == []
+
+
+def test_settings_page_adds_an_alert_from_the_alert_tab(server, tab):
+    try:
+        _login_as_admin(tab, server, "/settings")
+        _settings_loaded(tab)
+        tab.eval('document.querySelector("[data-tab=alerts]").click(); 1')
+        before = tab.eval('document.querySelectorAll(".settings-alert").length')
+        tab.eval(
+            "[...document.querySelectorAll('[data-panel=alerts] > button')]"
+            ".pop().click(); 1"
+        )
+        tab.wait_for(
+            f'document.querySelectorAll(".settings-alert").length === {before + 1}'
+        )
+        tab.eval(
+            """(() => { const card = [...document.querySelectorAll(".settings-alert")].pop();
+            const view = card.querySelector("select");
+            view.value = "products_view"; view.dispatchEvent(new Event("change"));
+            const column = card.querySelector('input[type="text"]');
+            column.value = "price"; column.dispatchEvent(new Event("input"));
+            const value = card.querySelector('input[type="number"]');
+            value.value = "999999"; value.dispatchEvent(new Event("input"));
+            return 1; })()"""
+        )
+        tab.eval('document.getElementById("btn-save").click(); 1')
+        tab.wait_for(
+            'document.getElementById("settings-status").className.includes("ok")'
+        )
+        status, body = _request(server, "GET", ROOT + "/api/settings", headers=ADMIN)
+        assert status == 200
+        alerts = json.loads(body)["settings"]["alerts"]
+        assert alerts[-1]["view"] == "products_view"
+        assert (alerts[-1]["column"], alerts[-1]["value"]) == ("price", 999999)
+        assert tab.errors() == []
+    finally:
+        _reset_settings(server)
+
+
+@pytest.mark.parametrize("page", ["/table/users_view", "/"])
+def test_open_pages_reload_when_the_settings_are_saved(server, tab, page):
+    tab.goto(_url(server, page))
+    tab.cdp.pump(1.5)  # SSE の接続・最初のポーリングを待つ
+    tab.eval("window.__beforeReload = true; 1")
+    status, body = _request(server, "GET", ROOT + "/api/settings", headers=ADMIN)
+    loaded = json.loads(body)
+    settings = loaded["settings"]
+    settings["views"]["users_view"]["title"] = "読み直しの確認"
+    try:
+        status, _ = _request(
+            server,
+            "PUT",
+            ROOT + "/api/settings",
+            {"settings": settings, "revision": loaded["revision"]},
+            headers=ADMIN,
+        )
+        assert status == 200
+        tab.wait_for("window.__beforeReload !== true", timeout=15)
+        tab.wait_for("document.readyState === 'complete'")
+        assert "読み直しの確認" in tab.eval("document.body.textContent")
+    finally:
+        _reset_settings(server)
+
+
+def test_upload_page_imports_a_csv_file(server, tab, tmp_path):
+    csv_file = tmp_path / "new_users.csv"
+    csv_file.write_text("id,name,email\n901,アップロード太郎,u@example.com\n", "utf-8")
+    _login_as_admin(tab, server, "/upload")
+    tab.eval('document.getElementById("u-table").value = "users"; 1')
+    tab.eval('document.getElementById("u-table").dispatchEvent(new Event("change")); 1')
+    assert "email" in tab.eval('document.getElementById("u-columns").textContent')
+    tab.send("DOM.enable")
+    root = tab.send("DOM.getDocument", {"depth": 0})["root"]["nodeId"]
+    node = tab.send("DOM.querySelector", {"nodeId": root, "selector": "#u-file"})
+    tab.send(
+        "DOM.setFileInputFiles", {"nodeId": node["nodeId"], "files": [str(csv_file)]}
+    )
+    tab.eval('document.querySelector("#upload-form button[type=submit]").click(); 1')
+    tab.wait_for('document.getElementById("upload-result").className.includes("ok")')
+    result = tab.eval('document.getElementById("upload-result").textContent')
+    assert "new_users.csv" in result and "1 行追記しました" in result
+    status, body = _request(server, "GET", ROOT + "/api/views/users_view")
+    assert status == 200
+    assert any(r["name"] == "アップロード太郎" for r in json.loads(body)["data"])
+    assert tab.errors() == []
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("page", ["/settings", "/upload"])
+def test_admin_pages_are_readable_in_both_themes(server, tab, page, theme):
+    _login_as_admin(tab, server, page)
+    tab.eval(f'localStorage.setItem("monitor-theme", "{theme}")')
+    tab.goto(_url(server, page))
+    if page == "/settings":
+        _settings_loaded(tab)
+        for name in ("general", "views", "kpis", "alerts", "display"):
+            tab.eval(f'document.querySelector("[data-tab={name}]").click(); 1')
+            tab.eval(
+                'document.querySelectorAll("details").forEach(d => d.open = true); 1'
+            )
+            tab.cdp.pump(0.2)
+            result = tab.eval(CONTRAST_JS)
+            assert result["theme"] == theme
+            assert result["failing"] == [], (name, result["failing"])
+    else:
+        result = tab.eval(CONTRAST_JS)
+        assert result["checked"] > 0
+        assert result["failing"] == [], result["failing"]
+    assert tab.errors() == []

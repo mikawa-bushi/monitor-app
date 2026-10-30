@@ -27,7 +27,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..db.engine import Database
 from ..db.gate import fetch_all
 from ..exceptions import QueryExecutionError, ViewNotFoundError
-from ..settings.declarative import MonitorConfig
+from ..settings.declarative import MonitorConfig, ViewDef
 from .view_cache import ViewCache
 
 logger = logging.getLogger("monitor_app.views")
@@ -198,11 +198,10 @@ class ViewService:
         return columns, rows
 
     def _compute_snapshot(
-        self, view_name: str, limit: int | None, offset: int
+        self, view_name: str, vdef: ViewDef, limit: int | None, offset: int
     ) -> ViewSnapshot:
         """クエリを実行してスナップショットを作る。キャッシュの計算関数。"""
         seq = next(_snapshot_seq)  # データを読む前に採番する(読んだ時点の順序)
-        vdef = self.config.views[view_name]
         eff_limit, eff_offset = self._bounds(vdef.max_rows, limit, offset)
         sql = vdef.query
         params: dict[str, Any] = {}
@@ -265,13 +264,14 @@ class ViewService:
         ``wait=False`` なら、ほかの呼び出しが同じビューを計算中のとき、待たずに
         :class:`~monitor_app.services.view_cache.ComputationPending` を送出する。
         """
+        # 定義は 1 回だけ読む(画面で設定を変えて差し替えても、計算中の定義は変わらない)
         vdef = self.config.views.get(view_name)
         if vdef is None:
             raise ViewNotFoundError(f"ビュー '{view_name}' は定義されていません")
         if limit is None:
             offset = 0  # limit が無ければ offset は使わない(同じキャッシュを共有する)
         if self.cache is None:
-            return self._compute_snapshot(view_name, limit, offset)
+            return self._compute_snapshot(view_name, vdef, limit, offset)
         cacheable = None
         max_bytes = getattr(self.cache, "max_bytes", None)
         if limit is not None and max_bytes is not None:
@@ -283,7 +283,7 @@ class ViewService:
 
         return self.cache.get_or_compute(
             (view_name, limit, offset),
-            lambda: self._compute_snapshot(view_name, limit, offset),
+            lambda: self._compute_snapshot(view_name, vdef, limit, offset),
             time_relative=is_time_relative(vdef.query),
             cacheable=cacheable,
             **({} if wait else {"wait": False}),

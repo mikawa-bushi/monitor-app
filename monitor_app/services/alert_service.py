@@ -69,9 +69,7 @@ class AlertEngine:
     def __post_init__(self) -> None:
         self._notifiers = build_notifiers(self.settings)
         # ルールを対象ビューごとに索引化。
-        self._by_view: dict[str, list[AlertRule]] = {}
-        for rule in self.config.alerts:
-            self._by_view.setdefault(rule.view, []).append(rule)
+        self._by_view = self._index(self.config)
         # _active と評価済みハッシュを保護するロック(#12)。
         self._lock = threading.Lock()
         #: ビュー名 → (評価したデータのハッシュ, スナップショットの通し番号)。
@@ -84,6 +82,32 @@ class AlertEngine:
         # webhook/SMTP などブロッキング I/O を伴う通知先がある場合のみ
         # 非同期ワーカーを使う。console だけならログ出力のみで即時送る(#14)。
         self._use_async_notify = any(name != "console" for name in self._notifiers)
+        self._warn_unusable_channels()
+
+    @staticmethod
+    def _index(config: MonitorConfig) -> dict[str, list[AlertRule]]:
+        by_view: dict[str, list[AlertRule]] = {}
+        for rule in config.alerts:
+            by_view.setdefault(rule.view, []).append(rule)
+        return by_view
+
+    def reconfigure(self, config: MonitorConfig) -> None:
+        """ルールを差し替える(画面で設定を変えたとき。サーバーは止めない)。
+
+        消えたルール・条件(ビュー・列・比較・閾値)を変えたルールの発火中のアラートは、
+        通知せずに解除する(ルールが無くなったので「復帰」とは言えない)。評価済みの記録を
+        捨て、次の評価で全ビューを新しいルールで評価し直す(違反していれば、条件を変えた
+        ルールは新しく発火して通知する)。メッセージ・レベル・通知先だけを変えたルールは
+        発火中のまま、次の評価から新しい値を使う。
+        """
+        by_view = self._index(config)
+        keys = {self._rule_key(rule) for rule in config.alerts}
+        with self._lock:
+            self.config = config
+            self._by_view = by_view
+            for key in [k for k in self._active if k not in keys]:
+                del self._active[key]
+            self._evaluated.clear()
         self._warn_unusable_channels()
 
     # ------------------------------------------------------------------

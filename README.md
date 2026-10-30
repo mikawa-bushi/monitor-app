@@ -67,6 +67,7 @@ Coming from 2.3? Read **Upgrading from 2.3.x** below.
 | Trend / SPC charts | Line and bar charts with UCL / LCL / target lines | `ViewDef(chart=ChartDef(...))` |
 | Threshold alerts | Banner, browser notification, webhook (Slack, Teams), e-mail; notified once per change, retried on failure | `alerts=[AlertRule(...)]` |
 | Operator entry forms | Touch-friendly forms generated from the table definition | `TableDef(form=FormDef(...))`, `/form/{table}` |
+| Settings and CSV upload in the browser | Edit display options, views (SQL), cell styles, charts, KPIs, alerts and the wallboard in the browser; applied without a restart, and open pages reload themselves. Upload CSV files into tables | `/settings`, `/upload` |
 | Data input | CSV import (UTF-8 or Excel cp932), folder watching (replace or append), bulk `POST` for PLC/MES/sensors, read-only `sources` (SQLite/JSONL/JSON) | `import-csv`, `MONITOR_INGEST_WATCH`, `/api/ingest/{table}` |
 | REST API | CRUD per table, view data, CSV/Excel export, OpenAPI docs | `/api/...`, `/docs`, `/redoc` |
 | Python API | Build the app from your own code, load and validate `config.py` | `create_app`, `load_config` (see **Python API**) |
@@ -394,6 +395,57 @@ MySQL `MONITOR_DATABASE_URL`, values those databases would reject.
 The legacy v1 dict-style `config.py` (`ALLOWED_TABLES` ...) still loads; see
 **Migrating from v0.x** below.
 
+## 🖱 Change settings and upload CSV files in the browser
+
+The **⚙️ Settings** page (`/settings`) changes the following without editing
+`config.py`. Saving applies the change at once, without restarting the server,
+and open pages (the wallboard too) reload themselves.
+
+| Tab | What you can change |
+|---|---|
+| General | App name, header and footer text, refresh interval and mode |
+| Views | Title, description, group, row limit, SQL, column labels, cell styles, chart (control and target lines); add and delete views |
+| KPIs | Title, SQL, unit, target, number format, linked view; add and delete KPIs |
+| Alerts | View, column, condition, value, level, message, channels; add and delete alerts |
+| Wallboard and dashboard | Wallboard rotation, theme and views; how many charts per row on the home page and which ones |
+
+- Tables, `sources` and the favicon stay in `config.py` (changing them would
+  rebuild tables or read files on the server).
+- Only the difference from `config.py` is stored, in the database (internal
+  table `_settings`), so it survives restarts and is part of SQLite backups.
+  Fields changed in the browser win over the same fields in `config.py`; the
+  rest still come from `config.py` (a list such as the alerts is replaced as a
+  whole). **Return to config.py** deletes the stored difference.
+- Before saving, the same checks as `monitor-app check` run (dry-run of the
+  SQL, alert and chart columns, channels); errors block the save. **Check**
+  runs them without saving. SQL entered in the browser must be a single
+  `SELECT` (statements separated by `;` are refused) and runs read-only.
+- If someone else saved in the meantime, the save is refused and the page asks
+  you to reload. With `MONITOR_AUDIT_ENABLED=true` changes go to the audit log
+  (`/api/audit?table=_settings`).
+- If the stored difference no longer fits `config.py` (for example a view was
+  removed there), the server starts with `config.py` alone and the settings page
+  says so.
+
+**📤 Upload CSV** (`/upload`) imports a CSV file into a table with the same code
+as `monitor-app import-csv`: encoding detection (UTF-8, Excel's Shift_JIS),
+header variants, one transaction (nothing changes on failure) and refusing to
+replace a table from a CSV that lacks its columns. Choose **append** (rows whose
+key exists are skipped) or **replace** (all rows become the CSV's rows). The
+uploaded file is not kept on the server.
+
+**Who can use them.** Settings and CSV upload are *admin features*:
+
+| Configuration | Who can use the admin features |
+|---|---|
+| `MONITOR_ADMIN_KEY` set | Whoever logs in with the admin key (or sends it as `X-API-Key`). Holders of `MONITOR_API_KEY` cannot |
+| Only `MONITOR_API_KEY` | Whoever logs in with the API key (same as writes) |
+| Neither | Only this PC (`MONITOR_HOST=127.0.0.1` and no reverse-proxy settings). Disabled when the server is exposed on the LAN or behind a proxy |
+
+Requests sent from pages on other sites (CSRF) are refused. If operators log in
+with the API key to use the entry forms, set a separate `MONITOR_ADMIN_KEY` so
+they cannot change the settings.
+
 ## ⚙️ Settings (`MONITOR_*` / `.env`)
 
 Settings that differ per PC (database URL, port, passwords) do not belong in `config.py`.
@@ -419,6 +471,7 @@ setting) or set them as environment variables, which win over `.env`.
 | **Security** | | |
 | `MONITOR_API_KEY` | (unset) | Turns on authentication: writes (API, forms, ingest) need the key — `X-API-Key` header, or a login in the browser (the session lasts 12 hours). Use 16 or more random characters; `monitor-app deploy` writes one into `.env`. An empty value counts as unset. |
 | `MONITOR_PROTECT_READS` | `false` | Require the key for reading too (pages, read APIs and the API documentation). |
+| `MONITOR_ADMIN_KEY` | (unset) | Key for the admin features only (settings page, CSV upload). When set, they accept this key and nothing else; logging in with it also allows reading and writing. Unset: `MONITOR_API_KEY` works. See **Change settings and upload CSV files in the browser** above. |
 | `MONITOR_ALLOWED_HOSTS` | (unset) | Host names the server answers to (comma list; `*.example.com` matches subdomains, `*` turns the check off). Unset: a server that listens on `127.0.0.1` refuses host names other than `localhost`, its own names and IP addresses (DNS-rebinding protection); LAN, Docker and the reverse-proxy setups below are not checked. A list is enforced on every interface. |
 | `MONITOR_CORS_ORIGINS` | `[]` | Other web origins allowed to call the API, as JSON: `["http://localhost:3000"]`. Empty = same origin only. |
 | **CSV import** | | |
@@ -757,7 +810,9 @@ It answers `200` when the database responds to `SELECT 1` and `503` (with
 | `/table/{view}` | Live table / chart page |
 | `/kiosk` | Andon wallboard (full screen, rotating) |
 | `/form/{table}` | Operator entry form |
-| `/login` | Login page (used when `MONITOR_API_KEY` is set) |
+| `/settings` | Settings page (admin feature) |
+| `/upload` | CSV upload (admin feature) |
+| `/login` | Login page (used when `MONITOR_API_KEY` or `MONITOR_ADMIN_KEY` is set) |
 | `/docs`, `/redoc` | OpenAPI documentation (these two pages load pinned Swagger UI / ReDoc versions from a CDN; login needed with `MONITOR_PROTECT_READS`; off with `MONITOR_API_DOCS=false`) |
 | `GET/POST /api/tables/{table}` | List rows (`?limit=`, `?offset=`; pages are ordered by primary key) / add a row |
 | `GET/PUT/DELETE /api/tables/{table}/{id}` | One row |
@@ -768,6 +823,9 @@ It answers `200` when the database responds to `SELECT 1` and `503` (with
 | `GET /api/views/{view}/export` | `?format=csv` or `xlsx`; `?bom=1` adds a UTF-8 BOM so Excel shows Japanese text correctly. Text that starts with `=` `+` `-` `@` is exported so that spreadsheets do not run it as a formula; `?raw=1` exports the values exactly as stored |
 | `GET /api/kpis`, `/api/alerts`, `/api/schema` | KPI values, active alerts, table definitions |
 | `GET /api/audit` | Change history (`?table=`, `?limit=`) when `MONITOR_AUDIT_ENABLED=true` |
+| `GET/PUT/DELETE /api/settings` | Settings editable in the browser / check and save (`{"settings": {...}, "revision": "..."}`; errors → `422`, saved by someone else first → `409`) / return to `config.py`. Admin feature |
+| `POST /api/settings/check` | Check without saving (same rules as `monitor-app check`). Admin feature |
+| `POST /api/upload/{table}` | CSV upload (multipart `file`, `mode=append` or `replace`, `force`). Admin feature |
 | `GET/HEAD /api/health` | Health check (see above) |
 
 With `MONITOR_API_KEY` set, send the key in the `X-API-Key` header:
