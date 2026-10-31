@@ -301,6 +301,8 @@ def test_alert_column_mismatch_is_an_error_and_check_returns_columns():
     [
         "SELECT 1; DELETE FROM readings",
         "SELECT $$x$$; COMMIT; DELETE FROM readings",
+        "SELECT ';' AS sep FROM readings",
+        "SELECT 1 --1; COMMIT; DELETE FROM readings; COMMIT",
     ],
 )
 def test_multiple_statements_from_the_screen_are_refused(query):
@@ -312,14 +314,14 @@ def test_multiple_statements_from_the_screen_are_refused(query):
     assert "sql-multiple-statements" in {i["code"] for i in res.json()["issues"]}
 
 
-def test_semicolons_inside_strings_and_trailing_ones_are_fine():
+def test_trailing_semicolons_are_fine():
     client = TestClient(_app())
     body = _load(client)
-    body["settings"]["views"]["latest"]["query"] = "SELECT ';' AS sep FROM readings;"
+    body["settings"]["views"]["latest"]["query"] = "SELECT line FROM readings;  "
     res = _save(client, body, body["settings"])
     assert res.status_code == 200, res.text
     assert res.json()["settings"]["views"]["latest"]["query"] == (
-        "SELECT ';' AS sep FROM readings"
+        "SELECT line FROM readings"
     )
 
 

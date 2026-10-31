@@ -107,22 +107,14 @@ def test_security_headers_present():
     "sql",
     [
         "SELECT 1",
-        "SELECT ';' AS sep",
-        "SELECT 'it''s; fine'",
-        'SELECT "a;b" FROM t',
-        "SELECT 1 -- note; here\nFROM t",
-        "SELECT 1 /* ; */ FROM t",
-        "SELECT 1 /* nested /* ; */ still comment ; */ FROM t",
-        "SELECT $$;$$",
-        "SELECT $tag$ ; $$ ; $tag$",
-        "SELECT a$b$ FROM t",  # 識別子の中の $ はドル引用ではない
-        "SELECT E'\\';' AS q",  # E'' の中の \' は引用の中
+        "SELECT line, AVG(tmp) FROM readings GROUP BY line",
+        "SELECT 1 -- note\nFROM t",
     ],
 )
-def test_single_statements_pass(sql):
-    from monitor_app.security import has_multiple_statements
+def test_sql_without_semicolons_passes(sql):
+    from monitor_app.security import may_contain_multiple_statements
 
-    assert has_multiple_statements(sql) is False
+    assert may_contain_multiple_statements(sql) is False
 
 
 @pytest.mark.parametrize(
@@ -130,20 +122,21 @@ def test_single_statements_pass(sql):
     [
         "SELECT 1; DELETE FROM t",
         "SELECT 1;COMMIT",
-        "SELECT $$'$$; DELETE FROM t; SELECT $$'$$",  # ドル引用で ' の数を合わせる
-        "SELECT E'\\'' ; DELETE FROM t --'",  # E'' の \' で引用を閉じたように見せる
-        "SELECT 'a\\' ; DELETE FROM t; SELECT '",  # 標準の文字列の \ はエスケープではない
-        "SELECT 'unterminated",
-        "SELECT 1 /* not closed",
-        "SELECT $$ not closed",
-        # バックスラッシュの扱いが分からないときは断る(見逃すより断る)
-        "SELECT 'C:\\' , 'x'",
+        # 引用・コメントの読み方は DB ごとに違うため、どこにある ; も断る
+        "SELECT ';' AS sep",
+        "SELECT $$'$$; DELETE FROM t; SELECT $$'$$",
+        "SELECT 'a\\' ; DELETE FROM t; SELECT '",
+        # MySQL では -- の後ろに空白が要る(1 --1 は引き算で、; が文を区切る)
+        "SELECT 1 --1; COMMIT; DELETE FROM t; COMMIT",
+        # MySQL は /*! */ の中身を実行し、コメントを入れ子にしない
+        "SELECT 1 /*! ; COMMIT; DELETE FROM t */",
+        "SELECT 1 /* /* */ ; COMMIT; DELETE FROM t; -- */",
     ],
 )
-def test_multiple_or_unclear_statements_are_detected(sql):
-    from monitor_app.security import has_multiple_statements
+def test_any_semicolon_is_refused(sql):
+    from monitor_app.security import may_contain_multiple_statements
 
-    assert has_multiple_statements(sql) is True
+    assert may_contain_multiple_statements(sql) is True
 
 
 @pytest.mark.parametrize(

@@ -5,7 +5,7 @@
 - **表計算ソフトの数式** … CSV・Excel のエクスポートで、``=`` などで始まる文字列が
   数式として実行されないようにする(#D6-10。CSV インジェクション対策)。
 - **画面から保存する SQL** … 1 回で複数の文を送らせない(読み取り専用の制限を抜けられる
-  ため)。
+  ため)。``;`` はどこにも書かせない。
 - **Host ヘッダ** … このパソコンだけで待ち受けている(127.0.0.1 など)サーバーへの
   DNS リバインディング対策(#D6-03)。悪意のある Web ページが自分のドメイン名を
   127.0.0.1 に向け直すと、ブラウザはそのページと同じオリジンとして API を呼べて
@@ -20,7 +20,6 @@ FastAPI・Starlette には依存しない(CLI の起動を重くしない)。
 from __future__ import annotations
 
 import ipaddress
-import re
 import secrets
 import socket
 from collections.abc import Iterable
@@ -146,93 +145,17 @@ def neutralize_formula(value: object) -> object:
 # ---------------------------------------------------------------------------
 # 画面から保存する SQL
 # ---------------------------------------------------------------------------
-#: PostgreSQL のドル引用の開始(``$$`` か ``$tag$``)。
-_DOLLAR_TAG_RE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
-
-
-def _is_word_char(ch: str) -> bool:
-    return ch.isalnum() or ch in "_$"
-
-
-def _separator_outside_quotes(sql: str, *, all_backslash: bool) -> bool:
-    """引用・コメントの外に ``;`` があるか。引用・コメントが閉じていなければ True。
-
-    PostgreSQL の字句の規則で読む: ``'...'``(``''`` が引用の中の ``'``。バックスラッシュは
-    ``E'...'`` の中でだけエスケープ)・``"..."``・ドル引用・``--`` と入れ子にできる
-    ``/* */`` のコメント。``all_backslash=True`` は、どの引用の中のバックスラッシュも
-    エスケープとして読む(MySQL や standard_conforming_strings=off の PostgreSQL)。
-    """
-    i, n = 0, len(sql)
-    while i < n:
-        ch = sql[i]
-        if ch == ";":
-            return True
-        if ch in "'\"`":
-            e_string = (
-                ch == "'"
-                and i > 0
-                and sql[i - 1] in "eE"
-                and (i < 2 or not _is_word_char(sql[i - 2]))
-            )
-            escapes = all_backslash or e_string
-            i += 1
-            while True:
-                if i >= n:
-                    return True  # 閉じていない(読み違えている恐れがあるため断る)
-                if escapes and sql[i] == "\\":
-                    i += 2
-                elif sql[i] == ch:
-                    if sql.startswith(ch * 2, i):  # '' は引用の中の '
-                        i += 2
-                        continue
-                    i += 1
-                    break
-                else:
-                    i += 1
-            continue
-        if sql.startswith("--", i):
-            end = sql.find("\n", i)
-            if end == -1:
-                return False
-            i = end + 1
-            continue
-        if sql.startswith("/*", i):
-            depth, i = 1, i + 2
-            while depth:
-                if i >= n:
-                    return True
-                if sql.startswith("/*", i):
-                    depth, i = depth + 1, i + 2
-                elif sql.startswith("*/", i):
-                    depth, i = depth - 1, i + 2
-                else:
-                    i += 1
-            continue
-        if ch == "$" and (i == 0 or not _is_word_char(sql[i - 1])):
-            tag = _DOLLAR_TAG_RE.match(sql, i)
-            if tag:
-                end = sql.find(tag.group(), tag.end())
-                if end == -1:
-                    return True
-                i = end + len(tag.group())
-                continue
-        i += 1
-    return False
-
-
-def has_multiple_statements(sql: str) -> bool:
-    """SQL が複数の文(引用・コメントの外の ``;``)を含むか。
+def may_contain_multiple_statements(sql: str) -> bool:
+    """SQL に ``;`` があるか(末尾の ``;`` は設定の読み込み時に取り除かれる)。
 
     画面から保存するビュー・KPI の SQL に使う。読み取り専用の制限(PostgreSQL / MySQL の
     ``SET TRANSACTION READ ONLY``)は 1 つのトランザクションにしか効かないため、1 回で
-    複数の文を送れるドライバ(psycopg)では ``SELECT 1; COMMIT; DELETE ...`` で制限を
-    抜けられる。引用の中のバックスラッシュの扱いは DB と設定によって違うため、2 通りの
-    読み方のどちらかで ``;`` が見つかれば True にする(見逃すより断る方に倒す)。末尾の
-    ``;`` は設定の読み込み時に取り除かれる。
+    複数の文を送れるドライバ(psycopg・mysqlclient)では ``SELECT 1; COMMIT; DELETE ...``
+    で制限を抜けられる。引用・コメントの読み方は DB ごとに違い(MySQL の ``--`` は後ろに
+    空白が要る・``/*! */`` の中身は実行される・コメントは入れ子にならない、など)、
+    読み違えると区切りの ``;`` を見逃すため、引用・コメントの中も含めて ``;`` を許さない。
     """
-    return _separator_outside_quotes(
-        sql, all_backslash=False
-    ) or _separator_outside_quotes(sql, all_backslash=True)
+    return ";" in sql
 
 
 # ---------------------------------------------------------------------------

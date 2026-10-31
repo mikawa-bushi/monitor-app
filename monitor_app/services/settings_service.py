@@ -9,7 +9,8 @@ config.py の設定(``base``)に、画面で変えた差分(:mod:`~monitor_app.s
 さらに次のものを断る(config.py と同じ値なら対象外。サーバーの管理者が書いたもの
 だから):
 
-- 複数の文を含む SQL(読み取り専用の制限を抜けられる — :func:`has_multiple_statements`)
+- ``;`` を含む SQL(複数の文で読み取り専用の制限を抜けられる —
+  :func:`~monitor_app.security.may_contain_multiple_statements`)
 - 値の属性・添字を読む表示形式(``{0.__class__}`` など。値の書式だけを許す)
 
 保存とリセットは 1 つずつ行い、画面が読み込んだときの版(:func:`config_revision`)と
@@ -30,7 +31,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..checks import Issue, check_ui_settings, has_errors, sort_issues
 from ..db.settings_store import SettingsStore
 from ..exceptions import ConflictError
-from ..security import has_multiple_statements
+from ..security import may_contain_multiple_statements
 from ..settings.declarative import MonitorConfig, collect_config_warnings
 from ..settings.infer import UNSAFE_NAME_CHARS, has_control_chars
 from ..settings.loader import validation_messages
@@ -233,15 +234,15 @@ class SettingsEditor:
                     )
                 if original is not None and original.query == item.query:
                     continue
-                if has_multiple_statements(item.query):
+                if may_contain_multiple_statements(item.query):
                     issues.append(
                         Issue(
                             "error",
                             "sql-multiple-statements",
-                            f"{kind} '{name}' の SQL に複数の文があります"
-                            "(; で区切られています)",
-                            "画面からは SELECT 文を 1 つだけ保存できます。文字列の中の ; は"
-                            " ' で囲んでください",
+                            f"{kind} '{name}' の SQL に ; があります",
+                            "画面からは SELECT 文を 1 つだけ保存できます。文字列・コメントの"
+                            "中の ; も使えません(末尾の ; は書けます)。; が要る SQL は"
+                            " config.py に書いてください",
                         )
                     )
         for name, card in config.kpis.items():

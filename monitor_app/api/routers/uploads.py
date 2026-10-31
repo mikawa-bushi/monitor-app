@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 import shutil
 import tempfile
 from functools import partial
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 
 import anyio
@@ -31,16 +32,31 @@ router = APIRouter(prefix="/api/upload", tags=["Upload"])
 #: 取り込みの結果・警告に出すファイル名の最大の長さ。
 _MAX_NAME = 120
 
+#: Windows の装置の名前。拡張子が付いていても、どのフォルダの中でも装置を指す。
+_WINDOWS_DEVICE_RE = re.compile(
+    r"CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³]", re.IGNORECASE
+)
+
 
 def _upload_name(filename: str | None, table_name: str) -> str:
-    """一時フォルダに置くファイル名(送られた名前からフォルダ部分を除いたもの)。
+    """一時フォルダに置くファイル名(送られた名前からフォルダとドライブを除いたもの)。
 
     取り込みの警告(``data.csv 12行目: ...``)に出るので、送られた名前をなるべく残す。
+    どの OS でも Windows の規則(``/`` と ``\\`` の区切り・``D:`` のドライブ)で切り出す。
+    Windows で ``D:config.py`` を一時フォルダにつなぐと D ドライブの今のフォルダを指し、
+    一時フォルダの外(プロジェクトの config.py など)に書いてしまうため。``:`` を含む名前
+    (NTFS の代替データストリーム)・装置の名前(``CON.csv`` など)・点と空白だけの名前は
+    テーブル名の ``.csv`` にする。
     """
-    name = PurePosixPath((filename or "").replace("\\", "/")).name.strip()
-    if not name or name in {".", ".."} or has_control_chars(name):
+    name = PureWindowsPath(filename or "").name.strip()[-_MAX_NAME:]
+    if (
+        not name.strip(". ")
+        or ":" in name
+        or has_control_chars(name)
+        or _WINDOWS_DEVICE_RE.fullmatch(name.split(".", 1)[0].rstrip())
+    ):
         return f"{table_name}.csv"
-    return name[-_MAX_NAME:]
+    return name
 
 
 def _import_upload(
