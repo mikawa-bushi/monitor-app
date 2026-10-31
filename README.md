@@ -419,7 +419,8 @@ and open pages (the wallboard too) reload themselves.
 - Before saving, the same checks as `monitor-app check` run (dry-run of the
   SQL, alert and chart columns, channels); errors block the save. **Check**
   runs them without saving. SQL entered in the browser must be a single
-  `SELECT` (statements separated by `;` are refused) and runs read-only.
+  `SELECT` with no `;` (not even inside quotes or comments; a trailing one is
+  fine) and runs read-only. Put SQL that needs `;` in `config.py`.
 - If someone else saved in the meantime, the save is refused and the page asks
   you to reload. With `MONITOR_AUDIT_ENABLED=true` changes go to the audit log
   (`/api/audit?table=_settings`).

@@ -7,7 +7,7 @@ monitor-app import-csv と同じ取り込み(CsvImporter)を使うこと、取�
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 from fastapi.testclient import TestClient
@@ -140,10 +140,30 @@ def test_uploaded_file_is_not_kept(monkeypatch, tmp_path):
         ("", "lines.csv"),
         ("..", "lines.csv"),
         ("bad\nname.csv", "lines.csv"),
+        ("D:config.py", "config.py"),
+        ("\\\\server\\share\\data.csv", "data.csv"),
+        ("D:..", "lines.csv"),
+        ("...", "lines.csv"),
+        ("data.csv:hidden", "lines.csv"),
+        ("CON.csv", "lines.csv"),
+        ("nul", "lines.csv"),
+        ("com1 .csv", "lines.csv"),
+        ("CONSOLE.csv", "CONSOLE.csv"),
+        ("生産実績.csv", "生産実績.csv"),
     ],
 )
 def test_upload_names_drop_folders(sent, kept):
     assert _upload_name(sent, "lines") == kept
+
+
+@pytest.mark.parametrize(
+    "sent",
+    ["D:config.py", "d:.env", "E:start-monitor.bat", "C:x.csv", "\\\\srv\\s\\x.csv"],
+)
+def test_upload_names_stay_in_the_temp_folder_on_windows(sent):
+    # Windows では、別のドライブの名前をつなぐと一時フォルダの外を指す
+    folder = PureWindowsPath("C:/Users/u/AppData/Local/Temp/monitor-upload-x")
+    assert (folder / _upload_name(sent, "lines")).parent == folder
 
 
 def test_audit_log_records_uploads():
