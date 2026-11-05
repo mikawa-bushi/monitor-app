@@ -13,14 +13,18 @@
 #    - 切り替えられない(--cap-drop ALL で SETUID・SETGID が無い)とき、/project に
 #      書き込めなければ必要な権限を示して終了(1)、書き込めれば警告して root のまま続ける。
 # 2. runserver のときだけプロジェクトを確かめる(--help のときは確かめない)。
-#    - 設定ファイル(--config、既定 config.py)が無く /project が空 → デモプロジェクトを作る
-#      (docker run だけで画面が出る)
+#    - /project をマウントしておらず(空のまま)config.py も無い → 物流倉庫の在庫画面の
+#      デモ(monitor-app demo)を起動する。データは一時的で、何も書き込まない
+#      (docker run だけで動く画面が出る。runserver の --host / --port はそのまま渡す)
+#    - 設定ファイル(--config、既定 config.py)が無く、マウントした /project が空
+#      → サンプルのプロジェクトを作る(手元に残せる雛形)
 #    - config.py が無く空でもない   → 説明を表示して終了(1)
 #    - SQLite の保存先に書き込めない → 対処を表示して終了(1)
 # 3. コマンドを exec する(PID 1 として docker stop の SIGTERM を直接受け取る)。
 #
 # 引数の扱い:
 #   docker run <image>                 → monitor-app runserver --import-csv-if-empty
+#                                        (マウントしていなければ monitor-app demo)
 #   docker run <image> --version       → monitor-app --version(-V も同じ)
 #   docker run <image> --import-csv    → monitor-app runserver --import-csv-if-empty --import-csv
 #   docker run <image> check           → monitor-app check(コマンドとして無い名前は
@@ -283,10 +287,54 @@ wants_help() {
     return 1
 }
 
+# DIR がマウントポイントか(-v・--mount・名前付きボリューム)。mountinfo の 5 番目の欄が
+# マウント先。MONITOR_TEST_MOUNTINFO はテスト用(MONITOR_TEST_UID_MAP と同じ扱い)。
+is_mounted() {
+    awk -v dir="$1" '$5 == dir { found = 1 } END { exit !found }' \
+        "${MONITOR_TEST_MOUNTINFO:-/proc/self/mountinfo}" 2>/dev/null
+}
+
+# runserver の引数が、demo でも使えるものだけか(--host・--port と、取り込みの
+# --import-csv-if-empty)。ほかのオプションがあればこれまでどおり runserver で起動する。
+demo_accepts() {
+    shift 2
+    while [ "$#" -gt 0 ]; do
+        case $1 in
+            --import-csv-if-empty | --host=* | --port=*) ;;
+            --host | --port)
+                [ "$#" -ge 2 ] || return 1
+                shift
+                ;;
+            *) return 1 ;;
+        esac
+        shift
+    done
+}
+
+# 倉庫在庫のデモで起動するか: /project がマウントされておらず(イメージの空のフォルダの
+# まま)、config.py も無い。空のフォルダをマウントしたときはサンプルのプロジェクトを作る。
+wants_demo() {
+    [ ! -e "$PROJECT_DIR/config.py" ] && is_empty "$PROJECT_DIR" \
+        && ! is_mounted "$PROJECT_DIR" && demo_accepts "$@"
+}
+
 case ${1:-} in
     monitor-app | */monitor-app)
         if [ "${2:-}" = runserver ] && ! wants_help "$@"; then
-            prepare_project "$@"
+            if wants_demo "$@"; then
+                # monitor-app runserver [opts] → monitor-app demo [opts](runserver だけの
+                # --import-csv-if-empty は外す)
+                cmd=$1
+                shift 2
+                for arg; do
+                    shift
+                    [ "$arg" = --import-csv-if-empty ] || set -- "$@" "$arg"
+                done
+                set -- "$cmd" demo "$@"
+                echo "monitor-app: $PROJECT_DIR がマウントされていないため、倉庫在庫のデモを起動します(自分のプロジェクトは -v \"\$PWD\":/project でマウント)" >&2
+            else
+                prepare_project "$@"
+            fi
         fi
         ;;
 esac
