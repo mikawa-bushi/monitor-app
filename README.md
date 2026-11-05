@@ -21,6 +21,42 @@ works on offline factory networks.
 
 ---
 
+## 👀 See it first: a warehouse inventory demo
+
+Open the inventory screen of a fictional distribution center, with nothing to prepare:
+
+```sh
+uvx monitor-app demo --open                                      # if installed: monitor-app demo --open
+docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app    # with Docker (mount nothing)
+```
+
+Open http://127.0.0.1:9990 (with Docker, http://localhost:9990). What to look at:
+
+- **Stock list**: location, lot, best-before date, days left, cases and pieces. Stock is
+  the SQL sum of a ledger of stock movements.
+- **It moves on its own**: every 4 seconds a receipt, shipment or move happens, and the
+  movement history, KPI cards and charts update by themselves.
+- **Alerts**: right after start, banners show an item below safety stock and lots within
+  2 days of their best-before date. About 90 seconds later a delivery arrives and the
+  safety-stock banner clears.
+- **Other screens**: `/kiosk` (wallboard) and `/form/movements` (entry form). When the
+  demo runs on your own PC, `/settings` (edit settings in the browser) works too.
+
+The data lives in a temporary database that is deleted on exit. At start the demo
+prints where its `config.py` is. Docker shows times in UTC; add `-e TZ=Asia/Tokyo` (or
+your zone) for local time.
+
+To start your own project with the same configuration and fictional data:
+
+```sh
+monitor-app startproject my-warehouse --template warehouse
+cd my-warehouse
+monitor-app runserver --import-csv-if-empty
+```
+
+In a project, movements do not happen on their own. The project's `README.md` explains
+how to replace the data with your own.
+
 ## ✨ What's new in 2.4
 
 - **No configuration needed to start.** `monitor-app serve ./my-csv-folder` (or
@@ -265,8 +301,9 @@ Note that `--keep` adds back rows you deleted in the UI if the CSV file still co
 
 | Command | What it does | Main options |
 |---|---|---|
+| `monitor-app demo` | Warehouse inventory demo, nothing to prepare (fictional data, deleted on exit) | `--host`, `--port`, `--open` |
 | `monitor-app serve [PATH...]` | Dashboard straight from CSV files, no `config.py` | `--host`, `--port`, `--db FILE`, `--append`, `--no-watch`, `--write-config FILE`, `--open` |
-| `monitor-app startproject NAME` | Create a project folder | `--from-csv DIR`, `--deploy docker,systemd,windows` (or `all`) |
+| `monitor-app startproject NAME` | Create a project folder | `--template warehouse` (the demo's configuration and data), `--from-csv DIR`, `--deploy docker,systemd,windows` (or `all`) |
 | `monitor-app runserver` | Start the web server | `--import-csv-if-empty`, `--import-csv`, `--force`, `--host`, `--port`, `--reload`, `--config` |
 | `monitor-app check` | Check `config.py`, SQL, settings and the database tables without starting | `--data` (also the CSV files), `--strict` (warnings fail, for CI), `--fix-schema`, `--config` |
 | `monitor-app import-csv` | Import `csv/` into the database (replace) | `--keep`, `--if-empty`, `--force`, `--config` |
@@ -614,7 +651,7 @@ delays the shutdown until the container is killed.
 ### Docker
 
 ```sh
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # demo, no files needed
+docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # warehouse demo, no files needed
 ```
 
 Run your own project (the folder with `config.py`):
@@ -628,7 +665,8 @@ docker run -d --name monitor-app -p 9990:9990 -v "$PWD":/project \
 (Windows PowerShell: `-v "${PWD}:/project"`.) The container switches to the owner of the
 mounted folder and drops all Linux capabilities, so the database and backups belong to
 you on the host whatever your user id is. It starts `runserver --import-csv-if-empty`, so
-rows entered in the UI survive updates. An empty folder gets the sample project.
+rows entered in the UI survive updates. An empty folder gets the sample project. With
+nothing mounted, the warehouse demo above runs on a temporary database.
 For a hardened container add `--cap-drop ALL --cap-add SETUID --cap-add SETGID
 --cap-add CHOWN --security-opt no-new-privileges` (the generated `compose.yaml` sets
 these). `docker run --rm ghcr.io/mikawa-bushi/monitor-app --version` prints the version.

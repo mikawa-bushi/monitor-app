@@ -26,11 +26,18 @@ Files in this repository:
 docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app
 ```
 
-Open http://localhost:9990/. With nothing mounted, the container creates the
-sample project (the same files as `monitor-app startproject`) and imports its
-CSV files. The data is lost when the container is removed.
+Open http://localhost:9990/. With nothing mounted, the container runs
+`monitor-app demo`: the inventory screen of a fictional warehouse whose stock
+moves every 4 seconds. The data lives in a temporary database inside the
+container and nothing is written to the host. Add `-e TZ=Asia/Tokyo` (or your
+zone) to see local times instead of UTC. Options such as `--port 8000` are
+passed to the demo.
 
-From a checkout of this repository (no registry needed):
+Mount an empty folder instead (`-v "$PWD":/project`) to get the sample project
+(the same files as `monitor-app startproject`) on the host.
+
+From a checkout of this repository (no registry needed), Compose builds the
+image and runs the sample project in the `project` volume:
 
 ```sh
 docker compose up -d --build    # http://localhost:9990/
