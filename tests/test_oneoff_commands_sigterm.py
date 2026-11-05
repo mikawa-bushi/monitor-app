@@ -73,6 +73,6 @@ def test_handlers_are_restored_after_each_command(tmp_path, monkeypatch):
 
 
 def test_server_commands_keep_their_own_signal_handling():
-    # runserver・serve は uvicorn が停止のシグナルを受けて正常に止まり、受けたシグナルを
-    # 元のハンドラへ送り直す(systemd は SIGTERM での終了を正常とみなす)。
-    assert {"runserver", "serve"} == set(SELF_MANAGED_SIGNAL_COMMANDS)
+    # runserver・serve・demo は uvicorn が停止のシグナルを受けて正常に止まり、受けた
+    # シグナルを元のハンドラへ送り直す(systemd は SIGTERM での終了を正常とみなす)。
+    assert {"demo", "runserver", "serve"} == set(SELF_MANAGED_SIGNAL_COMMANDS)

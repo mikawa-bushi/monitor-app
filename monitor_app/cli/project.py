@@ -2,6 +2,8 @@
 
 ``--from-csv`` を付けると、雛形のサンプルの代わりに、手元の CSV のデータから推論した
 config.py(列の型・ビュー・グラフ・KPI)を書き、その CSV を ``csv/`` にコピーする。
+``--template warehouse`` なら、``monitor-app demo`` と同じ物流センターの在庫画面
+(config.py・README.md・マスタと今日までの 7 日分の CSV)を書く。
 """
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 import importlib.resources as resources
 import shutil
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,6 +33,13 @@ backups/
 logs/
 __pycache__/
 """
+
+
+class Template(StrEnum):
+    """``--template`` の値。"""
+
+    basic = "basic"
+    warehouse = "warehouse"
 
 
 def _scaffold_dir() -> Path:
@@ -82,11 +92,20 @@ def startproject(
         ),
         show_default=False,
     ),
+    template: Template = typer.Option(
+        Template.basic,
+        "--template",
+        help=(
+            "雛形の種類(basic: 利用者・商品・注文のサンプル、warehouse: monitor-app demo"
+            " と同じ物流センターの在庫画面)"
+        ),
+    ),
 ) -> None:
     """新規プロジェクトの雛形(config.py・サンプル CSV)を生成する。
 
     --from-csv を付けると、サンプルの代わりに手元の CSV から推論した config.py と、
-    その CSV でプロジェクトを作る。
+    その CSV でプロジェクトを作る。--template warehouse なら物流センターの在庫画面の
+    デモと同じプロジェクトを作る。
     """
     dest = Path(name).resolve()
     # 対象名の誤りは、フォルダを作る前に止める。
@@ -94,6 +113,8 @@ def startproject(
         targets = parse_targets([deploy]) if deploy is not None else []
     except DeployError as exc:
         fail(str(exc))
+    if template is Template.warehouse and from_csv is not None:
+        fail("--template warehouse と --from-csv は同時に指定できません")
     if dest.exists():
         fail(f"⚠️  '{dest}' は既に存在します")
     # CSV を読めないときも、フォルダを作る前に止める。
@@ -104,25 +125,33 @@ def startproject(
     (dest / "instances").mkdir()
     (dest / "instances" / ".gitkeep").touch()
 
-    if inferred is None:
-        shutil.copy(scaffold / "config.py", dest / "config.py")
-    else:
-        from ..settings.infer import render_config_py
-
-        (dest / "config.py").write_text(
-            render_config_py(inferred, in_project=True), encoding="utf-8"
-        )
     shutil.copy(scaffold / "env.example", dest / ".env.example")
-    shutil.copy(scaffold / "README.md", dest / "README.md")
     (dest / ".gitignore").write_text(GITIGNORE, encoding="utf-8")
-    if inferred is None:
-        for csv_file in (scaffold / "csv").glob("*.csv"):
-            shutil.copy(csv_file, dest / "csv" / csv_file.name)
+    if template is Template.warehouse:
+        from ..demo import write_project
+
+        write_project(dest)  # config.py・README.md・csv/
     else:
-        for item in inferred.files:
-            shutil.copy2(item.path, dest / "csv" / item.path.name)
+        shutil.copy(scaffold / "README.md", dest / "README.md")
+        if inferred is None:
+            shutil.copy(scaffold / "config.py", dest / "config.py")
+            for csv_file in (scaffold / "csv").glob("*.csv"):
+                shutil.copy(csv_file, dest / "csv" / csv_file.name)
+        else:
+            from ..settings.infer import render_config_py
+
+            (dest / "config.py").write_text(
+                render_config_py(inferred, in_project=True), encoding="utf-8"
+            )
+            for item in inferred.files:
+                shutil.copy2(item.path, dest / "csv" / item.path.name)
 
     typer.secho(f"✅ プロジェクトを作成しました: {dest}", fg=typer.colors.GREEN)
+    if template is Template.warehouse:
+        typer.echo(
+            "  物流センターの在庫画面(マスタと今日までの 7 日分の架空の入出庫。"
+            "README.md に自分のデータへの替え方)"
+        )
     if inferred is not None:
         typer.echo(
             f"  config.py: CSV {len(inferred.files)} ファイルから推論した設定"
