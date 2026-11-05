@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import gc
 import threading
 import time
 
@@ -24,6 +25,16 @@ from monitor_app.services.view_service import ViewService
 
 ROWS = 5000
 DISTINCT = 8
+
+
+@pytest.fixture(autouse=True)
+def _without_gc():
+    """計測の途中で GC を走らせない。前のテストが残したオブジェクトが多いと、世代 2 の
+    GC がいつ走るかはテストの並びで決まり、計測に入ると数百ミリ秒伸びる。"""
+    gc.collect()
+    gc.disable()
+    yield
+    gc.enable()
 
 
 @pytest.fixture(scope="module")
