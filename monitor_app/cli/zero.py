@@ -304,7 +304,7 @@ def _open_when_ready(url: str, host: str, port: int, timeout: float = OPEN_TIMEO
 
 
 def warn_if_exposed(host: str, settings: AppSettings) -> None:
-    """ループバック以外で API キーなしに公開するときの警告(serve・demo で共通)。"""
+    """ループバック以外で API キーなしに公開するときの警告。"""
     if not _server.is_loopback(host) and not settings.api_key:
         typer.secho(
             f"警告: {host} で公開していますが API キーが未設定です。同じ"

@@ -44,7 +44,6 @@ def demo(tmp_path):
 
 
 def _rows(services, sql: str, **params) -> list[tuple]:
-    # 日時は DB の保存形式(YYYY-MM-DD HH:MM:SS)の文字列で渡す
     params = {k: str(v) for k, v in params.items()}
     with services.db.connect() as conn:
         return [tuple(r) for r in conn.execute(text(sql), params)]
@@ -58,9 +57,6 @@ def _simulator(services, clock: list[datetime], seed: int = 1) -> WarehouseSimul
     return WarehouseSimulator(services, clock=lambda: clock[0], rng=random.Random(seed))
 
 
-# ---------------------------------------------------------------------------
-# 日次締め
-# ---------------------------------------------------------------------------
 def test_close_books_keeps_stock_and_is_idempotent(demo):
     app, now = demo
     services = app.state.services
@@ -77,7 +73,7 @@ def test_close_books_keeps_stock_and_is_idempotent(demo):
     carried = _rows(
         services, "SELECT COUNT(*), MIN(qty) FROM movements WHERE kind = '繰越'"
     )
-    assert carried[0][0] > 0 and carried[0][1] > 0  # 合計 0 の位置は繰越を作らない
+    assert carried[0][0] > 0 and carried[0][1] > 0
     with services.db.write_transaction() as conn:
         assert close_books(conn, tables, cutoff) == 0
     assert _stock(services) == before
@@ -96,7 +92,6 @@ def test_close_books_drops_lots_that_nothing_references(demo):
         d=cutoff.date(),
     )
     assert orphans == [(0,)]
-    # 締めより後に入荷したロットは、台帳の行が無くても残す(画面から登録した直後など)
     with services.db.write_transaction() as conn:
         conn.execute(
             text("INSERT INTO lots VALUES ('L-HAND', 'SKU-1001', :d, NULL)"),
@@ -119,9 +114,6 @@ def test_close_books_rolls_back_with_the_outer_transaction(demo):
     assert _rows(services, "SELECT COUNT(*) FROM movements") == count
 
 
-# ---------------------------------------------------------------------------
-# tick
-# ---------------------------------------------------------------------------
 def test_tick_appends_rows_after_the_imported_ids(demo):
     app, now = demo
     services = app.state.services
@@ -132,7 +124,7 @@ def test_tick_appends_rows_after_the_imported_ids(demo):
         clock[0] = now + timedelta(seconds=4 * k)
         sim.tick()
     added = _rows(services, "SELECT id, ts FROM movements WHERE id > :m", m=max_id)
-    assert len(added) >= 15  # ほぼ毎 tick に 1 行以上(欠品の tick は行が無い)
+    assert len(added) >= 15
     assert all(str(ts) > str(now) for _id, ts in added)
 
 
@@ -141,7 +133,6 @@ def test_tick_sees_rows_entered_through_the_form(demo):
     services = app.state.services
     clock = [now]
     sim = _simulator(services, clock, seed=5)
-    # フォームから、最も出荷の多い品目の在庫をすべて出庫する
     positions = _rows(
         services,
         "SELECT m.lot_no, m.location, SUM(m.qty) FROM movements m"
@@ -178,7 +169,6 @@ def test_tick_sees_rows_entered_through_the_form(demo):
         " WHERE l.sku = 'SKU-1002' AND m.kind = '入荷' AND m.ts > :n",
         n=now,
     )
-    # 在庫が無い品目は、入荷するまで出荷しない(フォームの出庫を見ている)
     assert received[0][0] > 0 or shipped[0][0] == 0
 
 

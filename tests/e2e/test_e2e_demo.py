@@ -24,7 +24,6 @@ pytestmark = pytest.mark.e2e
 
 BOOT_TIMEOUT = 30.0
 STOP_TIMEOUT = 8.0
-#: シミュレーターは 4 秒ごと。2 回分と少しのあいだに画面のデータが変わる。
 CHANGE_TIMEOUT = 10.0
 
 
@@ -91,7 +90,6 @@ def test_demo_starts_moves_on_its_own_and_stops_cleanly(tmp_path):
                     pytest.fail(f"demo が起動しません\n{_log(log_path)}")
                 time.sleep(0.1)
 
-            # アラートはバックグラウンドの評価(画面の更新間隔ごと)が出す
             deadline = time.monotonic() + CHANGE_TIMEOUT
             levels: set[str] = set()
             while levels != {"warning", "critical"} and time.monotonic() < deadline:

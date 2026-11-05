@@ -116,9 +116,8 @@ def env(tmp_path) -> dict[str, str]:
     project.mkdir()
     uid_map = tmp_path / "uid_map"
     uid_map.write_text(ROOTFUL_MAP, encoding="utf-8")
-    # -v でマウントしたフォルダ(マウントしないとデモの起動になり、プロジェクトを確かめない)
-    mounts = tmp_path / "mountinfo"
-    mounts.write_text(
+    project_mounted_info = tmp_path / "mountinfo"
+    project_mounted_info.write_text(
         f"22 1 8:1 / / rw - ext4 /dev/sda1 rw\n30 22 8:1 /src {project} rw"
         " - ext4 /dev/sda1 rw\n",
         encoding="utf-8",
@@ -131,7 +130,7 @@ def env(tmp_path) -> dict[str, str]:
         "MONITOR_PROJECT_DIR": str(project),
         "MONITOR_DEMO_DIR": str(demo),
         "MONITOR_TEST_UID_MAP": str(uid_map),
-        "MONITOR_TEST_MOUNTINFO": str(mounts),
+        "MONITOR_TEST_MOUNTINFO": str(project_mounted_info),
         "FAKE_LOG": str(log),
     }
 

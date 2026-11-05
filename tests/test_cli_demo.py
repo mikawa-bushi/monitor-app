@@ -90,9 +90,6 @@ def _alerts_once_evaluated(client: TestClient, timeout: float = 10.0) -> list[di
         time.sleep(0.1)
 
 
-# ---------------------------------------------------------------------------
-# demo
-# ---------------------------------------------------------------------------
 def test_demo_serves_a_warehouse_screen_with_both_alerts(
     tmp_path, runner, fake_uvicorn, temp_root
 ):
@@ -132,8 +129,8 @@ def test_demo_serves_a_warehouse_screen_with_both_alerts(
     assert fake.workdir.parent == temp_root and fake.workdir.name.startswith(
         demo_mod.TEMP_PREFIX
     )
-    assert list(temp_root.iterdir()) == []  # 終了時に一時フォルダを消す
-    assert sorted(tmp_path.iterdir()) == before  # 作業フォルダには何も書かない
+    assert list(temp_root.iterdir()) == []
+    assert sorted(tmp_path.iterdir()) == before
     assert "データは架空" in result.output and "終了すると消えます" in result.output
     assert str(SOURCE / "config.py") in result.output
     assert "startproject my-warehouse --template warehouse" in result.output
@@ -160,7 +157,7 @@ def test_demo_ignores_dotenv_and_never_notifies_or_backs_up(
     assert result.exit_code == 0, result.output
 
     settings = fake.calls[0]["settings"]
-    assert settings.port == 9990 and settings.api_key is None  # .env は読まない
+    assert settings.port == 9990 and settings.api_key is None
     assert settings.webhook_url is None and settings.smtp_host is None
     assert settings.alert_email_to is None and settings.backup_dir is None
     assert settings.ingest_watch is False
@@ -236,7 +233,7 @@ def test_interrupt_before_serving_aborts_and_cleans_up(runner, temp_root, monkey
     monkeypatch.setattr("uvicorn.run", lambda app, **kw: calls.append(app))
 
     def terminated(*args, **kwargs):
-        raise StopRequested  # 取り込み中の SIGTERM
+        raise StopRequested
 
     monkeypatch.setattr(demo_mod, "run_csv_import", terminated)
     result = runner.invoke(cli_app, ["demo"])
@@ -252,9 +249,6 @@ def test_interrupt_before_serving_aborts_and_cleans_up(runner, temp_root, monkey
     assert list(temp_root.iterdir()) == []
 
 
-# ---------------------------------------------------------------------------
-# startproject --template warehouse
-# ---------------------------------------------------------------------------
 def test_startproject_warehouse_passes_check_and_serves(tmp_path, runner, monkeypatch):
     result = runner.invoke(cli_app, ["startproject", "wh", "--template", "warehouse"])
     assert result.exit_code == 0, result.output
@@ -286,7 +280,7 @@ def test_startproject_warehouse_passes_check_and_serves(tmp_path, runner, monkey
             served["rows"] = _view_rows(client, "stock_list")
             served["kpis"] = client.get("/api/kpis").status_code
 
-    monkeypatch.setenv("MONITOR_CONFIG_PATH", "")  # runserver が書き換える値の後始末
+    monkeypatch.setenv("MONITOR_CONFIG_PATH", "")
     monkeypatch.setattr("uvicorn.run", fake_run)
     result = runner.invoke(cli_app, ["runserver", "--import-csv-if-empty"])
     assert result.exit_code == 0, result.output

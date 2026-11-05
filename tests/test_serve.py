@@ -193,7 +193,7 @@ def test_serve_without_csv_fails_with_a_hint(tmp_path, runner, fake_uvicorn):
     assert result.exit_code == 1
     assert "CSV ファイルが見つかりません" in result.output
     assert "ヒント:" in result.output
-    assert "monitor-app demo" in result.output  # 設定なしで画面を見る方法
+    assert "monitor-app demo" in result.output
     assert fake.calls == []
 
 

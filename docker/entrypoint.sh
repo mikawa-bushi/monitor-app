@@ -288,14 +288,14 @@ wants_help() {
 }
 
 # DIR がマウントポイントか(-v・--mount・名前付きボリューム)。mountinfo の 5 番目の欄が
-# マウント先。MONITOR_TEST_MOUNTINFO はテスト用(MONITOR_TEST_UID_MAP と同じ扱い)。
+# マウント先。
 is_mounted() {
     awk -v dir="$1" '$5 == dir { found = 1 } END { exit !found }' \
         "${MONITOR_TEST_MOUNTINFO:-/proc/self/mountinfo}" 2>/dev/null
 }
 
 # runserver の引数が、demo でも使えるものだけか(--host・--port と、取り込みの
-# --import-csv-if-empty)。ほかのオプションがあればこれまでどおり runserver で起動する。
+# --import-csv-if-empty)。
 demo_accepts() {
     shift 2
     while [ "$#" -gt 0 ]; do
@@ -312,7 +312,7 @@ demo_accepts() {
 }
 
 # 倉庫在庫のデモで起動するか: /project がマウントされておらず(イメージの空のフォルダの
-# まま)、config.py も無い。空のフォルダをマウントしたときはサンプルのプロジェクトを作る。
+# まま)、config.py も無い。
 wants_demo() {
     [ ! -e "$PROJECT_DIR/config.py" ] && is_empty "$PROJECT_DIR" \
         && ! is_mounted "$PROJECT_DIR" && demo_accepts "$@"
@@ -322,8 +322,6 @@ case ${1:-} in
     monitor-app | */monitor-app)
         if [ "${2:-}" = runserver ] && ! wants_help "$@"; then
             if wants_demo "$@"; then
-                # monitor-app runserver [opts] → monitor-app demo [opts](runserver だけの
-                # --import-csv-if-empty は外す)
                 cmd=$1
                 shift 2
                 for arg; do

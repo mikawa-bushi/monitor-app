@@ -62,9 +62,6 @@ def _rebuilt(lots, movements) -> Warehouse:
     return wh
 
 
-# ---------------------------------------------------------------------------
-# 過去分の不変条件(台帳を 1 行ずつ積み直す)
-# ---------------------------------------------------------------------------
 def test_replaying_the_ledger_never_breaks_stock_or_capacity(generated):
     _, lots, movements = generated
     lot_by_no = {lot.lot_no: lot for lot in lots}
@@ -72,7 +69,7 @@ def test_replaying_the_ledger_never_breaks_stock_or_capacity(generated):
     positions: dict = defaultdict(int)
     cases: dict = defaultdict(float)
     for n, m in enumerate(movements):
-        lot = lot_by_no[m.lot_no]  # 生成したロットだけを参照する
+        lot = lot_by_no[m.lot_no]
         item = MASTERS.items[lot.sku]
         assert m.location in capacity, m
         positions[(m.lot_no, m.location)] += m.qty
@@ -114,9 +111,9 @@ def test_timestamps_span_the_kept_days_up_to_now(generated):
         assert (m.kind == "繰越") == (m.ts == cutoff), m
     days = {m.ts.date() for m in movements if m.kind == "出荷"}
     expected = {now.date() - timedelta(days=d) for d in range(1, KEEP_DAYS + 1)}
-    assert expected <= days  # 日別グラフの 7 日が埋まる
+    assert expected <= days
     if now.hour >= 1:
-        assert now.date() in days  # 本日の出荷がある
+        assert now.date() in days
     assert len(movements) < 1.6 * KEEP_DAYS * 86400 / HISTORY_STEP
 
 
@@ -128,7 +125,7 @@ def test_dates_are_relative_to_now(generated):
     assert all(lot.received_on <= today for lot in lots)
     for (lot_no, _loc), qty in positions.items():
         if qty > 0 and expiry[lot_no] is not None:
-            assert expiry[lot_no] >= today, lot_no  # 期限切れは廃棄済み
+            assert expiry[lot_no] >= today, lot_no
     assert any(
         qty > 0 and expiry[lot_no] and expiry[lot_no] <= today + timedelta(days=14)
         for (lot_no, _loc), qty in positions.items()
@@ -141,9 +138,6 @@ def test_same_now_and_seed_give_the_same_ledger():
     assert history(MASTERS, now, seed=1) != history(MASTERS, now)
 
 
-# ---------------------------------------------------------------------------
-# 起動直後の画面(安全在庫割れ → 補充・期限の近いロット)
-# ---------------------------------------------------------------------------
 def test_launch_shows_a_shortage_and_a_lot_expiring_within_two_days(generated):
     now, lots, movements = generated
     positions, by_sku = _stock_at_launch(lots, movements)
@@ -171,19 +165,15 @@ def test_first_replenishment_of_the_shortage_arrives_one_to_two_minutes_after_la
     wh = _rebuilt(lots, movements)
     rng = random.Random(7)
     arrivals: dict[str, datetime] = {}
-    for k in range(1, 46):  # 起動から 3 分間の tick
+    for k in range(1, 46):
         ts = now + timedelta(seconds=LIVE_STEP * k)
         for m in wh.step(ts, LIVE_STEP, rng).movements:
             if m.kind == "入荷":
                 arrivals.setdefault(wh.lots[m.lot_no].sku, ts)
     first = min(arrivals.get(sku, datetime.max) for sku in short)
-    # 画面を開いてから警告が見えている時間を残し、2 分以内に解消が見える
     assert now + timedelta(seconds=30) <= first <= now + timedelta(seconds=120)
 
 
-# ---------------------------------------------------------------------------
-# 1 歩の規則
-# ---------------------------------------------------------------------------
 def _tiny(shelf_life: int | None = 10, safety: int = 100) -> Masters:
     return Masters(
         {"SKU-0001": Item("SKU-0001", 10, safety, shelf_life, "常温")},
@@ -191,12 +181,11 @@ def _tiny(shelf_life: int | None = 10, safety: int = 100) -> Masters:
     )
 
 
-#: テストの 1 歩の時刻より少し前の入荷(入荷の周期の途中なので、補充は入らない)。
-RECENT_DELIVERY = datetime(2026, 11, 5, 6, 0)
+MID_CYCLE_DELIVERY = datetime(2026, 11, 5, 6, 0)
 
 
 def _seeded(masters: Masters, lots: list[Lot], rows: list[tuple]) -> Warehouse:
-    wh = Warehouse(masters, lots, {sku: RECENT_DELIVERY for sku in masters.items})
+    wh = Warehouse(masters, lots, {sku: MID_CYCLE_DELIVERY for sku in masters.items})
     t0 = datetime(2026, 11, 1)
     wh.apply(Movement(t0, "繰越", lot, loc, qty) for lot, loc, qty in rows)
     return wh
@@ -224,7 +213,7 @@ def test_shipping_takes_the_earliest_expiry_first():
     soon_left = wh.stock.get(("L-SOON", "A-01-02"), 0)
     for m in shipped:
         if m.lot_no == "L-LATE":
-            assert soon_left == 0  # 遅い期限のロットは、早いロットが尽きてから
+            assert soon_left == 0
     assert shipped[0].lot_no == "L-SOON"
 
 
@@ -241,7 +230,7 @@ def test_expired_lot_is_disposed_before_anything_else():
 
 def test_an_item_without_stock_ships_nothing():
     masters = _tiny()
-    wh = Warehouse(masters, [], {"SKU-0001": RECENT_DELIVERY})
+    wh = Warehouse(masters, [], {"SKU-0001": MID_CYCLE_DELIVERY})
     for k in range(50):
         event = wh.step(datetime(2026, 11, 5, 12, 0, k), LIVE_STEP, random.Random(k))
         assert event.movements == [] and event.lots == []
@@ -255,13 +244,10 @@ def test_replenishment_waits_for_the_cycle_and_respects_capacity():
     wh.apply([Movement(t0, "入荷", "L-A", "A-01-01", 100)])
     rng = random.Random(0)
     within = wh.step(t0 + timedelta(hours=23, minutes=59), LIVE_STEP, rng)
-    assert all(
-        m.kind != "入荷" for m in within.movements
-    )  # 前回から 24 時間たっていない
+    assert all(m.kind != "入荷" for m in within.movements)
     room = sum(wh.free_cases(loc) for loc in masters.locations)
     due = wh.step(t0 + timedelta(hours=24), LIVE_STEP, rng)
     assert {m.kind for m in due.movements} == {"入荷"}
-    # 安全在庫の 1.6 倍には 2 つの棚の空きが足りない: 空きを埋めた分だけ入荷する
     assert sum(m.qty for m in due.movements) == room * 10
     assert [wh.free_cases(loc) for loc in masters.locations] == [0, 0]
     again = wh.step(t0 + timedelta(hours=24, seconds=4), LIVE_STEP, rng)

@@ -113,7 +113,6 @@ def env(tmp_path) -> dict[str, str]:
         "PATH": f"{bindir}{os.pathsep}{os.environ.get('PATH', '')}",
         "MONITOR_PROJECT_DIR": str(project),
         "MONITOR_DEMO_DIR": str(demo),
-        # 既定は -v でマウントしたフォルダ(マウントしないときは not_mounted)
         "MONITOR_TEST_MOUNTINFO": str(mountinfo(tmp_path / "mountinfo", project)),
     }
 
@@ -505,9 +504,6 @@ def test_running_as_another_user_gets_the_user_hint(env, existing, read_only):
     assert "--user" in lines[1]
 
 
-# ---------------------------------------------------------------------------
-# マウントしないときは倉庫在庫のデモ(monitor-app demo)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     ("args", "expected"),
     [
@@ -522,7 +518,7 @@ def test_nothing_mounted_runs_the_live_demo(not_mounted, project, args, expected
     proc = run(not_mounted, *args)
     assert proc.returncode == 0, proc.stderr
     assert expected in proc.stdout.splitlines()
-    assert list(project.iterdir()) == []  # 何も書き込まない
+    assert list(project.iterdir()) == []
     assert "デモを起動します" in proc.stderr
 
 

@@ -65,8 +65,7 @@ SAFETY_DAYS = 2.0
 REORDER_POINT = 1.3
 ORDER_UP_TO = 1.6
 #: 入荷の周期(秒)。品目ごとに、前回の入荷からこの時間がたち、在庫が発注点を下回って
-#: いれば入荷する(1 日 1 便)。最後の入荷の時刻は台帳から分かるので、待ちの状態を
-#: 別に持たない。
+#: いれば入荷する(1 日 1 便)。
 REPLENISH_CYCLE = 24 * 3600.0
 #: 起動から、仕込んだ安全在庫割れの品目の補充が届くまでの秒数。
 FIRST_ARRIVAL = 90.0
@@ -91,9 +90,6 @@ SUPPLIERS = tuple(f"仕入先-{c}" for c in "ABCDEFGH")
 OPERATORS = tuple(f"作業者{c}" for c in "ABCDEFGHJK")
 
 
-# ---------------------------------------------------------------------------
-# ドメインの型(DB の行・CSV の行と 1 対 1)
-# ---------------------------------------------------------------------------
 @dataclass(frozen=True, slots=True)
 class Item:
     sku: str
@@ -184,9 +180,6 @@ class Masters:
             return cls.from_rows(csv.DictReader(items), csv.DictReader(locs))
 
 
-# ---------------------------------------------------------------------------
-# 在庫の状態と、次の 1 歩を決める規則(純粋な処理。DB を知らない)
-# ---------------------------------------------------------------------------
 class Warehouse:
     """ロット × 棚番の在庫と、次の入出庫を決める規則。
 
@@ -206,17 +199,15 @@ class Warehouse:
         self.last_received: dict[str, datetime] = dict(last_received or {})
         #: (lot_no, location) → 個数(0 の位置は持たない)
         self.stock: dict[tuple[str, str], int] = {}
-        # 索引(stock から導く。apply だけが更新する)
-        self._by_sku: dict[str, set[tuple[str, str]]] = defaultdict(set)
+        self._pickable_by_sku: dict[str, set[tuple[str, str]]] = defaultdict(set)
         self._on_hand: dict[str, int] = defaultdict(int)
-        self._cases: dict[str, float] = defaultdict(float)  # 棚番 → 使用ケース数
+        self._used_cases: dict[str, float] = defaultdict(float)
         self._locations = {loc.code: loc for loc in masters.locations}
         items = list(masters.items.values())
         self._ship_skus = [i.sku for i in items]
         self._ship_cum = list(accumulate(i.daily_demand for i in items))
         self._total_demand = self._ship_cum[-1] if items else 0.0
 
-    # --- 状態 ---------------------------------------------------------------
     def apply(self, movements: Iterable[Movement]) -> None:
         """台帳の行を在庫に反映する(未知のロット・品目の行は数えない)。"""
         for m in movements:
@@ -230,14 +221,12 @@ class Warehouse:
                 self.stock[key] = qty
             else:
                 self.stock.pop(key, None)
-            # 出荷・移動の元に選べるのは在庫のある位置だけ(フォームの入力で負になった
-            # 位置からは出さない)
             if qty > 0:
-                self._by_sku[item.sku].add(key)
+                self._pickable_by_sku[item.sku].add(key)
             else:
-                self._by_sku[item.sku].discard(key)
+                self._pickable_by_sku[item.sku].discard(key)
             self._on_hand[item.sku] += m.qty
-            self._cases[m.location] += m.qty / item.case_qty
+            self._used_cases[m.location] += m.qty / item.case_qty
             if m.kind == "入荷":
                 last = self.last_received.get(item.sku)
                 if last is None or m.ts > last:
@@ -247,13 +236,12 @@ class Warehouse:
         return self._on_hand[sku]
 
     def free_cases(self, loc: Location) -> int:
-        return math.floor(loc.capacity_cases - self._cases[loc.code])
+        return math.floor(loc.capacity_cases - self._used_cases[loc.code])
 
     def _positions(self) -> list[tuple[tuple[str, str], int]]:
         """在庫のある位置(lot_no, location)と個数。乱数で選ぶため順序を固定する。"""
         return sorted((key, qty) for key, qty in self.stock.items() if qty > 0)
 
-    # --- 規則 ---------------------------------------------------------------
     def step(self, now: datetime, dt: float, rng: random.Random) -> Event:
         """``dt`` 秒ぶんの 1 歩を決め、状態に反映して返す。"""
         event = (
@@ -418,7 +406,7 @@ class Warehouse:
         在庫が足りなければある分だけ(無ければ空の Event。欠品で台帳は増えない)。
         """
         keys = sorted(
-            self._by_sku[sku],
+            self._pickable_by_sku[sku],
             key=lambda k: (self.lots[k[0]].expiry_date or date.max, k),
         )
         ref, store, op = (
@@ -440,7 +428,6 @@ class Warehouse:
         rng.shuffle(locs)
         return locs
 
-    # --- 起動直後の画面のための仕込み(history だけが使う)----------------------
     def plant_shortage(self, item: Item, now: datetime, rng: random.Random) -> Event:
         """大口出荷で ``item`` を安全在庫の SHORTAGE_COVER 倍まで減らす。"""
         excess = self.on_hand(item.sku) - math.floor(item.safety_stock * SHORTAGE_COVER)
@@ -459,9 +446,6 @@ class Warehouse:
         return self._commit(self._replenish(item, now, rng) or Event())
 
 
-# ---------------------------------------------------------------------------
-# 過去分(seed)
-# ---------------------------------------------------------------------------
 def books_cutoff(now: datetime) -> datetime:
     """台帳を残す期間の始まり(KEEP_DAYS 日前の 0 時)。これより前は繰越にまとめる。"""
     return datetime.combine(now.date() - timedelta(days=KEEP_DAYS), time())
@@ -561,16 +545,15 @@ def history(
         movements.extend(event.movements)
 
     shortage, expiring = planted_items(masters)
-    # 仕込んだ品目の前回の入荷を、次の便が起動の FIRST_ARRIVAL 秒後に来る時刻に置く。
-    last_delivery = now - timedelta(seconds=REPLENISH_CYCLE - FIRST_ARRIVAL)
+    delivery_before_launch = now - timedelta(seconds=REPLENISH_CYCLE - FIRST_ARRIVAL)
     delivered = False
     for ts in _step_times(cutoff, now - timedelta(seconds=PLANT_MARGIN), rng):
-        if not delivered and ts >= last_delivery:
-            record(wh.force_replenish(shortage, last_delivery, rng))
+        if not delivered and ts >= delivery_before_launch:
+            record(wh.force_replenish(shortage, delivery_before_launch, rng))
             delivered = True
         record(wh.step(ts, HISTORY_STEP, rng))
     if not delivered:
-        record(wh.force_replenish(shortage, last_delivery, rng))
+        record(wh.force_replenish(shortage, delivery_before_launch, rng))
     record(wh.plant_shortage(shortage, now - timedelta(seconds=40), rng))
     if expiring is not None:
         record(wh.plant_expiring(expiring, now - timedelta(seconds=20), rng))
@@ -618,9 +601,6 @@ def write_history_csv(csv_dir: Path, now: datetime, *, seed: int = 0) -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# 起動後(DB に読み書きする殻)
-# ---------------------------------------------------------------------------
 def close_books(conn: Connection, tables: Mapping[str, Table], cutoff: datetime) -> int:
     """``cutoff`` より前の台帳を、ロット × 棚番ごとの「繰越」1 行(ts=cutoff)にまとめる。
 
@@ -701,7 +681,6 @@ class WarehouseSimulator(PeriodicTask):
                     insert(self.tables["lots"]), [asdict(x) for x in event.lots]
                 )
             if event.movements:
-                # id は自動採番(CSV の続きから)
                 conn.execute(
                     insert(self.tables["movements"]),
                     [asdict(x) for x in event.movements],
@@ -729,7 +708,6 @@ class WarehouseSimulator(PeriodicTask):
                 Lot(r.lot_no, r.sku, r.received_on, r.expiry_date)
                 for r in conn.execute(select(lots))
             ),
-            # 画面から日時でない値を入れた行は数えない
             {sku: ts for sku, ts in received if isinstance(ts, datetime)},
         )
         totals = conn.execute(

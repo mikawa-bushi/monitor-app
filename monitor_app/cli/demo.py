@@ -29,7 +29,7 @@ from .zero import _browser_url, _run_server, _sqlite_url, warn_if_exposed
 if TYPE_CHECKING:
     from ..settings.runtime import AppSettings
 
-#: 一時フォルダの接頭辞(serve の monitor-app-serve- と分け、残っていても区別できる)。
+#: 一時フォルダの接頭辞。
 TEMP_PREFIX = "monitor-app-demo-"
 #: 起動時に件数を表示するテーブル(表示名)。
 _TABLE_LABELS = {
@@ -41,14 +41,7 @@ _TABLE_LABELS = {
 
 
 def demo_settings(workdir: Path, host: str, port: int) -> AppSettings:
-    """デモの実行時設定。環境変数は読むが .env は読まず、デモの外に影響するものは上書きする。
-
-    - database_url = workdir/demo.db(一時ファイルの SQLite。変更の検知が効く)
-    - csv_dir = workdir/csv、ingest_watch = False(取り込みは起動時の 1 回だけ)
-    - webhook_url / smtp_host / alert_email_to = None(画面の設定でアラートに通知先を
-      足しても、外へは送られない)
-    - backup_dir = None(利用者の MONITOR_BACKUP_DIR に一時 DB のバックアップを作らない)
-    """
+    """デモの実行時設定。環境変数は読むが .env は読まず、デモの外に影響するものは上書きする。"""
     from ..settings.runtime import AppSettings
 
     return AppSettings(
@@ -91,8 +84,6 @@ def demo_command(
     app = None
     serving = False
     try:
-        # SIGTERM(docker stop など)・SIGHUP でも uvicorn の停止処理と一時フォルダの
-        # 削除(finally)を通って終える(serve と同じ)。
         with stop_signals():
             write_project(workdir, now=datetime.now())
             # 一時フォルダのコピーを読む(__pycache__ をパッケージの中に作らない)。
@@ -131,8 +122,6 @@ def demo_command(
             )
             serving = True
             _run_server(app, settings, host, port, open_browser)
-    # 停止の扱いは serve と同じ(サーバーの停止処理のあとに送り直されたシグナルなら
-    # 正常な終了。起動前の Ctrl+C は中断、SIGTERM は 143)。
     except KeyboardInterrupt:
         if not serving:
             raise

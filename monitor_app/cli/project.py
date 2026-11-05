@@ -130,7 +130,7 @@ def startproject(
     if template is Template.warehouse:
         from ..demo import write_project
 
-        write_project(dest)  # config.py・README.md・csv/
+        write_project(dest)
     else:
         shutil.copy(scaffold / "README.md", dest / "README.md")
         if inferred is None:
