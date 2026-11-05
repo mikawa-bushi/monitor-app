@@ -74,6 +74,7 @@
 
     function build(payload) {
       var rows = payload.data || [];
+      var names = payload.column_labels || {};
       var labels = rows.map(function (r) { return r[cfg.x]; });
       // compact モードでは pointRadius を 0 に固定
       var ptRadius = compact ? 0 : (cfg.type === "line" ? 3 : 0);
@@ -82,7 +83,7 @@
         var color = PALETTE[i % PALETTE.length];
         var values = rows.map(function (r) { return r[col]; });
         return {
-          label: col,
+          label: names[col] || col,
           data: values,
           borderColor: color,
           backgroundColor: color,
