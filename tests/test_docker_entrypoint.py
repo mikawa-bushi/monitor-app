@@ -82,6 +82,17 @@ echo "chown $*" >> "$FAKE_LOG"
 """
 
 
+def mountinfo(path: Path, *mounts: Path) -> Path:
+    """/proc/self/mountinfo の形の一覧(ルートと ``mounts`` がマウントされている)。"""
+    lines = ["22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw"]
+    lines += [
+        f"{30 + n} 22 8:1 /srv/proj {mount} rw,relatime - ext4 /dev/sda1 rw"
+        for n, mount in enumerate(mounts)
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 @pytest.fixture
 def env(tmp_path) -> dict[str, str]:
     bindir = tmp_path / "bin"
@@ -102,7 +113,15 @@ def env(tmp_path) -> dict[str, str]:
         "PATH": f"{bindir}{os.pathsep}{os.environ.get('PATH', '')}",
         "MONITOR_PROJECT_DIR": str(project),
         "MONITOR_DEMO_DIR": str(demo),
+        "MONITOR_TEST_MOUNTINFO": str(mountinfo(tmp_path / "mountinfo", project)),
     }
+
+
+@pytest.fixture
+def not_mounted(env, tmp_path) -> dict[str, str]:
+    """-v を付けずに起動したコンテナ(/project はイメージの空のフォルダ)。"""
+    other = mountinfo(tmp_path / "mountinfo-bare", tmp_path / "elsewhere")
+    return env | {"MONITOR_TEST_MOUNTINFO": str(other)}
 
 
 @pytest.fixture
@@ -483,3 +502,85 @@ def test_running_as_another_user_gets_the_user_hint(env, existing, read_only):
     assert proc.returncode == 1 and len(lines) == 3, lines
     assert "uid=4321" in lines[0]
     assert "--user" in lines[1]
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        (("monitor-app", "runserver", "--import-csv-if-empty"), "ARGS: demo"),
+        ((), "ARGS: demo"),
+        (("--port", "8000"), "ARGS: demo --port 8000"),
+        (("--host=0.0.0.0", "--port=8000"), "ARGS: demo --host=0.0.0.0 --port=8000"),
+        (("monitor-app", "runserver", "--host", "::"), "ARGS: demo --host ::"),
+    ],
+)
+def test_nothing_mounted_runs_the_live_demo(not_mounted, project, args, expected):
+    proc = run(not_mounted, *args)
+    assert proc.returncode == 0, proc.stderr
+    assert expected in proc.stdout.splitlines()
+    assert list(project.iterdir()) == []
+    assert "デモを起動します" in proc.stderr
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        (("--import-csv",), "ARGS: runserver --import-csv-if-empty --import-csv"),
+        (("--reload",), "ARGS: runserver --import-csv-if-empty --reload"),
+        (("monitor-app", "runserver", "--port"), "ARGS: runserver --port"),
+    ],
+)
+def test_runserver_only_options_keep_the_starter_project(
+    not_mounted, project, args, expected
+):
+    proc = run(not_mounted, *args)
+    assert proc.returncode == 0, proc.stderr
+    assert expected in proc.stdout.splitlines()
+    assert (project / "config.py").read_text(encoding="utf-8") == "# demo\n"
+
+
+def test_nothing_mounted_with_a_config_file_runs_runserver(not_mounted, project):
+    (project / "config.py").write_text("# mine\n", encoding="utf-8")
+    proc = run(not_mounted)
+    assert proc.returncode == 0, proc.stderr
+    assert "ARGS: runserver --import-csv-if-empty" in proc.stdout
+    assert (project / "config.py").read_text(encoding="utf-8") == "# mine\n"
+
+
+def test_nothing_mounted_but_named_config_runs_runserver(not_mounted, project):
+    proc = run(not_mounted, "monitor-app", "runserver", "--config", "other.py")
+    assert proc.returncode == 0, proc.stderr
+    assert "ARGS: runserver --config other.py" in proc.stdout
+    assert list(project.iterdir()) == []
+
+
+def test_nothing_mounted_help_and_other_commands_are_unchanged(not_mounted, project):
+    proc = run(not_mounted, "monitor-app", "runserver", "--help")
+    assert "ARGS: runserver --help" in proc.stdout
+    proc = run(not_mounted, "check")
+    assert "ARGS: check" in proc.stdout
+    proc = run(not_mounted, "demo", "--port", "8000")
+    assert "ARGS: demo --port 8000" in proc.stdout
+    assert list(project.iterdir()) == []
+
+
+def test_mounted_empty_folder_still_gets_the_starter_project(env, project):
+    proc = run(env)
+    assert proc.returncode == 0, proc.stderr
+    assert "ARGS: runserver --import-csv-if-empty" in proc.stdout
+    assert (project / "config.py").read_text(encoding="utf-8") == "# demo\n"
+
+
+def test_root_without_a_mount_drops_privileges_then_runs_the_demo(
+    as_root, not_mounted, project
+):
+    env = as_root | {
+        "MONITOR_TEST_MOUNTINFO": not_mounted["MONITOR_TEST_MOUNTINFO"],
+        "FAKE_OWNER": "1000:1000",
+    }
+    proc = run(env, "monitor-app", "runserver", "--import-csv-if-empty")
+    assert proc.returncode == 0, proc.stderr
+    assert _fake_log(env) == ["setpriv 1000:1000 true", "setpriv 1000:1000 /bin/sh"]
+    assert "UID: 1000" in proc.stdout
+    assert "ARGS: demo" in proc.stdout.splitlines()
+    assert list(project.iterdir()) == []

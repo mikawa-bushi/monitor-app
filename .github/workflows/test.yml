@@ -219,7 +219,8 @@ jobs:
           done
           docker logs demo
           test "$status" = healthy
-          curl -fsS http://127.0.0.1:9990/api/views/products_view > /dev/null
+          docker logs demo 2>&1 | grep -q 倉庫在庫のデモを起動します
+          curl -fsS http://127.0.0.1:9990/api/views/stock_list > /dev/null
       - name: A bind-mounted folder owned by another uid works
         run: |
           mkdir "$RUNNER_TEMP/project"
@@ -245,7 +246,7 @@ jobs:
           docker rm -f port
       - name: docker stop is quick while an SSE stream is open
         run: |
-          curl -sN http://127.0.0.1:9990/api/views/orders_summary/stream > /dev/null &
+          curl -sN http://127.0.0.1:9990/api/views/recent_moves/stream > /dev/null &
           sleep 2
           start=$(date +%s)
           docker stop demo

@@ -351,7 +351,7 @@ def explain_error(exc: BaseException) -> tuple[str, str | None] | None:
 
 #: 停止のシグナルを自分で扱うコマンド(uvicorn を動かす)。:class:`MonitorGroup` は
 #: これら以外のコマンドの実行中に :func:`stop_signals` を使う。
-SELF_MANAGED_SIGNAL_COMMANDS = frozenset({"runserver", "serve"})
+SELF_MANAGED_SIGNAL_COMMANDS = frozenset({"demo", "runserver", "serve"})
 
 
 #: 実行中のコマンド名を入れる ``ctx.meta`` のキー。

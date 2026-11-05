@@ -1,6 +1,7 @@
 """CLI のヘルプ: コマンドの並び順と、すべてのコマンド・オプションの説明。
 
-``monitor-app --help`` は始め方 → 起動 → 点検・取り込み → 保守 → 配備の順に並べる。
+``monitor-app --help`` はまず試す → 始め方 → 起動 → 点検・取り込み → 保守 → 配備の順に
+並べる。
 すべてのコマンドとオプションに日本語の短い説明があること(空の説明を残さない)。
 """
 
@@ -17,6 +18,7 @@ from monitor_app.cli import app
 
 #: ``--help`` のコマンドの並び(この順に登録する)。
 ORDER = [
+    "demo",
     "startproject",
     "serve",
     "runserver",
@@ -63,7 +65,8 @@ def test_every_command_and_option_has_a_japanese_help(name):
         ("migrate", ["--config", "--dry-run"]),
         ("backup", ["--config", "--dest", "--keep"]),
         ("restore", ["--config", "--yes"]),
-        ("startproject", ["--deploy", "--from-csv"]),
+        ("startproject", ["--deploy", "--from-csv", "--template"]),
+        ("demo", ["--host", "--port", "--open"]),
     ],
 )
 def test_new_options_are_shown_in_the_command_help(name, options):

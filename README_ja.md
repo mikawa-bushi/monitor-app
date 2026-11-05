@@ -12,6 +12,34 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 
 ---
 
+## 👀 まず見てみる: 物流倉庫の在庫画面のデモ
+
+準備なしで、架空の物流センターの在庫画面を開けます。
+
+```sh
+uvx monitor-app demo --open                                      # インストール済みなら monitor-app demo --open
+docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app    # Docker なら(何もマウントしない)
+```
+
+http://127.0.0.1:9990 が開きます(Docker は http://localhost:9990)。見どころ:
+
+- **在庫一覧**: 棚番・ロット・賞味期限・残日数・ケース / バラ。在庫は入出庫の台帳を SQL で合計して求めます。
+- **ひとりでに動く**: 4 秒ごとに入荷・出荷・移動が起き、入出庫履歴・KPI カード・グラフが自動で更新されます。
+- **アラート**: 起動した直後は「安全在庫を下回っている品目」と「賞味期限まで 2 日以内のロット」のバナーが出ます。約 1 分半後に入荷が届くと、安全在庫のバナーが消えます。
+- **ほかの画面**: `/kiosk`(大型表示)、`/form/movements`(入出庫の入力フォーム)。この PC で動かしているときは `/settings`(画面での設定の変更)も使えます。
+
+データは一時的な DB に入り、終了すると消えます。起動したときに、この画面の `config.py` の場所を表示します。Docker では時刻が UTC になるため、日本時間で見るには `-e TZ=Asia/Tokyo` を付けます。
+
+同じ設定と架空のデータで自分のプロジェクトを作るには:
+
+```sh
+monitor-app startproject my-warehouse --template warehouse
+cd my-warehouse
+monitor-app runserver --import-csv-if-empty
+```
+
+プロジェクトでは入出庫は自動で起きません。自分のデータへの替え方は、プロジェクトの `README.md` にあります。
+
 ## ✨ 2.4 の新機能
 
 - **設定なしで始められる。** `monitor-app serve ./my-csv-folder`(インストールせずに `uvx monitor-app serve ...` でも可)で、CSV から列の型・主キー・グラフ・KPI カードを推論してダッシュボードを開きます。気に入ったら `startproject --from-csv` でプロジェクトにできます。
@@ -188,8 +216,9 @@ http://127.0.0.1:9990 を開きます(API ドキュメントは http://127.0.0.1
 
 | コマンド | 内容 | 主なオプション |
 |---|---|---|
+| `monitor-app demo` | 物流倉庫の在庫画面のデモを開く(準備不要・データは架空で終了すると消える) | `--host`、`--port`、`--open` |
 | `monitor-app serve [PATH...]` | config.py なしで CSV からダッシュボードを開く | `--host`、`--port`、`--db FILE`、`--append`、`--no-watch`、`--write-config FILE`、`--open` |
-| `monitor-app startproject NAME` | プロジェクトのフォルダを作る | `--from-csv DIR`、`--deploy docker,systemd,windows`(または `all`) |
+| `monitor-app startproject NAME` | プロジェクトのフォルダを作る | `--template warehouse`(デモと同じ設定とデータ)、`--from-csv DIR`、`--deploy docker,systemd,windows`(または `all`) |
 | `monitor-app runserver` | Web サーバーを起動する | `--import-csv-if-empty`、`--import-csv`、`--force`、`--host`、`--port`、`--reload`、`--config` |
 | `monitor-app check` | 起動せずに `config.py`・SQL・実行時設定・DB の表定義を点検する | `--data`(CSV の中身も)、`--strict`(警告でも失敗。CI 向け)、`--fix-schema`、`--config` |
 | `monitor-app import-csv` | `csv/` を DB へ取り込む(置き換え) | `--keep`、`--if-empty`、`--force`、`--config` |
@@ -412,7 +441,7 @@ monitor-app restore backups/database-20261021-172955.db --yes   # 先にサー�
 ### Docker
 
 ```sh
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # デモ(ファイル不要)
+docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # 物流倉庫の在庫画面のデモ(ファイル不要)
 ```
 
 自分のプロジェクト(`config.py` のあるフォルダ)を動かす:
@@ -423,7 +452,7 @@ docker run -d --name monitor-app -p 9990:9990 -v "$PWD":/project \
     --restart unless-stopped ghcr.io/mikawa-bushi/monitor-app
 ```
 
-(Windows の PowerShell では `-v "${PWD}:/project"`。)コンテナはマウントしたフォルダの所有者のユーザーに切り替え、Linux の特権(capability)をすべて捨てて動くため、ホストのユーザー ID が何であっても、DB やバックアップはホストの利用者のファイルになります。起動コマンドは `runserver --import-csv-if-empty` なので、画面で入力した行は更新しても残ります。空のフォルダをマウントするとサンプルのプロジェクトを書き込みます。さらに守りを固めるなら `--cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add CHOWN --security-opt no-new-privileges` を付けます(生成する `compose.yaml` には設定済み)。`docker run --rm ghcr.io/mikawa-bushi/monitor-app --version` で版を表示します。
+(Windows の PowerShell では `-v "${PWD}:/project"`。)コンテナはマウントしたフォルダの所有者のユーザーに切り替え、Linux の特権(capability)をすべて捨てて動くため、ホストのユーザー ID が何であっても、DB やバックアップはホストの利用者のファイルになります。起動コマンドは `runserver --import-csv-if-empty` なので、画面で入力した行は更新しても残ります。空のフォルダをマウントするとサンプルのプロジェクトを書き込みます(何もマウントしなければ、上のデモが一時的な DB で動きます)。さらに守りを固めるなら `--cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add CHOWN --security-opt no-new-privileges` を付けます(生成する `compose.yaml` には設定済み)。`docker run --rm ghcr.io/mikawa-bushi/monitor-app --version` で版を表示します。
 
 Docker Compose を使うときは、Monitor App にファイルを書かせます:
 

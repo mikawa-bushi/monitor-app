@@ -4,11 +4,13 @@ v1 と異なり ``startproject`` はアプリ本体をコピーしない。生�
 ``config.py`` とサンプル CSV だけで、本体はパッケージから参照する。
 これにより ``pip install -U monitor-app`` だけで UI・API が更新される。
 
-コマンドは役割ごとのモジュールに置き、ここで登録する: ``project``(startproject)・
+コマンドは役割ごとのモジュールに置き、ここで登録する: ``demo``(demo: 準備なしで
+動くデモ)・``project``(startproject)・
 ``zero``(serve: 設定ファイルなしの起動)・``server``(runserver)・
 ``data``(check / import-csv / sync-sources)・``maintenance``(migrate / backup /
 restore: データベースの保守)・``deploy``(deploy: 配備用ファイルの生成)。
-``--help`` の一覧はここで登録した順(始め方 → 起動 → 点検・取り込み → 保守 → 配備)。
+``--help`` の一覧はここで登録した順(まず試す → 始め方 → 起動 → 点検・取り込み → 保守
+→ 配備)。
 設定の読み込みなどの共通処理は ``_common``、既知のエラーの短い表示とコマンド群
 (:class:`~monitor_app.cli._errors.MonitorGroup`)は ``_errors``、停止のシグナルの扱いは
 ``_signals`` にまとめる。
@@ -21,6 +23,7 @@ import typer
 from .. import __version__
 from ._errors import MonitorGroup
 from .data import check, import_csv, sync_sources
+from .demo import demo_command
 from .deploy import deploy_command
 from .maintenance import backup, migrate, restore
 from .project import startproject
@@ -63,6 +66,7 @@ def main(
     pass
 
 
+app.command("demo")(demo_command)
 app.command()(startproject)
 app.command()(serve)
 app.command()(runserver)

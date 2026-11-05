@@ -303,6 +303,18 @@ def _open_when_ready(url: str, host: str, port: int, timeout: float = OPEN_TIMEO
     webbrowser.open(url)
 
 
+def warn_if_exposed(host: str, settings: AppSettings) -> None:
+    """ループバック以外で API キーなしに公開するときの警告。"""
+    if not _server.is_loopback(host) and not settings.api_key:
+        typer.secho(
+            f"警告: {host} で公開していますが API キーが未設定です。同じ"
+            "ネットワークの誰でもデータを変更・削除できます"
+            "(MONITOR_API_KEY を設定してください)",
+            fg=typer.colors.RED,
+            err=True,
+        )
+
+
 def _run_server(
     app: FastAPI, settings: AppSettings, host: str, port: int, open_browser: bool
 ) -> None:
@@ -363,7 +375,8 @@ def serve(
     except InferError as exc:
         fail(
             str(exc),
-            "CSV のあるフォルダかファイルを指定してください(例: monitor-app serve data)",
+            "CSV のあるフォルダかファイルを指定してください(例: monitor-app serve data)。"
+            "設定なしで画面を見るには monitor-app demo",
         )
     print_inferred_project(project)
     if write_config is not None:
@@ -441,14 +454,7 @@ def serve(
                     "追記された行だけ" if append else "変更されたファイルを置き換えて"
                 )
                 typer.echo(f"  CSV の変更を監視し、{mode}取り込みます")
-            if not _server.is_loopback(host) and not settings.api_key:
-                typer.secho(
-                    f"警告: {host} で公開していますが API キーが未設定です。同じ"
-                    "ネットワークの誰でもデータを変更・削除できます"
-                    "(MONITOR_API_KEY を設定してください)",
-                    fg=typer.colors.RED,
-                    err=True,
-                )
+            warn_if_exposed(host, settings)
             hint = _server.access_hint(host, port)
             if hint:
                 typer.echo(f"  {hint}")
