@@ -10,6 +10,7 @@ import datetime as dt
 import signal
 import socket
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -79,6 +80,16 @@ def _view_rows(client: TestClient, name: str) -> int:
     return len(response.json()["data"])
 
 
+def _alerts_once_evaluated(client: TestClient, timeout: float = 10.0) -> list[dict]:
+    """アラートの評価(バックグラウンドで画面の更新間隔ごと)が出した一覧。"""
+    deadline = time.monotonic() + timeout
+    while True:
+        alerts = client.get("/api/alerts").json()["alerts"]
+        if len(alerts) >= 2 or time.monotonic() > deadline:
+            return alerts
+        time.sleep(0.1)
+
+
 # ---------------------------------------------------------------------------
 # demo
 # ---------------------------------------------------------------------------
@@ -89,7 +100,7 @@ def test_demo_serves_a_warehouse_screen_with_both_alerts(
         config = app.state.services.config
         results["rows"] = {name: _view_rows(client, name) for name in config.views}
         results["kpis"] = client.get("/api/kpis").json()["kpis"]
-        results["alerts"] = client.get("/api/alerts").json()["alerts"]
+        results["alerts"] = _alerts_once_evaluated(client)
         results["pages"] = {path: client.get(path).status_code for path in PAGES}
         results["tasks"] = client.get("/api/health").json()["tasks"]
 
