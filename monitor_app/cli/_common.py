@@ -349,6 +349,17 @@ def plan_csv_import(settings: AppSettings, cfg: MonitorConfig) -> CsvPlan:
     return plan
 
 
+def sqlite_url(path: Path) -> str:
+    """SQLite ファイルの接続 URL(``?`` を含むパスは扱えないため呼び出し前に弾く)。"""
+    from sqlalchemy.engine import URL
+
+    text = path.as_posix()
+    if "#" in text or "%" in text:
+        # URL として特別な意味を持つ文字は、SQLAlchemy に任せてエスケープする
+        return URL.create("sqlite", database=text).render_as_string(hide_password=False)
+    return f"sqlite:///{text}"
+
+
 @contextmanager
 def open_database(
     settings: AppSettings, config: MonitorConfig

@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from . import server as _server
-from ._common import StopRequested, fail, load_settings, stop_signals
+from ._common import StopRequested, fail, load_settings, sqlite_url, stop_signals
 from .data import run_csv_import
 
 if TYPE_CHECKING:
@@ -77,17 +77,6 @@ def inference_encodings(base: AppSettings) -> tuple[str, ...]:
     return tuple(dict.fromkeys([*known, *unknown]))
 
 
-def _sqlite_url(path: Path) -> str:
-    """SQLite ファイルの接続 URL(``?`` を含むパスは扱えないため呼び出し前に弾く)。"""
-    from sqlalchemy.engine import URL
-
-    text = path.as_posix()
-    if "#" in text or "%" in text:
-        # URL として特別な意味を持つ文字は、SQLAlchemy に任せてエスケープする
-        return URL.create("sqlite", database=text).render_as_string(hide_password=False)
-    return f"sqlite:///{text}"
-
-
 def _serve_settings(
     base: AppSettings,
     project: InferredProject,
@@ -106,7 +95,7 @@ def _serve_settings(
     from ..settings.runtime import AppSettings
 
     overrides: dict = {
-        "database_url": _sqlite_url(db_path),
+        "database_url": sqlite_url(db_path),
         "csv_dir": project.csv_dir,
         "ingest_watch": watch,
         "ingest_mode": "append" if append else "replace",

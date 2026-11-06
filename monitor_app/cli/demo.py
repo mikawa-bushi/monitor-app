@@ -22,9 +22,9 @@ import typer
 
 from .. import logging_conf
 from . import server as _server
-from ._common import StopRequested, stop_signals
+from ._common import StopRequested, sqlite_url, stop_signals
 from .data import run_csv_import
-from .zero import _browser_url, _run_server, _sqlite_url, warn_if_exposed
+from .zero import _browser_url, _run_server, warn_if_exposed
 
 if TYPE_CHECKING:
     from ..settings.runtime import AppSettings
@@ -46,7 +46,7 @@ def demo_settings(workdir: Path, host: str, port: int) -> AppSettings:
 
     return AppSettings(
         _env_file=None,
-        database_url=_sqlite_url(workdir / "demo.db"),
+        database_url=sqlite_url(workdir / "demo.db"),
         csv_dir=workdir / "csv",
         ingest_watch=False,
         webhook_url=None,

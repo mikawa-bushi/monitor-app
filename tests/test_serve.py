@@ -23,7 +23,7 @@ from typer.testing import CliRunner
 
 from monitor_app.cli import app as cli_app
 from monitor_app.cli import zero
-from monitor_app.cli._common import StopRequested, stop_signals
+from monitor_app.cli._common import StopRequested, sqlite_url, stop_signals
 from monitor_app.services.ingest_watcher import IngestWatcher
 
 
@@ -362,10 +362,10 @@ def test_browser_url(host, url):
 
 def test_sqlite_url_escapes_special_characters(tmp_path):
     odd = tmp_path / "a#b%25c" / "serve.db"
-    url = zero._sqlite_url(odd)
+    url = sqlite_url(odd)
     assert make_url(url).database == odd.as_posix()
     plain = tmp_path / "日本語 フォルダ" / "serve.db"
-    assert zero._sqlite_url(plain) == f"sqlite:///{plain.as_posix()}"
+    assert sqlite_url(plain) == f"sqlite:///{plain.as_posix()}"
 
 
 def test_db_path_with_question_mark_is_rejected(tmp_path, runner, fake_uvicorn):
