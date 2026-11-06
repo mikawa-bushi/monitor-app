@@ -1,8 +1,7 @@
 """CLI の停止のシグナル(docker stop・systemctl stop・端末を閉じる)の扱い。
 
 :func:`stop_signals` のブロックの間、SIGTERM(と既定の動作のままの SIGHUP)を
-:class:`StopRequested` にする。``runserver`` と ``serve`` は uvicorn の前後で自分で使い、
-ほかのコマンドは :class:`~monitor_app.cli._errors.MonitorGroup` が実行中ずっと使う。
+:class:`StopRequested` にする。
 :mod:`monitor_app.cli._common` からも同じ名前で import できる。
 """
 
