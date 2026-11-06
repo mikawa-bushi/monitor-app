@@ -254,7 +254,8 @@ config = MonitorConfig(
             primary_key="id",
             indexes=[["ts"]],                                # ts での並べ替え・絞り込みを速くする
             retention=Retention(keep_days=90, column="ts"),  # 90 日より古い行を削除
-            form=FormDef(labels={"temp": "温度 (℃)"},
+            form=FormDef(title="計測値の入力",
+                         labels={"temp": "温度 (℃)"},
                          choices={"line": ["L1", "L2"]}),     # 入力フォーム: /form/readings
         ),
     },

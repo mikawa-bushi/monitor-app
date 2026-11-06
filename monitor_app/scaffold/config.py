@@ -54,6 +54,7 @@ config = MonitorConfig(
             foreign_keys={"user_id": "users.id", "product_id": "products.id"},
             # 作業者向け入力フォーム(/form/orders で自動生成)。
             form=FormDef(
+                title="注文の入力",
                 labels={
                     "user_id": "ユーザーID",
                     "product_id": "商品ID",

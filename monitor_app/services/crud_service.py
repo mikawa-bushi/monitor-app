@@ -16,7 +16,7 @@ from ..exceptions import (
     RecordNotFoundError,
     TableNotFoundError,
 )
-from ..settings.declarative import MonitorConfig
+from ..settings.declarative import FormDef, MonitorConfig
 from .audit_service import AuditService
 from .coercion import CoercionError, coerce
 from .view_cache import ViewCache
@@ -253,14 +253,12 @@ class CrudService:
         """
         self._require_table(table_name)
         tdef = self.config.tables[table_name]
-        form = tdef.form
+        form = tdef.form or FormDef()
         fields_src = (
             form.fields
-            if form and form.fields is not None
+            if form.fields is not None
             else [c for c in tdef.column_names if c != tdef.primary_key]
         )
-        labels = form.labels if form else {}
-        choices = form.choices if form else {}
 
         fields: list[dict[str, Any]] = []
         for col in fields_src:
@@ -268,14 +266,15 @@ class CrudService:
             fields.append(
                 {
                     "name": col,
-                    "label": labels.get(col, col),
+                    "label": form.labels.get(col, col),
                     "input": self._INPUT_TYPES.get(logical, "text"),
                     "step": "any" if logical == "float" else None,
-                    "choices": choices.get(col),
+                    "choices": form.choices.get(col),
                 }
             )
         return {
             "table": table_name,
-            "submit_label": form.submit_label if form else "登録",
+            "heading": form.heading(table_name),
+            "submit_label": form.submit_label,
             "fields": fields,
         }

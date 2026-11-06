@@ -149,7 +149,9 @@ def index(
             has_kpis=bool(config.kpis),
             refresh_interval_ms=config.refresh_interval_ms,
             form_tables=[
-                name for name, t in config.tables.items() if t.form is not None
+                {"name": name, "heading": t.form.heading(name)}
+                for name, t in config.tables.items()
+                if t.form is not None
             ],
             dashboard_json=dashboard_json,
             list_views=list_views,

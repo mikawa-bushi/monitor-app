@@ -8,7 +8,7 @@
     has_kiosk           : bool
     has_kpis            : bool
     refresh_interval_ms : int
-    form_tables         : list[str]
+    form_tables         : list — [{name, heading}](heading は FormDef.heading())
 #}
 {% extends "base.html" %}
 
@@ -70,8 +70,8 @@
     <h1>データ入力</h1>
 </div>
 <nav class="card view-list" aria-label="データ入力">
-    {% for table in form_tables %}
-    <a href="{{ url_for('show_form', table_name=table) }}">📝 {{ table }} の入力</a>
+    {% for form in form_tables %}
+    <a href="{{ url_for('show_form', table_name=form.name) }}">📝 {{ form.heading }}</a>
     {% endfor %}
 </nav>
 {% endif %}

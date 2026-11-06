@@ -283,10 +283,14 @@ class CellStyle(_ConfigModel):
 class FormDef(_ConfigModel):
     """作業者向け入力フォームの定義(フェーズ3)。テーブルに付与する。"""
 
+    title: str = ""  # 見出しとトップページのリンク。空なら「<テーブル名> の入力」
     fields: list[str] | None = None  # 入力対象列。None なら主キー以外の全列
     labels: dict[str, str] = Field(default_factory=dict)  # 列 → 表示名
     choices: dict[str, list[str]] = Field(default_factory=dict)  # 列 → 選択肢
     submit_label: str = "登録"
+
+    def heading(self, table_name: str) -> str:
+        return self.title or f"{table_name} の入力"
 
 
 class ChartDef(_ConfigModel):

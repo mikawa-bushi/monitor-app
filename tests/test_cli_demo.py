@@ -99,7 +99,7 @@ def test_demo_serves_a_warehouse_screen_with_both_alerts(
         results["rows"] = {name: _view_rows(client, name) for name in config.views}
         results["kpis"] = client.get("/api/kpis").json()["kpis"]
         results["alerts"] = _alerts_once_evaluated(client)
-        results["pages"] = {path: client.get(path).status_code for path in PAGES}
+        results["pages"] = {path: client.get(path) for path in PAGES}
         results["tasks"] = client.get("/api/health").json()["tasks"]
 
     before = sorted(tmp_path.iterdir())
@@ -122,7 +122,10 @@ def test_demo_serves_a_warehouse_screen_with_both_alerts(
     )
     levels = {a["level"] for a in fake.results["alerts"]}
     assert levels == {"warning", "critical"}
-    assert set(fake.results["pages"].values()) == {200}
+    pages = fake.results["pages"]
+    assert {page.status_code for page in pages.values()} == {200}
+    assert "<h1>入出庫の入力</h1>" in pages["/form/movements"].text
+    assert '<a href="/form/movements">📝 入出庫の入力</a>' in pages["/"].text
     assert fake.results["tasks"]["warehouse demo"]["running"] is True
     tasks = call["app"].state.services.background_tasks
     assert any(isinstance(task, WarehouseSimulator) for task in tasks)
