@@ -1,11 +1,4 @@
-"""``runserver``: Web サーバー(uvicorn)を起動する。
-
-uvicorn の起動まわりは ``serve`` と共有する: ポートの事前確認
-(:func:`ensure_port_available`)、起動の 1 行と公開範囲の警告・案内
-(:func:`log_startup` / :func:`access_hint`)、uvicorn への引数(:func:`run_uvicorn`)。
-停止のシグナルの扱い(:func:`~monitor_app.cli._signals.stop_signals`)は呼び出し側が
-決める: runserver は uvicorn の前の準備の間だけ、serve は uvicorn の動作中も含めて使う。
-"""
+"""Web サーバー(uvicorn)の起動(``runserver`` と :func:`serving_session`)。"""
 
 from __future__ import annotations
 
@@ -15,6 +8,11 @@ import logging
 import os
 import signal
 import socket
+import threading
+import time
+import webbrowser
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -36,13 +34,18 @@ from ._common import (
 from .data import run_csv_import
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI
+
     from ..settings.declarative import MonitorConfig
     from ..settings.runtime import AppSettings
 
 logger = logging.getLogger("monitor_app.cli")
 
+_LOOPBACK_OF_WILDCARD = {"0.0.0.0": "127.0.0.1", "::": "::1", "": "127.0.0.1"}
 #: すべてのインターフェースで待ち受けるアドレス。
-_ALL_INTERFACES = ("0.0.0.0", "::", "")
+_ALL_INTERFACES = tuple(_LOOPBACK_OF_WILDCARD)
+#: ``--open`` でサーバーの待ち受け開始を待つ最大秒数。
+OPEN_TIMEOUT = 15.0
 #: API キーを作るコマンドの例(警告に添える)。
 _KEYGEN_HINT = 'python -c "import secrets; print(secrets.token_urlsafe(24))"'
 
@@ -258,9 +261,7 @@ def uvicorn_options(settings: AppSettings) -> dict[str, Any]:
 def run_uvicorn(
     app: Any, settings: AppSettings, host: str, port: int, **options: Any
 ) -> None:
-    """uvicorn を起動する(runserver と serve で共有)。
-
-    ``app`` はアプリか import 文字列(``factory=True`` などは ``options`` で渡す)。
+    """``app`` はアプリか import 文字列(``factory=True`` などは ``options`` で渡す)。
     ポートの事前確認と停止のシグナルの扱いは、取り込みより前に呼び出し側が行う。
     """
     # sse_starlette は import 時に uvicorn の終了処理へフックする。uvicorn が
@@ -385,3 +386,63 @@ def _reload_dirs(config_path: Path, reload: bool) -> dict[str, Any]:
     if same_dir(project_dir, cwd):
         return {}
     return {"reload_dirs": [str(cwd), str(project_dir)]}
+
+
+def _browser_url(host: str, port: int) -> str:
+    return _url(_LOOPBACK_OF_WILDCARD.get(host, host), port)
+
+
+def _open_when_ready(url: str, host: str, port: int, timeout: float = OPEN_TIMEOUT):
+    """サーバーが待ち受けを始めたらブラウザで開く(別スレッドで呼ぶ)。"""
+    target = _LOOPBACK_OF_WILDCARD.get(host, host)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((target, port), timeout=0.5):
+                break
+        except OSError:
+            time.sleep(0.2)
+    webbrowser.open(url)
+
+
+class _ServingSession(ExitStack):
+    def serve(
+        self,
+        app: FastAPI,
+        settings: AppSettings,
+        host: str,
+        port: int,
+        *,
+        open_browser: bool,
+    ) -> None:
+        if not is_loopback(host) and not settings.api_key:
+            typer.secho(
+                f"警告: {host} で公開していますが API キーが未設定です。同じ"
+                "ネットワークの誰でもデータを変更・削除できます"
+                "(MONITOR_API_KEY を設定してください)",
+                fg=typer.colors.RED,
+                err=True,
+            )
+        hint = access_hint(host, port)
+        if hint:
+            typer.echo(f"  {hint}")
+        url = _browser_url(host, port)
+        typer.secho(f"✅ 起動します: {url} (Ctrl+C で終了)", fg=typer.colors.GREEN)
+        # uvicorn は停止の処理のあと、受けたシグナルを送り直す(SIGINT は KeyboardInterrupt、
+        # SIGTERM はこのブロックでは StopRequested。既定の動作のままだと後片付けの前に
+        # プロセスが終わる)。どちらも正常な終了として扱う。
+        with suppress(KeyboardInterrupt, StopRequested):
+            if open_browser:
+                threading.Thread(
+                    target=_open_when_ready, args=(url, host, port), daemon=True
+                ).start()
+            run_uvicorn(app, settings, host, port)
+
+
+@contextmanager
+def serving_session() -> Iterator[_ServingSession]:
+    try:
+        with _ServingSession() as session, stop_signals():
+            yield session
+    except StopRequested:
+        raise typer.Exit(143) from None

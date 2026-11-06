@@ -12,7 +12,6 @@ Webhook)・バックアップ・フォルダ監視は、環境変数の設定に
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -22,9 +21,8 @@ import typer
 
 from .. import logging_conf
 from . import server as _server
-from ._common import StopRequested, stop_signals
+from ._common import sqlite_url
 from .data import run_csv_import
-from .zero import _browser_url, _run_server, _sqlite_url, warn_if_exposed
 
 if TYPE_CHECKING:
     from ..settings.runtime import AppSettings
@@ -46,7 +44,7 @@ def demo_settings(workdir: Path, host: str, port: int) -> AppSettings:
 
     return AppSettings(
         _env_file=None,
-        database_url=_sqlite_url(workdir / "demo.db"),
+        database_url=sqlite_url(workdir / "demo.db"),
         csv_dir=workdir / "csv",
         ingest_watch=False,
         webhook_url=None,
@@ -80,55 +78,40 @@ def demo_command(
     _server.check_port(port)
     _server.ensure_port_available(host, port)
 
-    workdir = Path(tempfile.mkdtemp(prefix=TEMP_PREFIX))
-    app = None
-    serving = False
-    try:
-        with stop_signals():
-            write_project(workdir, now=datetime.now())
-            # 一時フォルダのコピーを読む(__pycache__ をパッケージの中に作らない)。
-            config = load_config(workdir / "config.py")
-            settings = demo_settings(workdir, host, port)
-            report = run_csv_import(settings, config, only_empty=True)
-            app = create_app(config, settings)
-            simulator = WarehouseSimulator(app.state.services)
-            app.state.services.background_tasks.append(simulator)
+    with _server.serving_session() as session:
+        workdir = Path(
+            session.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=TEMP_PREFIX, ignore_cleanup_errors=True
+                )
+            )
+        )
+        write_project(workdir, now=datetime.now())
+        # 一時フォルダのコピーを読む(__pycache__ をパッケージの中に作らない)。
+        config = load_config(workdir / "config.py")
+        settings = demo_settings(workdir, host, port)
+        report = run_csv_import(settings, config, only_empty=True)
+        app = create_app(config, settings)
+        session.callback(app.state.services.close)
+        simulator = WarehouseSimulator(app.state.services)
+        app.state.services.background_tasks.append(simulator)
 
-            counts = "・".join(
-                f"{_TABLE_LABELS.get(r.table, r.table)} {r.inserted:,}"
-                for r in report.results
-            )
-            typer.secho(
-                "📦 デモ: 物流センターの在庫画面(データは架空。終了すると消えます)",
-                bold=True,
-            )
-            typer.echo(f"  データ: {counts} 行(今日までの 7 日分)")
-            typer.echo(
-                f"  入出庫を {simulator.interval:g} 秒ごとに発生させます"
-                "(画面は自動で更新)"
-            )
-            typer.echo(f"  この画面の設定: {SOURCE / 'config.py'}")
-            typer.echo(
-                "  自分のプロジェクトにする: "
-                "monitor-app startproject my-warehouse --template warehouse"
-            )
-            warn_if_exposed(host, settings)
-            hint = _server.access_hint(host, port)
-            if hint:
-                typer.echo(f"  {hint}")
-            typer.secho(
-                f"✅ 起動します: {_browser_url(host, port)} (Ctrl+C で終了)",
-                fg=typer.colors.GREEN,
-            )
-            serving = True
-            _run_server(app, settings, host, port, open_browser)
-    except KeyboardInterrupt:
-        if not serving:
-            raise
-    except StopRequested:
-        if not serving:
-            raise typer.Exit(143) from None
-    finally:
-        if app is not None:
-            app.state.services.close()  # rmtree の前に DB を閉じる(Windows のロック)
-        shutil.rmtree(workdir, ignore_errors=True)
+        counts = "・".join(
+            f"{_TABLE_LABELS.get(r.table, r.table)} {r.inserted:,}"
+            for r in report.results
+        )
+        typer.secho(
+            "📦 デモ: 物流センターの在庫画面(データは架空。終了すると消えます)",
+            bold=True,
+        )
+        typer.echo(f"  データ: {counts} 行(今日までの 7 日分)")
+        typer.echo(
+            f"  入出庫を {simulator.interval:g} 秒ごとに発生させます"
+            "(画面は自動で更新)"
+        )
+        typer.echo(f"  この画面の設定: {SOURCE / 'config.py'}")
+        typer.echo(
+            "  自分のプロジェクトにする: "
+            "monitor-app startproject my-warehouse --template warehouse"
+        )
+        session.serve(app, settings, host, port, open_browser=open_browser)

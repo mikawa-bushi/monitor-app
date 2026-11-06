@@ -22,8 +22,8 @@ from sqlalchemy.engine import make_url
 from typer.testing import CliRunner
 
 from monitor_app.cli import app as cli_app
-from monitor_app.cli import zero
-from monitor_app.cli._common import StopRequested, stop_signals
+from monitor_app.cli import server, zero
+from monitor_app.cli._common import StopRequested, sqlite_url, stop_signals
 from monitor_app.services.ingest_watcher import IngestWatcher
 
 
@@ -319,7 +319,7 @@ def test_serve_open_starts_the_browser_helper(
     tmp_path, runner, fake_uvicorn, monkeypatch
 ):
     opened: list = []
-    monkeypatch.setattr(zero, "_open_when_ready", lambda *args: opened.append(args))
+    monkeypatch.setattr(server, "_open_when_ready", lambda *args: opened.append(args))
     fake_uvicorn()
     path = _codes_csv(tmp_path / "items.csv")
     result = runner.invoke(
@@ -339,7 +339,7 @@ def test_open_when_ready_waits_for_the_listener(monkeypatch):
     with socket.create_server(("127.0.0.1", 0)) as sock:
         port = sock.getsockname()[1]
         thread = threading.Thread(
-            target=zero._open_when_ready, args=("http://x/", "127.0.0.1", port, 5.0)
+            target=server._open_when_ready, args=("http://x/", "127.0.0.1", port, 5.0)
         )
         thread.start()
         thread.join(5)
@@ -357,15 +357,15 @@ def test_open_when_ready_waits_for_the_listener(monkeypatch):
     ],
 )
 def test_browser_url(host, url):
-    assert zero._browser_url(host, 1) == url
+    assert server._browser_url(host, 1) == url
 
 
 def test_sqlite_url_escapes_special_characters(tmp_path):
     odd = tmp_path / "a#b%25c" / "serve.db"
-    url = zero._sqlite_url(odd)
+    url = sqlite_url(odd)
     assert make_url(url).database == odd.as_posix()
     plain = tmp_path / "日本語 フォルダ" / "serve.db"
-    assert zero._sqlite_url(plain) == f"sqlite:///{plain.as_posix()}"
+    assert sqlite_url(plain) == f"sqlite:///{plain.as_posix()}"
 
 
 def test_db_path_with_question_mark_is_rejected(tmp_path, runner, fake_uvicorn):

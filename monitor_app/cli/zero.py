@@ -14,12 +14,7 @@ CSV の文字コードは取り込みがファイルごとに判別する(``MONI
 from __future__ import annotations
 
 import logging
-import shutil
-import socket
 import tempfile
-import threading
-import time
-import webbrowser
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -28,7 +23,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from . import server as _server
-from ._common import StopRequested, fail, load_settings, stop_signals
+from ._common import fail, load_settings, sqlite_url
 from .data import run_csv_import
 
 if TYPE_CHECKING:
@@ -45,8 +40,6 @@ TEMP_PREFIX = "monitor-app-serve-"
 TEMP_DB_NAME = "serve.db"
 #: フォルダ監視の間隔(秒)。MONITOR_INGEST_INTERVAL を設定していればそちらを使う。
 WATCH_INTERVAL = 1.0
-#: ``--open`` でサーバーの待ち受け開始を待つ最大秒数。
-OPEN_TIMEOUT = 15.0
 #: 取り込みの警告を表示する件数の上限(テーブルごと)。
 MAX_IMPORT_WARNINGS = 5
 
@@ -77,17 +70,6 @@ def inference_encodings(base: AppSettings) -> tuple[str, ...]:
     return tuple(dict.fromkeys([*known, *unknown]))
 
 
-def _sqlite_url(path: Path) -> str:
-    """SQLite ファイルの接続 URL(``?`` を含むパスは扱えないため呼び出し前に弾く)。"""
-    from sqlalchemy.engine import URL
-
-    text = path.as_posix()
-    if "#" in text or "%" in text:
-        # URL として特別な意味を持つ文字は、SQLAlchemy に任せてエスケープする
-        return URL.create("sqlite", database=text).render_as_string(hide_password=False)
-    return f"sqlite:///{text}"
-
-
 def _serve_settings(
     base: AppSettings,
     project: InferredProject,
@@ -106,7 +88,7 @@ def _serve_settings(
     from ..settings.runtime import AppSettings
 
     overrides: dict = {
-        "database_url": _sqlite_url(db_path),
+        "database_url": sqlite_url(db_path),
         "csv_dir": project.csv_dir,
         "ingest_watch": watch,
         "ingest_mode": "append" if append else "replace",
@@ -280,55 +262,6 @@ def _summary_replaces_import_logs() -> Iterator[set[str]]:
                 logger.handle(record)
 
 
-def _browser_url(host: str, port: int) -> str:
-    if host in ("", "0.0.0.0"):
-        host = "127.0.0.1"
-    elif host == "::":
-        host = "::1"
-    if ":" in host:
-        host = f"[{host}]"
-    return f"http://{host}:{port}/"
-
-
-def _open_when_ready(url: str, host: str, port: int, timeout: float = OPEN_TIMEOUT):
-    """サーバーが待ち受けを始めたらブラウザで開く(別スレッドで呼ぶ)。"""
-    target = {"": "127.0.0.1", "0.0.0.0": "127.0.0.1", "::": "::1"}.get(host, host)
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection((target, port), timeout=0.5):
-                break
-        except OSError:
-            time.sleep(0.2)
-    webbrowser.open(url)
-
-
-def warn_if_exposed(host: str, settings: AppSettings) -> None:
-    """ループバック以外で API キーなしに公開するときの警告。"""
-    if not _server.is_loopback(host) and not settings.api_key:
-        typer.secho(
-            f"警告: {host} で公開していますが API キーが未設定です。同じ"
-            "ネットワークの誰でもデータを変更・削除できます"
-            "(MONITOR_API_KEY を設定してください)",
-            fg=typer.colors.RED,
-            err=True,
-        )
-
-
-def _run_server(
-    app: FastAPI, settings: AppSettings, host: str, port: int, open_browser: bool
-) -> None:
-    if open_browser:
-        threading.Thread(
-            target=_open_when_ready,
-            args=(_browser_url(host, port), host, port),
-            daemon=True,
-        ).start()
-    # runserver と同じ起動(1 プロセス・停止の猶予 5 秒・ログとアクセスログ・プロキシの
-    # 設定)。停止のシグナルは serve の stop_signals() が受ける。
-    _server.run_uvicorn(app, settings, host, port)
-
-
 def serve(
     paths: list[Path] | None = typer.Argument(
         None,
@@ -388,93 +321,70 @@ def serve(
     # 取り込みの前に確かめ、二重起動で稼働中の DB を置き換えないようにする。
     _server.ensure_port_available(host, port)
 
-    workdir: Path | None = None
-    if db is None:
-        workdir = Path(tempfile.mkdtemp(prefix=TEMP_PREFIX))
-        db_path = workdir / TEMP_DB_NAME
-        reuse = False
-    else:
-        db_path = db.expanduser().resolve()
-        if "?" in db_path.as_posix():
-            # SQLAlchemy 2.0 は URL の ? 以降を接続オプションとして読むため
-            fail(f"--db のパスに ? は使えません: {db_path}")
-        if db_path.is_dir():
-            fail(f"--db にはファイル名を指定してください(フォルダです): {db_path}")
-        try:
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            fail(
-                f"--db のフォルダを作れません: {db_path.parent}({exc.strerror or exc})"
-            )
-        reuse = db_path.exists()
-    app = None
-    serving = False
-    try:
-        # SIGTERM(docker stop など)・端末を閉じたときの SIGHUP でも、uvicorn の停止
-        # 処理と一時ファイルの DB の削除(finally)を通って終える。uvicorn は停止の処理の
-        # あと受けたシグナルを送り直すため、サーバーの動作中もこのブロックの中に置く。
-        with stop_signals():
-            settings = _serve_settings(
-                base,
-                project,
-                db_path,
-                append=append,
-                watch=not no_watch,
-                host=host,
-                port=port,
-            )
-            explained = _db_errors_explained(
-                reuse=reuse, db_path=None if workdir is not None else db_path
-            )
-            if append and not no_watch:
-                # 追記の監視: 起動前の取り込みを監視の読み取り位置つきで行い、監視が
-                # その続きから読む(起動の途中に追記された行も取りこぼさない)。既存の
-                # DB の行のあるテーブルは取り込み済みとみなす(重複させない)。
-                with explained:
-                    app = create_app(project.config, settings)
-                    counts = _append_watcher(app).import_existing()
-                _print_appended(counts)
-            else:
-                # --append で既存の DB を使うときは、空のテーブルにだけ取り込む(重複させない)。
-                with explained, _summary_replaces_import_logs() as shown:
-                    report = run_csv_import(
-                        settings, project.config, only_empty=append and reuse
+    with _server.serving_session() as session:
+        if db is None:
+            workdir = Path(
+                session.enter_context(
+                    tempfile.TemporaryDirectory(
+                        prefix=TEMP_PREFIX, ignore_cleanup_errors=True
                     )
-                    shown.update(_shown_warnings(report))
-                _print_import(report)
-                app = create_app(project.config, settings)
-
-            if workdir is not None:
-                where = "一時ファイル(終了時に削除。残すには --db FILE)"
-            else:
-                where = str(db_path)
-            typer.echo(f"  データ: {where}")
-            if not no_watch:
-                mode = (
-                    "追記された行だけ" if append else "変更されたファイルを置き換えて"
                 )
-                typer.echo(f"  CSV の変更を監視し、{mode}取り込みます")
-            warn_if_exposed(host, settings)
-            hint = _server.access_hint(host, port)
-            if hint:
-                typer.echo(f"  {hint}")
-            typer.secho(
-                f"✅ 起動します: {_browser_url(host, port)} (Ctrl+C で終了)",
-                fg=typer.colors.GREEN,
             )
-            serving = True
-            _run_server(app, settings, host, port, open_browser)
-    # サーバーの停止処理のあとに送り直されたシグナルなら、正常な終了として扱う
-    # (起動前に中断されたなら、Ctrl+C は通常どおり中断・SIGTERM は 143 で終える)。
-    except KeyboardInterrupt:
-        if not serving:
-            raise
-    except StopRequested:
-        if not serving:
-            raise typer.Exit(143) from None
-    finally:
-        if app is not None:
-            # 起動に失敗した場合も DB のファイルを閉じる(一時フォルダを消せるように)
-            app.state.services.close()
-        if workdir is not None:
-            shutil.rmtree(workdir, ignore_errors=True)
+            db_path = workdir / TEMP_DB_NAME
+            reuse = False
+        else:
+            db_path = db.expanduser().resolve()
+            if "?" in db_path.as_posix():
+                # SQLAlchemy 2.0 は URL の ? 以降を接続オプションとして読むため
+                fail(f"--db のパスに ? は使えません: {db_path}")
+            if db_path.is_dir():
+                fail(f"--db にはファイル名を指定してください(フォルダです): {db_path}")
+            try:
+                db_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                fail(
+                    f"--db のフォルダを作れません: {db_path.parent}"
+                    f"({exc.strerror or exc})"
+                )
+            reuse = db_path.exists()
+        settings = _serve_settings(
+            base,
+            project,
+            db_path,
+            append=append,
+            watch=not no_watch,
+            host=host,
+            port=port,
+        )
+        explained = _db_errors_explained(
+            reuse=reuse, db_path=None if db is None else db_path
+        )
+        if append and not no_watch:
+            # 追記の監視: 起動前の取り込みを監視の読み取り位置つきで行い、監視が
+            # その続きから読む(起動の途中に追記された行も取りこぼさない)。既存の
+            # DB の行のあるテーブルは取り込み済みとみなす(重複させない)。
+            with explained:
+                app = create_app(project.config, settings)
+                session.callback(app.state.services.close)
+                counts = _append_watcher(app).import_existing()
+            _print_appended(counts)
+        else:
+            # --append で既存の DB を使うときは、空のテーブルにだけ取り込む(重複させない)。
+            with explained, _summary_replaces_import_logs() as shown:
+                report = run_csv_import(
+                    settings, project.config, only_empty=append and reuse
+                )
+                shown.update(_shown_warnings(report))
+            _print_import(report)
+            app = create_app(project.config, settings)
+            session.callback(app.state.services.close)
+
+        if db is None:
+            where = "一時ファイル(終了時に削除。残すには --db FILE)"
+        else:
+            where = str(db_path)
+        typer.echo(f"  データ: {where}")
+        if not no_watch:
+            mode = "追記された行だけ" if append else "変更されたファイルを置き換えて"
+            typer.echo(f"  CSV の変更を監視し、{mode}取り込みます")
+        session.serve(app, settings, host, port, open_browser=open_browser)
