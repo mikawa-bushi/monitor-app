@@ -350,10 +350,17 @@ def plan_csv_import(settings: AppSettings, cfg: MonitorConfig) -> CsvPlan:
 
 
 def sqlite_url(path: Path) -> str:
-    """SQLite ファイルの接続 URL(``?`` を含むパスは扱えないため呼び出し前に弾く)。"""
+    """SQLite ファイルの接続 URL。パスに ``?`` があれば案内を表示して終了する。"""
     from sqlalchemy.engine import URL
 
     text = path.as_posix()
+    if "?" in text:
+        # SQLAlchemy 2.0 は URL の ? 以降を接続オプションとして読み、%3F と書いても ? に戻さない
+        fail(
+            f"SQLite のファイルのパスに ? は使えません: {path}",
+            "--db のファイルと一時フォルダの場所 TMPDIR(Windows は TEMP)は、"
+            "? を含まない場所にしてください",
+        )
     if "#" in text or "%" in text:
         # URL として特別な意味を持つ文字は、SQLAlchemy に任せてエスケープする
         return URL.create("sqlite", database=text).render_as_string(hide_password=False)
