@@ -346,7 +346,8 @@ config = MonitorConfig(
             primary_key="id",
             indexes=[["ts"]],                                # speeds up ORDER BY / WHERE ts
             retention=Retention(keep_days=90, column="ts"),  # delete rows older than 90 days
-            form=FormDef(labels={"temp": "Temperature (°C)"},
+            form=FormDef(title="Enter readings",
+                         labels={"temp": "Temperature (°C)"},
                          choices={"line": ["L1", "L2"]}),     # entry form at /form/readings
         ),
     },

@@ -89,6 +89,7 @@ config = MonitorConfig(
             indexes=[["ts"]],
             # ハンディ端末の代わりの入力フォーム(/form/movements)。
             form=FormDef(
+                title="入出庫の入力",
                 fields=["ts", "kind", "lot_no", "location", "qty", "operator"],
                 labels={
                     "ts": "日時",
