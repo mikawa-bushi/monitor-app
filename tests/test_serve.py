@@ -373,10 +373,11 @@ def test_db_path_with_question_mark_is_rejected(tmp_path, runner, fake_uvicorn):
     fake = fake_uvicorn()
     path = _codes_csv(tmp_path / "items.csv")
     result = runner.invoke(
-        cli_app, ["serve", str(path), "--db", str(tmp_path / "a?b.db")]
+        cli_app, ["serve", str(path), "--db", str(tmp_path / "a?b" / "serve.db")]
     )
     assert result.exit_code == 1
     assert "? は使えません" in result.output and fake.calls == []
+    assert not (tmp_path / "a?b").exists()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows のパスには ? を使えない")

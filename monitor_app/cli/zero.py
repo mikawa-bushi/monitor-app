@@ -73,7 +73,7 @@ def inference_encodings(base: AppSettings) -> tuple[str, ...]:
 def _serve_settings(
     base: AppSettings,
     project: InferredProject,
-    db_path: Path,
+    database_url: str,
     *,
     append: bool,
     watch: bool,
@@ -88,7 +88,7 @@ def _serve_settings(
     from ..settings.runtime import AppSettings
 
     overrides: dict = {
-        "database_url": sqlite_url(db_path),
+        "database_url": database_url,
         "csv_dir": project.csv_dir,
         "ingest_watch": watch,
         "ingest_mode": "append" if append else "replace",
@@ -331,12 +331,11 @@ def serve(
                 )
             )
             db_path = workdir / TEMP_DB_NAME
+            database_url = sqlite_url(db_path)
             reuse = False
         else:
             db_path = db.expanduser().resolve()
-            if "?" in db_path.as_posix():
-                # SQLAlchemy 2.0 は URL の ? 以降を接続オプションとして読むため
-                fail(f"--db のパスに ? は使えません: {db_path}")
+            database_url = sqlite_url(db_path)
             if db_path.is_dir():
                 fail(f"--db にはファイル名を指定してください(フォルダです): {db_path}")
             try:
@@ -350,7 +349,7 @@ def serve(
         settings = _serve_settings(
             base,
             project,
-            db_path,
+            database_url,
             append=append,
             watch=not no_watch,
             host=host,
