@@ -178,6 +178,29 @@ class TestForm:
         assert fclient.get("/form/ghost").status_code == 404
 
 
+class TestFormTitle:
+    @pytest.fixture
+    def client(self) -> TestClient:
+        config = MonitorConfig(
+            tables={
+                "defects": TableDef(
+                    columns=["id", "line"], form=FormDef(title="不良の記録")
+                ),
+                "checks": TableDef(columns=["id", "line"], form=FormDef()),
+            }
+        )
+        settings = AppSettings(database_url="sqlite:///:memory:")
+        return TestClient(create_app(config, settings))
+
+    def test_title_names_the_form_page_and_the_top_page_link(self, client):
+        assert "<h1>不良の記録</h1>" in client.get("/form/defects").text
+        assert '<a href="/form/defects">📝 不良の記録</a>' in client.get("/").text
+
+    def test_without_title_the_form_is_named_after_the_table(self, client):
+        assert "<h1>checks の入力</h1>" in client.get("/form/checks").text
+        assert '<a href="/form/checks">📝 checks の入力</a>' in client.get("/").text
+
+
 # --- G 監査 / H エクスポート ----------------------------------------------
 class TestAuditExport:
     def test_audit_records_writes(self, fclient):
