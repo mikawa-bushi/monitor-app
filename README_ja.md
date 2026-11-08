@@ -40,18 +40,17 @@ monitor-app runserver --import-csv-if-empty
 
 プロジェクトでは入出庫は自動で起きません。自分のデータへの替え方は、プロジェクトの `README.md` にあります。
 
-## ✨ 2.4 の新機能
+## ✨ 2.5 の新機能
 
-- **設定なしで始められる。** `monitor-app serve ./my-csv-folder`(インストールせずに `uvx monitor-app serve ...` でも可)で、CSV から列の型・主キー・グラフ・KPI カードを推論してダッシュボードを開きます。気に入ったら `startproject --from-csv` でプロジェクトにできます。
-- **大幅に高速化。** SQLite は WAL モードで動き、CSV はストリーミングで取り込みます(100 万行: 約 1.3 倍速く、テスト用の PC で 6.0 秒 → 4.7 秒。メモリは行数によらず約 60 MB で、従来は 580 MB)。追記モードのフォルダ監視は新しい行だけを読み(100 万行のファイルに追記された 10 行: 約 1 ミリ秒。従来 3 秒)、同じ 1 万行のビューへの同時 30 リクエストは、クエリを 1 回だけ実行して共有するため約 40 ミリ秒(従来は約 40 秒)で返します。データが変わらなければ `304` を返し、レスポンスは gzip で圧縮します。
-- **Excel の CSV にそのまま対応。** Excel の Shift_JIS(cp932)の CSV を自動判別し、`2026/10/21 8:00` のような Excel の日時も読み、見出しの表記ゆれも吸収します。エクスポートには Excel 向けの BOM を付けられます(`?bom=1`)。
-- **既定で安全。** `runserver --import-csv-if-empty` なら画面で入力した行が再起動しても残ります。列を消してしまう取り込みは止め、`monitor-app check` が `config.py` と `.env` の綴りの誤り・壊れた SQL・発火しないアラートの列を見つけます。`monitor-app deploy` は推測されにくい API キーを `.env` に書き、この PC だけで待ち受けるサーバーは見知らぬホスト名への要求を断ります(DNS リバインディング対策)。
-- **Docker は 1 行で。** `docker run -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app`(linux/amd64・linux/arm64)。プロジェクトのフォルダをそのままマウントでき、コンテナはフォルダの所有者のユーザーで動きます。
-- **`monitor-app deploy`** が Docker Compose・Linux / Raspberry Pi(systemd)・Windows(タスク スケジューラ)用の起動ファイルと API キーを書き出します。
-- **バックアップと保持期間。** `monitor-app backup` / `restore`(壊れた DB の復旧にも)、定期バックアップ、`Retention(keep_days=...)`、あとから足した列を追加する `monitor-app migrate`。
-- **リバースプロキシ対応。** `/monitor/` のようなサブパスで公開でき(`MONITOR_ROOT_PATH`)、`/api/health` で DB まで確かめる死活監視、JSON 形式のログにも対応しました。
+- **準備なしで動くデモ。** `monitor-app demo` で、架空の物流センターの在庫画面を開きます。4 秒ごとに入荷・出荷・移動が起き、KPI カード・グラフ・アラートがひとりでに動きます。データは一時的な SQLite に入り、終了すると消えます。Docker を何もマウントせずに起動したときも、サンプルのプロジェクトの代わりにこのデモが起動します(空のフォルダをマウントすれば、これまでどおりサンプルのプロジェクトを書き込みます)。
+- **デモからプロジェクトを始める。** `monitor-app startproject 名前 --template warehouse` で、デモと同じ `config.py`・マスタ・7 日分の架空のデータでプロジェクトを作ります。
+- **設定ページ。** `/settings` で、表示・ビュー(SQL・列の見出し・セルの色分け・グラフ)・KPI・アラート・大型表示・ダッシュボードを、`config.py` を書き換えずに編集できます。保存すると `monitor-app check` と同じ点検をしてから、サーバーを止めずに反映します。保存するのは `config.py` との差分だけで、DB に置きます。
+- **CSV のアップロード。** `/upload` で、ブラウザから CSV をテーブルに取り込めます。`monitor-app import-csv` と同じ処理で、追記と置き換えを選べます。
+- **`MONITOR_ADMIN_KEY`。** 設定ページと CSV のアップロードだけに使う鍵です。設定すると、`MONITOR_API_KEY` でログインした作業者は設定を変えられません。未設定なら `MONITOR_API_KEY` で使え、どちらの鍵も無ければこの PC からだけ使えます。
+- **入力フォームの名前。** `FormDef(title="...")` で付けた名前が、フォームの見出し・ブラウザのタブの題名・トップページのリンクに出ます。
+- **セキュリティの強化。** 管理の機能は、ほかのサイトのページから送られた要求を断ります(CSRF)。画面から保存する SQL は `;` を含まない 1 つの文に限り、KPI の表示形式は値の書式だけを許します。アップロードしたファイルの名前は、どの OS でもフォルダとドライブの部分を取り除くため、一時フォルダの外を指せません。
 
-すべての変更: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md)。2.3 から更新するときは、下の「**2.3.x からの更新**」を読んでください。
+すべての変更: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md)。2.4 から更新するときは、CHANGELOG の「Upgrade notes」のほかに変えることはありません。2.3 から更新するときは、下の「**2.3.x からの更新**」を読んでください。
 
 ## 特徴
 
@@ -466,9 +465,9 @@ docker compose pull && docker compose up -d     # 最新のイメージに更新
 ```
 
 - `monitor-app deploy` は、`.env` に `MONITOR_API_KEY` が無ければ推測されにくいキーを生成して書きます(書いた場所を表示し、キーそのものは表示しません)。閲覧はキーなしでできますが、行の追加・変更・削除にはキーが必要です(画面でログインするか、`X-API-Key` を送る)。
-- `.env` はコンテナの中のアプリがふだんどおり読みます。生成した `compose.yaml` は `.env` から `MONITOR_PORT`(ホスト側のポート)・`TZ`(例: `TZ=Asia/Tokyo`)・`MONITOR_IMAGE`(イメージの名前)・`MONITOR_IMAGE_TAG`(例: `2.4.0` で版を固定)も読みます。
+- `.env` はコンテナの中のアプリがふだんどおり読みます。生成した `compose.yaml` は `.env` から `MONITOR_PORT`(ホスト側のポート)・`TZ`(例: `TZ=Asia/Tokyo`)・`MONITOR_IMAGE`(イメージの名前)・`MONITOR_IMAGE_TAG`(例: `2.5.0` で版を固定)も読みます。
 - ほかのコマンドも同じく所有者のユーザーで実行できます: `docker compose run --rm monitor-app check`、`... backup`、`... import-csv`。`docker compose exec monitor-app monitor-app backup` は使わないでください。root で動くため、バックアップのファイルを root しか読めなくなります。
-- イメージのタグ: `latest`・`2`・`2.4`・`2.4.0`。プラットフォームは `linux/amd64` と `linux/arm64`(64 ビットの Raspberry Pi OS)。ヘルスチェック(`/api/health`)つきで、停止は約 1 秒です。
+- イメージのタグ: `latest`・`2`・`2.5`・`2.5.0`。プラットフォームは `linux/amd64` と `linux/arm64`(64 ビットの Raspberry Pi OS)。ヘルスチェック(`/api/health`)つきで、停止は約 1 秒です。
 - Docker Desktop(Windows・macOS)では、速度のためと「database is locked」のエラーを避けるため、`instances/` を名前付きボリュームにします(`compose.yaml` のコメントを参照)。イメージを自分でビルドするには `docker build -t monitor-app .` のあと、`.env` に `MONITOR_IMAGE=monitor-app` を書き、`pull` せずに `docker compose up -d` します。詳しくは[docker/README.md](https://github.com/mikawa-bushi/monitor-app/blob/main/docker/README.md)(英語)。
 
 ### Linux・Raspberry Pi(systemd)
@@ -565,7 +564,7 @@ curl http://127.0.0.1:9990/api/health
 ```
 
 ```json
-{"status":"ok","version":"2.4.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
+{"status":"ok","version":"2.5.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
 ```
 
 DB が `SELECT 1` に応答すれば `200`、応答しなければ `503`(`"status":"error"`)を返します。ログインは不要で、`HEAD` にも応答します。`tasks` はバックグラウンドの処理(`ingest watcher`・`alert scheduler`・`retention`・`backup`)が動いているか、最後に成功した時刻、直近の失敗の種類を示します。

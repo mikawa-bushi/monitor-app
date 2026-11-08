@@ -57,38 +57,36 @@ monitor-app runserver --import-csv-if-empty
 In a project, movements do not happen on their own. The project's `README.md` explains
 how to replace the data with your own.
 
-## ✨ What's new in 2.4
+## ✨ What's new in 2.5
 
-- **No configuration needed to start.** `monitor-app serve ./my-csv-folder` (or
-  `uvx monitor-app serve ...` without installing) infers column types, keys, charts and
-  KPI cards from your CSV files. Keep the result with `startproject --from-csv`.
-- **Much faster.** SQLite runs in WAL mode, CSV files are imported as a stream (1 million
-  rows: about 1.3× faster, 4.7 s instead of 6.0 s on the test PC, with a constant
-  memory use of about 60 MB instead of 580 MB), folder watching in append mode reads
-  only the new rows (10 rows appended to a 1-million-row file: about 1 ms, was 3 s), and
-  30 simultaneous requests for the same 10,000-row view take about 40 ms instead of
-  about 40 s because the query runs once and is shared. Unchanged data is answered with
-  `304`, and responses are gzip-compressed.
-- **Excel-friendly import.** Shift_JIS/cp932 CSV files from Excel are detected
-  automatically, Excel dates such as `2026/10/21 8:00` are understood, header spelling
-  variants are matched, and exports can carry a BOM for Excel (`?bom=1`).
-- **Safe by default.** `runserver --import-csv-if-empty` keeps rows entered in the UI
-  across restarts, an import that would wipe a column is refused, and `monitor-app check`
-  finds typos in `config.py` and `.env`, broken SQL and alert columns that never match.
-  `monitor-app deploy` writes a random API key into `.env`, and a server that listens on
-  this PC only refuses requests for foreign host names (DNS rebinding).
-- **Docker in one line.** `docker run -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app`
-  (linux/amd64 and linux/arm64). Mount your project folder as is: the container runs as
-  the folder's owner.
-- **`monitor-app deploy`** writes the start-up files for Docker Compose, Linux/Raspberry
-  Pi (systemd) and Windows (Task Scheduler), plus an API key.
-- **Backups and retention.** `monitor-app backup` / `restore` (also for a damaged
-  database), scheduled backups, `Retention(keep_days=...)` and `monitor-app migrate`
-  for columns you add later.
-- **Reverse proxies.** Serve under a sub-path such as `/monitor/` (`MONITOR_ROOT_PATH`),
-  monitor `/api/health` (checks the database), JSON logs.
+- **A demo with nothing to prepare.** `monitor-app demo` opens the inventory screen of a
+  fictional distribution center. Every 4 seconds a receipt, shipment or move happens, so
+  the KPI cards, charts and alerts change on their own. The data lives in a temporary
+  SQLite database that is deleted on exit. Docker started with nothing mounted now runs
+  this demo instead of the sample project. Mount an empty folder to get the sample
+  project as before.
+- **Start a project from the demo.** `monitor-app startproject NAME --template warehouse`
+  writes the demo's `config.py`, master data and 7 days of fictional data.
+- **Settings page.** `/settings` edits the display options, views (SQL, column labels,
+  cell styles, charts), KPI cards, alerts, the wallboard and the dashboard without
+  editing `config.py`. A save runs the same checks as `monitor-app check`, then applies
+  at once without a restart. Only the difference from `config.py` is stored, in the
+  database.
+- **CSV upload.** `/upload` imports a CSV file into a table from the browser, with the
+  same code as `monitor-app import-csv`. Choose append or replace.
+- **`MONITOR_ADMIN_KEY`.** A key for the settings page and CSV upload only. When it is
+  set, operators who log in with `MONITOR_API_KEY` cannot change the settings. Without
+  it, `MONITOR_API_KEY` works, and with neither key the admin features work only from
+  this PC.
+- **Named entry forms.** `FormDef(title="...")` sets the form's heading, its browser tab
+  title and its link on the home page.
+- **Security.** The admin features refuse requests sent from pages on other sites
+  (CSRF). SQL saved from the browser must be one statement with no `;`, and a KPI number
+  format can only format the value. The name of an uploaded file loses its folder and
+  drive parts on every OS, so it cannot point outside the temporary folder.
 
 Full list: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md).
+Coming from 2.4? Nothing needs changing beyond the **Upgrade notes** in the CHANGELOG.
 Coming from 2.3? Read **Upgrading from 2.3.x** below.
 
 ## Features
@@ -687,13 +685,13 @@ docker compose pull && docker compose up -d     # update to the newest image
   deleting rows needs the key (log in on the page, or send `X-API-Key`).
 - `.env` is read by the app inside the container as usual. The generated `compose.yaml`
   also takes `MONITOR_PORT` (port on the host), `TZ` (for example `TZ=Asia/Tokyo`),
-  `MONITOR_IMAGE` (image name) and `MONITOR_IMAGE_TAG` (for example `2.4.0` to stay on a
+  `MONITOR_IMAGE` (image name) and `MONITOR_IMAGE_TAG` (for example `2.5.0` to stay on a
   version) from `.env`.
 - Other commands run the same way as the folder's owner:
   `docker compose run --rm monitor-app check`, `... backup`, `... import-csv`. Do not use
   `docker compose exec monitor-app monitor-app backup`: that runs as root and the backup
   file can then only be read by root.
-- Image tags: `latest`, `2`, `2.4`, `2.4.0`; platforms `linux/amd64` and `linux/arm64`
+- Image tags: `latest`, `2`, `2.5`, `2.5.0`; platforms `linux/amd64` and `linux/arm64`
   (64-bit Raspberry Pi OS). The image has a health check (`/api/health`) and stops within
   about a second.
 - On Docker Desktop (Windows, macOS) keep `instances/` in a named volume, for speed and
@@ -834,7 +832,7 @@ curl http://127.0.0.1:9990/api/health
 ```
 
 ```json
-{"status":"ok","version":"2.4.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
+{"status":"ok","version":"2.5.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
 ```
 
 It answers `200` when the database responds to `SELECT 1` and `503` (with
