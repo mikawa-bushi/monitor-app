@@ -7,7 +7,7 @@ The image runs `monitor-app runserver` for one project mounted at `/project`
 ```
 ghcr.io/mikawa-bushi/monitor-app:latest     # newest release
 ghcr.io/mikawa-bushi/monitor-app:2          # newest 2.x
-ghcr.io/mikawa-bushi/monitor-app:2.4.0      # exact version
+ghcr.io/mikawa-bushi/monitor-app:2.5.0      # exact version
 ```
 
 Files in this repository:
@@ -146,7 +146,7 @@ The generated `compose.yaml` also reads four variables from `.env` itself:
 | `MONITOR_PORT` | port published on the host | `9990` |
 | `TZ` | time zone of the container, e.g. `Asia/Tokyo` | the host's zone when the file was generated, else `UTC` |
 | `MONITOR_IMAGE` | image name, e.g. `monitor-app` for an image you built yourself | `ghcr.io/mikawa-bushi/monitor-app` |
-| `MONITOR_IMAGE_TAG` | image tag, e.g. `2.4.0` to pin a version | `latest` |
+| `MONITOR_IMAGE_TAG` | image tag, e.g. `2.5.0` to pin a version | `latest` |
 
 Notes:
 
@@ -258,7 +258,7 @@ docker compose pull       # newest image for MONITOR_IMAGE_TAG (default: latest)
 docker compose up -d      # recreates the container; data in the folder is kept
 ```
 
-To stay on a known version, put `MONITOR_IMAGE_TAG=2.4.0` in `.env`. Read the
+To stay on a known version, put `MONITOR_IMAGE_TAG=2.5.0` in `.env`. Read the
 changelog before major upgrades. After you change `config.py`, run
 `docker compose restart`.
 

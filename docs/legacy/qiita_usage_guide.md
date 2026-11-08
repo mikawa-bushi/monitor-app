@@ -1,6 +1,6 @@
-> ⚠️ **旧バージョン(v0.x、Flask 版)の記事です。現在の monitor-app では動きません。** この記事の `python monitor_app/app.py runserver --csv` や、プロジェクトへ `app.py` がコピーされる構成は v0.x のものです。v2 以降(現行 2.4)の使い方は [README_ja.md](../../README_ja.md) を参照してください。v0.x の `config.py` の移行は README の「v0.x からの移行」にあります。
+> ⚠️ **旧バージョン(v0.x、Flask 版)の記事です。現在の monitor-app では動きません。** この記事の `python monitor_app/app.py runserver --csv` や、プロジェクトへ `app.py` がコピーされる構成は v0.x のものです。v2 以降(現行 2.5)の使い方は [README_ja.md](../../README_ja.md) を参照してください。v0.x の `config.py` の移行は README の「v0.x からの移行」にあります。
 >
-> **Legacy (v0.x, Flask) article — it does not apply to the current monitor-app.** For v2 and later (currently 2.4), see [README.md](../../README.md).
+> **Legacy (v0.x, Flask) article — it does not apply to the current monitor-app.** For v2 and later (currently 2.5), see [README.md](../../README.md).
 
 # 【2025年最新版】CSVからWebアプリが作れる！Monitor App完全ガイド
 
