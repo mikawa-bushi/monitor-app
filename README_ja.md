@@ -128,7 +128,7 @@ pipx install monitor-app
 
 または `curl -LsSf https://astral.sh/uv/install.sh | sh` で uv を入れて `uv tool install monitor-app`。
 
-**64 ビット版の Raspberry Pi OS** はふつうの Linux PC と同じです(Docker イメージも対応)。**32 ビット版の Raspberry Pi OS** では、一部の依存パッケージ(uvloop・httptools・PyYAML)のビルド済みファイルが PyPI にありません。Raspberry Pi OS の pip は最初から [piwheels](https://www.piwheels.org/) も使う設定になっていてそこにあるため、`pipx install monitor-app` で入ります。pip がパッケージのコンパイルを始めたら `--pip-args=--prefer-binary` を付けます。uv は pip の設定を読まないため、uv を使うなら `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` を設定します。32 ビットの ARM では `[postgres]` は使えないため、同梱の pg8000 ドライバ(`postgresql+pg8000://...`)を使います。32 ビット用の Docker イメージはありません。
+**64 ビット版の Raspberry Pi OS** はふつうの Linux PC と同じです(Docker イメージも対応)。**32 ビット版の Raspberry Pi OS** でも、Raspberry Pi 2 以降(Zero 2 W を含む)なら依存パッケージのビルド済みファイルがすべて PyPI にあり、`pipx install monitor-app` で入ります。ARMv6 の機種(Pi 1、初代の Pi Zero と Zero W)では、pydantic-core と MarkupSafe のビルド済みファイルが PyPI にありません。Raspberry Pi OS の pip は最初から [piwheels](https://www.piwheels.org/) も使う設定になっていて、piwheels はこの 2 つを ARMv6 向けにビルドしています。ただし piwheels に pydantic-core の最新版がまだ無いことがあり、手元でビルドするには Rust のコンパイラが要ります。uv は pip の設定を読まないため、uv を使うなら `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` を設定します。32 ビットの ARM では `[postgres]` は使えないため、同梱の pg8000 ドライバ(`postgresql+pg8000://...`)を使います。32 ビット用の Docker イメージはありません。
 
 ### 追加機能(extras)
 
