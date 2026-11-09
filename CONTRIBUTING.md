@@ -95,6 +95,34 @@ The last line runs the suite on Python 3.11, the oldest supported version (use i
 touch version-sensitive APIs). CI runs Python 3.11–3.14 on Linux, 3.12 on Windows and 3.13
 on macOS.
 
+### Checking everything before you push
+
+`scripts/verify.py` runs the checks of CI's Linux jobs and the browser tests that CI skips
+(it has no Chrome), then prints one table with PASS or FAIL for each step:
+
+```bash
+uv run python scripts/verify.py                   # lock, format, lint, tests, browser
+uv run python scripts/verify.py --quick           # the same without the browser tests
+uv run python scripts/verify.py --only lint,tests
+uv run python scripts/verify.py --shots ../shots  # also take screenshots of the demo
+uv run python scripts/verify.py --setup-browser   # install Chrome for the browser steps
+```
+
+- The steps are `uv lock --check`, `black --check`, `ruff check`, the test suite with all
+  extras, and `tests/e2e/test_browser_ui.py`. Windows, macOS, the other Python versions,
+  the lowest dependency versions, PostgreSQL/MySQL and Docker stay CI's job.
+- `--shots DIR` starts `monitor-app demo` and saves every page in the light and the dark
+  theme at 1440x900 and at a phone size of 390x844. The step fails when a page is wider
+  than the phone screen. Attach the images that show your change to the pull request.
+- Chrome is taken from `MONITOR_TEST_CHROME`, then from the `PATH` (Chrome, Chromium or
+  chrome-headless-shell), then from `~/.cache/monitor-app/verify/` (or
+  `$XDG_CACHE_HOME/monitor-app/verify/`). `--setup-browser` installs chrome-headless-shell
+  there with `npx` (Node.js 18+). On Linux it also extracts the missing libraries and a
+  Japanese font with `apt-get download`, without sudo.
+- A step that cannot run, such as the browser tests without Chrome, fails instead of
+  being skipped. The exit code is 1 when a step fails, and the summary prints the folder
+  with the log of each step.
+
 ### Test markers and opt-in suites
 
 - **`e2e`** (`tests/e2e/`): starts real `uvicorn` server processes (startup, live updates,
