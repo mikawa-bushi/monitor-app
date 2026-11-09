@@ -4,9 +4,11 @@
 
 ### Changed
 - 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルで使う色のクラスと太字の `fw-bold` は、`app.css` が Bootstrap 5.3 と同じ値で定義する
+- 依存を減らすため、uvicorn を `uvicorn[standard]` ではなく `uvicorn` だけで入れるようにした。uvloop・httptools・watchfiles・websockets・PyYAML が入らなくなり、サーバーは Python 標準の asyncio と h11 で動く(手元の計測では 1 リクエストあたり 0.1〜0.3 ミリ秒遅く、同時 20 接続での処理量は最大で約 9% 下がる)。`runserver --reload` は uvicorn 同梱の StatReload(0.25 秒ごとに `.py` の更新時刻を見る)で再起動する
 
 ### Upgrade notes
 - **Bootstrap の CSS を同梱しなくなった**: `config.py` のセルスタイル(`css_class`)の色のクラスと太字の `fw-bold` は、これまでと同じ見た目で使える(背景色 `bg-primary`・`bg-secondary`・`bg-success`・`bg-danger`・`bg-warning`・`bg-info`・`bg-light`・`bg-dark`・`bg-white`、文字色 `text-primary`・`text-secondary`・`text-success`・`text-danger`・`text-warning`・`text-info`・`text-light`・`text-dark`・`text-white`・`text-black`・`text-muted`・`text-body`、太字 `fw-bold`)。それ以外の Bootstrap のクラス(`text-end`・`text-bg-danger` など)は効かなくなる。寄せ・文字の大きさは `CellStyle` の `align`・`font_size` で指定する
+- **uvicorn の高速化のパッケージが入らなくなった**: 使うには monitor-app と同じ環境に `uvicorn[standard]` を入れる(pip なら `pip install "uvicorn[standard]"`、pipx なら `pipx inject --force monitor-app "uvicorn[standard]"`、uv なら `uv tool install monitor-app --with "uvicorn[standard]"`)。入っていれば uvicorn が設定なしで uvloop・httptools・watchfiles を使う。uvicorn を直接起動して YAML のログ設定(`--log-config *.yaml`)を読ませる場合も、PyYAML を入れるためにこれが要る
 
 ## [2.5.0] - 2026-11-08
 

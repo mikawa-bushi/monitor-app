@@ -31,8 +31,10 @@ dependencies = [
     # (>=1.3.1) と両立しない。0.133 で starlette の上限が外れた
     "fastapi>=0.133,<1.0",
     # 0.47 未満は SSE 接続中に SIGTERM で停止できない(sse-starlette の
-    # handle_exit パッチが間に合わない)。0.47 以降は即時に停止する
-    "uvicorn[standard]>=0.47,<1.0",
+    # handle_exit パッチが間に合わない)。0.47 以降は即時に停止する。
+    # [standard](uvloop・httptools など)は依存を減らすため付けない。利用者が同じ環境に
+    # 入れれば、uvicorn が自動で使う
+    "uvicorn>=0.47,<1.0",
     "pydantic>=2.7,<3.0",
     "pydantic-settings>=2.3,<3.0",
     # 2.0.8 未満は PostgreSQL で 256 文字以上の文字列が 255 文字に切り詰められて
