@@ -21,10 +21,10 @@
 <div id="kpi-grid" class="kpi-grid" data-refresh-interval="{{ refresh_interval_ms }}"></div>
 {% endif %}
 
-<div class="page-head">
-    <h1>ダッシュボード</h1>
+<div class="section-head">
+    <h2>ダッシュボード</h2>
     {% if has_kiosk %}
-    <a class="back-link" href="{{ url_for('kiosk') }}">📺 大型表示(Andon)</a>
+    <a class="back-link" href="{{ url_for('kiosk') }}">大型表示(Andon)</a>
     {% endif %}
 </div>
 
@@ -38,13 +38,13 @@
 {# chart なしビューのリンク一覧(グループ見出し付き) #}
 {% set has_list_views = list_views | selectattr("views") | list | length > 0 %}
 {% if has_list_views %}
-<div class="page-head" style="margin-top:2rem;">
-    <h1>ビュー一覧</h1>
+<div class="section-head">
+    <h2>ビュー一覧</h2>
 </div>
 {% for group in list_views %}
 {% if group.views %}
 {% if group.group %}
-<h2 class="view-group-heading">{{ group.group }}</h2>
+<h3 class="view-group-heading">{{ group.group }}</h3>
 {% endif %}
 <nav class="card view-list" aria-label="{{ group.group or 'ビュー一覧' }}">
     {% for view in group.views %}
@@ -66,12 +66,12 @@
 
 {# データ入力(フェーズ3・F)。既存のまま維持 #}
 {% if form_tables %}
-<div class="page-head" style="margin-top:2rem;">
-    <h1>データ入力</h1>
+<div class="section-head">
+    <h2>データ入力</h2>
 </div>
 <nav class="card view-list" aria-label="データ入力">
     {% for form in form_tables %}
-    <a href="{{ url_for('show_form', table_name=form.name) }}">📝 {{ form.heading }}</a>
+    <a href="{{ url_for('show_form', table_name=form.name) }}">{{ form.heading }}</a>
     {% endfor %}
 </nav>
 {% endif %}

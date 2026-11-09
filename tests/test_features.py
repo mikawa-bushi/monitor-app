@@ -194,11 +194,11 @@ class TestFormTitle:
 
     def test_title_names_the_form_page_and_the_top_page_link(self, client):
         assert "<h1>不良の記録</h1>" in client.get("/form/defects").text
-        assert '<a href="/form/defects">📝 不良の記録</a>' in client.get("/").text
+        assert '<a href="/form/defects">不良の記録</a>' in client.get("/").text
 
     def test_without_title_the_form_is_named_after_the_table(self, client):
         assert "<h1>checks の入力</h1>" in client.get("/form/checks").text
-        assert '<a href="/form/checks">📝 checks の入力</a>' in client.get("/").text
+        assert '<a href="/form/checks">checks の入力</a>' in client.get("/").text
 
 
 # --- G 監査 / H エクスポート ----------------------------------------------

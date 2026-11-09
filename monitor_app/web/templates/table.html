@@ -41,7 +41,7 @@
     </div>
     <div class="page-head__actions">
         {# CSV エクスポート(フェーズ4・H)。bom=1 で BOM 付き UTF-8 にし、Excel で文字化けさせない #}
-        <a class="back-link" href="{{ url_for('export_view', view_name=view_name) }}?format=csv&amp;bom=1">⬇ CSV</a>
+        <a class="back-link" href="{{ url_for('export_view', view_name=view_name) }}?format=csv&amp;bom=1">CSV 出力</a>
         <span id="status" class="status">
             <span class="dot"></span>
             <span id="status-text">読み込み中</span>

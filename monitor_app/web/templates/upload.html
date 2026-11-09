@@ -16,13 +16,15 @@
 
 {% block title %}CSV の取り込み - {{ app_title }}{% endblock %}
 
+{% block main_class %}container page-narrow{% endblock %}
+
 {% block content %}
 <div class="page-head">
     <div class="page-head__main">
         <h1>CSV の取り込み</h1>
         <p class="page-subtitle">CSV ファイルをテーブルに取り込みます。取り込みは 1 回の処理で行い、途中で失敗したときは何も変わりません。</p>
     </div>
-    <a class="back-link" href="{{ url_for('settings_page') }}">⚙️ 設定</a>
+    <a class="back-link" href="{{ url_for('settings_page') }}">設定</a>
 </div>
 
 {% if admin_disabled %}
@@ -34,7 +36,7 @@
     <p class="empty">取り込み先のテーブルがありません。config.py の <code>tables</code> にテーブルを定義してください。</p>
 </div>
 {% else %}
-<div class="card form-card upload-card">
+<div class="card form-card">
     <form id="upload-form" novalidate>
         <div class="form-row">
             <label for="u-table">取り込み先のテーブル</label>

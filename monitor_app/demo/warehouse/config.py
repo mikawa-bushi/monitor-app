@@ -36,7 +36,7 @@ STOCK = """
 
 config = MonitorConfig(
     app_title="物流センター 在庫モニター(デモ)",
-    header_text="📦 第1物流センター 在庫モニター",
+    header_text="第1物流センター 在庫モニター",
     footer_text="monitor-app デモ ― データは架空です",
     refresh_interval_ms=2000,
     refresh_mode="sse",

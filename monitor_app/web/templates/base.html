@@ -12,14 +12,16 @@
     current_page : str  — 管理の画面("settings" / "upload")を開いているとき(強調に使う)
 
   子テンプレートが上書きできるブロック:
-    title   — <title> の中身(既定は app_title)
-    content — <main> の中身(必須)
-    scripts — </body> 直前に差し込む <script>(任意)
+    title      — <title> の中身(既定は app_title)
+    main_class — <main> の class(既定は container。入力・設定の画面は
+                 "container page-narrow" にして幅を抑える)
+    content    — <main> の中身(必須)
+    scripts    — </body> 直前に差し込む <script>(任意)
 
   CSS は 2 枚読み込む:
     1. bootstrap.min.css … config.py のセルスタイル(bg-*, text-* 等の色クラス)を
        解決するためだけに使う。レイアウトには使っていない。
-    2. app.css … 本アプリ独自のモダンで簡素なテーマ。bootstrap の後に読み込み上書きする。
+    2. app.css … 本アプリ独自の高密度・工業用 HMI 風のテーマ。bootstrap の後に読み込み上書きする。
 
   URL の書き方(web/serving.py が用意するテンプレート関数):
     url_for(...)     … ルート相対の URL(サブパス配信でも正しい。スキーム・ホストなし)
@@ -50,7 +52,7 @@
     {# 左サイドバー #}
     <aside id="sidebar" class="sidebar">
         <div class="sidebar-brand">
-            <a href="{{ url_for('index') }}">{{ header_text }}</a>
+            <a href="{{ url_for('index') }}" title="{{ header_text }}">{{ header_text }}</a>
         </div>
         <nav class="sidebar-nav" aria-label="ビューのメニュー">
             {% for group in nav_groups | default([]) %}
@@ -68,14 +70,14 @@
                 {% endfor %}
             {% endfor %}
             <div class="nav-section-divider"></div>
-            <a href="{{ url_for('kiosk') }}" class="nav-link nav-link--kiosk">📺 大型表示</a>
+            <a href="{{ url_for('kiosk') }}" class="nav-link nav-link--kiosk">大型表示</a>
             {% set page = current_page | default('') %}
             <a href="{{ url_for('upload_page') }}"
                class="nav-link nav-link--admin{% if page == 'upload' %} active{% endif %}"
-               {% if page == 'upload' %}aria-current="page"{% endif %}>📤 CSV の取り込み</a>
+               {% if page == 'upload' %}aria-current="page"{% endif %}>CSV の取り込み</a>
             <a href="{{ url_for('settings_page') }}"
                class="nav-link nav-link--admin{% if page == 'settings' %} active{% endif %}"
-               {% if page == 'settings' %}aria-current="page"{% endif %}>⚙️ 設定</a>
+               {% if page == 'settings' %}aria-current="page"{% endif %}>設定</a>
         </nav>
     </aside>
 
@@ -89,11 +91,16 @@
             </button>
             <span class="site-header__title">{% block title_text %}{{ app_title }}{% endblock %}</span>
             <div class="site-header__actions">
-                <button id="theme-toggle" class="theme-toggle-btn" onclick="window.MonitorTheme.toggle()" aria-label="テーマ切替">🌙</button>
+                <button id="theme-toggle" class="theme-toggle-btn" type="button" onclick="window.MonitorTheme.toggle()" aria-label="テーマ切替">
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/>
+                    </svg>
+                </button>
             </div>
         </header>
 
-        <main class="container">
+        <main class="{% block main_class %}container{% endblock %}">
             {% block content %}{% endblock %}
         </main>
 
@@ -140,13 +147,6 @@
         else if (narrow.addListener) narrow.addListener(sync);
       }
       sync();
-
-      // テーマトグルボタンの初期アイコン設定
-      var btn = document.getElementById("theme-toggle");
-      if (btn) {
-        var theme = document.documentElement.getAttribute("data-theme");
-        btn.textContent = theme === "dark" ? "☀️" : "🌙";
-      }
     })();
     </script>
 

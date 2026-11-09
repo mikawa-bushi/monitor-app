@@ -345,8 +345,9 @@ body {
   padding: 16px 20px 24px;
 }
 
-/* 入力・設定の画面は 1 行が長くなりすぎないよう幅を抑える(見出しとカードの端を揃える) */
-.page-narrow { max-width: 960px; }
+/* 入力・設定の画面(base.html の main_class)は、1 行が長くなりすぎないよう
+   本文の幅を 960px に抑える(左右の余白 20px を含めて 1000px)。 */
+.page-narrow { max-width: 1000px; }
 
 .page-head {
   display: flex;
