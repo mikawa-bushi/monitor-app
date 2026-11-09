@@ -108,7 +108,7 @@ Coming from 2.3? Read **Upgrading from 2.3.x** below.
 | Data safety | SQLite WAL, online backup and restore, retention, schema checks and `migrate`, audit log | `monitor-app backup`, `MONITOR_AUDIT_ENABLED` |
 | Databases | SQLite (default, nothing to install), PostgreSQL, MySQL | `MONITOR_DATABASE_URL` |
 | Deployment | Docker image, Compose/systemd/Windows start-up files, sub-path behind a reverse proxy, health endpoint | `monitor-app deploy`, `/api/health` |
-| Offline use | No Node.js and no build step. Bootstrap and Chart.js are bundled, so the dashboard needs no internet. Only the API documentation pages `/docs` and `/redoc` load Swagger UI / ReDoc (pinned versions) from a CDN; `MONITOR_API_DOCS=false` turns them off. | — |
+| Offline use | No Node.js and no build step. Chart.js is bundled and the styles are plain CSS, so the dashboard needs no internet. Only the API documentation pages `/docs` and `/redoc` load Swagger UI / ReDoc (pinned versions) from a CDN; `MONITOR_API_DOCS=false` turns them off. | — |
 
 ---
 

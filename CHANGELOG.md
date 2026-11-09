@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルの色クラスは `app.css` が Bootstrap 5.3 と同じ色で定義する
+
+### Upgrade notes
+- **Bootstrap の CSS を同梱しなくなった**: `config.py` のセルスタイル(`css_class`)の色クラスは、これまでと同じ色で使える(背景色 `bg-primary`・`bg-secondary`・`bg-success`・`bg-danger`・`bg-warning`・`bg-info`・`bg-light`・`bg-dark`・`bg-white`、文字色 `text-primary`・`text-secondary`・`text-success`・`text-danger`・`text-warning`・`text-info`・`text-light`・`text-dark`・`text-white`・`text-black`・`text-muted`・`text-body`)。それ以外の Bootstrap のクラス(`fw-bold`・`text-end` など)は効かなくなる。太字・寄せ・文字の大きさは `CellStyle` の `bold`・`align`・`font_size` で指定する
+
 ## [2.5.0] - 2026-11-08
 
 > 「準備なしで試せて、ブラウザから設定の編集と CSV の取り込みができる」ことを目標にした機能リリース。架空の物流センターの在庫画面を開く `monitor-app demo`、同じ内容でプロジェクトを作る `startproject --template warehouse`、`config.py` を書き換えずにビュー・KPI・アラートなどを編集する設定ページ(`/settings`)、ブラウザからの CSV のアップロード(`/upload`)、管理の機能だけに使う鍵 `MONITOR_ADMIN_KEY` を含む。既存のプロジェクト・`config.py`・DB・REST API・CLI はそのまま動く。挙動が変わる点は「Changed」、更新するときの注意は「Upgrade notes」を参照。

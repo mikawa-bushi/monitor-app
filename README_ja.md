@@ -71,7 +71,7 @@ monitor-app runserver --import-csv-if-empty
 | データの保全 | SQLite の WAL、稼働中のバックアップと復元、保持期間、表定義の点検と `migrate`、監査ログ | `monitor-app backup`、`MONITOR_AUDIT_ENABLED` |
 | データベース | SQLite(既定。インストール不要)・PostgreSQL・MySQL | `MONITOR_DATABASE_URL` |
 | 運用・公開 | Docker イメージ、Compose / systemd / Windows の起動ファイル、リバースプロキシ配下のサブパス、死活監視 | `monitor-app deploy`、`/api/health` |
-| オフライン | Node.js もビルドも不要。Bootstrap と Chart.js を同梱しているため、ダッシュボードはインターネットなしで動きます。API ドキュメントの `/docs` と `/redoc` だけは Swagger UI / ReDoc(版を固定)を CDN から読み込みます。`MONITOR_API_DOCS=false` で出さないようにできます | — |
+| オフライン | Node.js もビルドも不要。Chart.js を同梱し、見た目は素の CSS で書いているため、ダッシュボードはインターネットなしで動きます。API ドキュメントの `/docs` と `/redoc` だけは Swagger UI / ReDoc(版を固定)を CDN から読み込みます。`MONITOR_API_DOCS=false` で出さないようにできます | — |
 
 ---
 
