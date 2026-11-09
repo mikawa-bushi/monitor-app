@@ -394,8 +394,6 @@ legend { float: left; padding: 0; }
   font-weight: 700;
 }
 
-/* 見出し横の小さなリンク。bootstrap の
-   既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
 .back-link {
   color: var(--accent);
   font-size: 13px;
@@ -406,14 +404,11 @@ legend { float: left; padding: 0; }
 
 /* --- 6. カード ----------------------------------------------------------- */
 /* 縦の flex にするのは、中の要素の上下の余白を重ねずに足すため。長い語はカードの幅で折り返す */
-/* bootstrap の .card は color: var(--bs-body-color)(#212529 固定)を持つため、
-   文字色を明示しないとダークテーマでカード内の表・ラベルが背景と同化する。 */
 .card {
   display: flex;
   flex-direction: column;
   overflow-wrap: break-word;
   background: var(--surface);
-  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -656,10 +651,8 @@ details.table-collapse[open] > summary::before {
 /* --- 15. 補助クラス ------------------------------------------------------ */
 .muted { color: var(--muted); }
 
-/* bootstrap の code(#d63384)はダークテーマで読みにくいので本文色に合わせる */
 code {
   font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  color: inherit;
   font-size: 0.9em;
 }
 
