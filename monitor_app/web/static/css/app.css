@@ -66,6 +66,7 @@
   --idle: #8b95a3;               /* 読み込み中・不明・中立 */
   --ok-text: #147238;            /* 成功メッセージ */
   --error-text: #b91c1c;         /* エラーメッセージ・目標未達の KPI */
+  --warning-text: #a14a07;       /* 警告の文字 */
   /* アラートバナーの地の色(文字は --text) */
   --info-bg: #e8f0fa;
   --warning-bg: #fdf3e1;
@@ -98,6 +99,7 @@
   --frame-hover: #1b2028;
   --ok-text: #4ade80;
   --error-text: #f87171;
+  --warning-text: #fbbf24;
   --info-bg: #13243a;
   --warning-bg: #33260f;
   --critical-bg: #3a1618;
