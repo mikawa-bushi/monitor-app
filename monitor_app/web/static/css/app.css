@@ -113,6 +113,9 @@ body {
 
 h1, h2, h3, h4 { font-weight: 500; line-height: 1.2; }
 
+/* クラスで色を決めていないリンク(ログインを促すリンクなど)も、両テーマで読める色にする */
+a { color: var(--accent); }
+
 /* 入力欄とボタンは、ブラウザ既定の字体(Arial 13.33px)ではなく周りの字体にする */
 button, input, select {
   margin: 0;
