@@ -17,10 +17,8 @@
     content    — <main> の中身(必須)
     scripts    — </body> 直前に差し込む <script>(任意)
 
-  CSS は 2 枚読み込む:
-    1. bootstrap.min.css … config.py のセルスタイル(bg-*, text-* 等の色クラス)を
-       解決するためだけに使う。レイアウトには使っていない。
-    2. app.css … 本アプリ独自のテーマ。bootstrap の後に読み込み上書きする。
+  CSS は app.css(本アプリのテーマ。config.py のセルスタイルの色クラス bg-* / text-* も
+  ここで定義する)。ページだけで使う CSS は子テンプレートが scripts ブロックで読み込む。
 
   URL の書き方(web/serving.py が用意するテンプレート関数):
     url_for(...)     … ルート相対の URL(サブパス配信でも正しい。スキーム・ホストなし)
@@ -38,7 +36,6 @@
     <meta name="monitor-config" content="{{ config_revision() }}">
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
     <link rel="icon" href="{{ static_url(favicon_path) }}">
-    <link href="{{ static_url('css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ static_url('css/app.css') }}" rel="stylesheet">
     {# theme.js は <head> 内で同期読み込みして FOUC を防ぐ。core.js は他の JS より先に読む #}
     <script src="{{ static_url('js/theme.js') }}"></script>

@@ -6,17 +6,12 @@
      見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
    - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
      親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
-   - bootstrap.min.css も読み込まれているが、用途は config.py のセルスタイル
-     (bg-danger / text-white などの色クラス)を解決することだけ。レイアウトには
-     使っていない。このファイルが bootstrap の後に読み込まれ、上書きする。
-     bootstrap の部品ルール(.card の文字色・a の色など)はライト配色前提なので、
-     本アプリが使う要素は色をここで必ず指定する(ダークテーマで文字が消えないように)。
    - 文字色と背景の組み合わせは両テーマでコントラスト比 4.5:1 以上を保つ
      (WCAG AA。--accent の上の文字は --on-accent を使う)。
 
    セクション目次:
      1. テーマ変数(:root / [data-theme="dark"])
-     2. 土台(reset, body)
+     2. 土台(body, 見出し, 入力欄)
      3. サイドバーレイアウト
      4. ヘッダー / フッター
      5. ページレイアウト(page, page-head, section-head)
@@ -30,6 +25,7 @@
     13. 入力フォーム
     14. table-collapse
     15. 補助クラス
+    16. セルスタイルのクラス(色・太字)
    ============================================================================ */
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
@@ -98,6 +94,11 @@
 /* --- 2. 土台 ------------------------------------------------------------- */
 * { box-sizing: border-box; }
 
+/* 設定ページで点検の結果へ scrollIntoView するとき滑らかに動かす(動きを減らす設定なら瞬時に移る) */
+@media (prefers-reduced-motion: no-preference) {
+  :root { scroll-behavior: smooth; }
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -106,7 +107,37 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;           /* iPhone を横にしたとき文字を拡大しない */
+  -webkit-tap-highlight-color: transparent; /* スマホでタップしたときの色を出さない */
 }
+
+h1, h2, h3, h4 { font-weight: 500; line-height: 1.2; }
+
+/* クラスで色を決めていないリンク(ログインを促すリンクなど)も、両テーマで読める色にする */
+a { color: var(--accent); }
+
+/* 入力欄とボタンは、ブラウザ既定の字体(Arial 13.33px)ではなく周りの字体にする */
+button, input, select {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+::file-selector-button { font: inherit; -webkit-appearance: button; }
+/* 日付・日時の入力欄の中の余白。分の欄はこれまでも余白が残っていたので含めない
+   (含めると「--:--」の分だけ 2px 左に寄る) */
+::-webkit-datetime-edit-fields-wrapper,
+::-webkit-datetime-edit-text,
+::-webkit-datetime-edit-year-field,
+::-webkit-datetime-edit-month-field,
+::-webkit-datetime-edit-day-field,
+::-webkit-datetime-edit-hour-field { padding: 0; }
+
+/* 見出しを枠線の切れ目ではなく、ふつうの行として置く(.form-row の間隔が効くように) */
+legend { float: left; padding: 0; }
+
+/* display を指定したクラス(.form-row など)を付けた要素も hidden で隠す */
+[hidden] { display: none !important; }
 
 /* --- 3. サイドバーレイアウト --------------------------------------------- */
 /* 900px 以上: サイドバー常設(左固定) */
@@ -366,8 +397,6 @@ body {
   font-weight: 700;
 }
 
-/* 見出し横の小さなリンク。bootstrap の
-   既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
 .back-link {
   color: var(--accent);
   font-size: 13px;
@@ -377,11 +406,12 @@ body {
 .back-link:hover { color: var(--accent); text-decoration-thickness: 2px; }
 
 /* --- 6. カード ----------------------------------------------------------- */
-/* bootstrap の .card は color: var(--bs-body-color)(#212529 固定)を持つため、
-   文字色を明示しないとダークテーマでカード内の表・ラベルが背景と同化する。 */
+/* 縦の flex にするのは、中の要素の上下の余白を重ねずに足すため。長い語はカードの幅で折り返す */
 .card {
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: break-word;
   background: var(--surface);
-  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -422,19 +452,6 @@ table.data tbody td {
 table.data tbody tr:nth-child(even) { background: var(--stripe); }
 table.data tbody tr:last-child td { border-bottom: none; }
 table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
-
-/* セルスタイル(config の css_class)で背景色クラスだけを指定した場合の文字色。
-   bootstrap の text-bg-* と同じ組み合わせにし、どちらのテーマでも読めるようにする。
-   text-white などの文字色クラス(bootstrap では !important)を併記すればそちらが優先。 */
-table.data td.bg-primary,
-table.data td.bg-secondary,
-table.data td.bg-success,
-table.data td.bg-danger,
-table.data td.bg-dark { color: #fff; }
-table.data td.bg-warning,
-table.data td.bg-info,
-table.data td.bg-light,
-table.data td.bg-white { color: #000; }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
 .view-list {
@@ -637,8 +654,10 @@ details.table-collapse[open] > summary::before {
 /* --- 15. 補助クラス ------------------------------------------------------ */
 .muted { color: var(--muted); }
 
-/* bootstrap の code(#d63384)はダークテーマで読みにくいので本文色に合わせる */
-code { color: inherit; font-size: 0.9em; }
+code {
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9em;
+}
 
 .empty {
   padding: 24px 16px;
@@ -665,3 +684,41 @@ code { color: inherit; font-size: 0.9em; }
   font-size: 13px;
 }
 .notify-enable-btn:hover { background: var(--surface-alt); }
+
+/* --- 16. セルスタイルのクラス(色・太字)------------------------------- */
+/* config.py のセルスタイル(css_class)と設定ページの色分けで使う。名前・色・優先の
+   付け方は Bootstrap 5.3 と同じ(Bootstrap 前提で書かれた config.py がそのまま使えるように)。 */
+.text-primary { color: #0d6efd !important; }
+.text-secondary { color: #6c757d !important; }
+.text-success { color: #198754 !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-warning { color: #ffc107 !important; }
+.text-danger { color: #dc3545 !important; }
+.text-light { color: #f8f9fa !important; }
+.text-dark { color: #212529 !important; }
+.text-black { color: #000 !important; }
+.text-white { color: #fff !important; }
+.text-body { color: #212529 !important; }
+.text-muted { color: rgba(33, 37, 41, 0.75) !important; }
+.bg-primary { background-color: #0d6efd !important; }
+.bg-secondary { background-color: #6c757d !important; }
+.bg-success { background-color: #198754 !important; }
+.bg-info { background-color: #0dcaf0 !important; }
+.bg-warning { background-color: #ffc107 !important; }
+.bg-danger { background-color: #dc3545 !important; }
+.bg-light { background-color: #f8f9fa !important; }
+.bg-dark { background-color: #212529 !important; }
+.bg-white { background-color: #fff !important; }
+.fw-bold { font-weight: 700 !important; }
+
+/* 背景色クラスだけを指定したセルの文字色(どちらのテーマでも読めるように)。
+   文字色クラスを併記すればそちらが優先する。 */
+table.data td.bg-primary,
+table.data td.bg-secondary,
+table.data td.bg-success,
+table.data td.bg-danger,
+table.data td.bg-dark { color: #fff; }
+table.data td.bg-warning,
+table.data td.bg-info,
+table.data td.bg-light,
+table.data td.bg-white { color: #000; }

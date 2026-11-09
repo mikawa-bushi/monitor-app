@@ -36,7 +36,7 @@
   });
   const tabs = root.querySelectorAll("[data-tab]");
 
-  // セルの色分けの選択肢(bootstrap の色のクラス。config.py の書き方と同じ)
+  // セルの色分けの選択肢(app.css の色クラス。config.py の書き方と同じ)
   const STYLE_CLASSES = [
     ["", "(色なし)"],
     ["bg-danger text-white", "赤"],

@@ -531,13 +531,13 @@ def test_small_and_identity_responses_are_not_compressed(client):
 
 
 def test_static_assets_are_gzipped(client):
-    res = client.get(f"/static/css/bootstrap.min.css?{VERSION_QS}")
+    res = client.get(f"/static/js/chart.umd.min.js?{VERSION_QS}")
     assert res.headers["content-encoding"] == "gzip"
 
 
 def test_head_requests_on_static_files_are_not_compressed(client):
     """HEAD は本文なし。圧縮せず、Content-Length は元のファイルの大きさのまま。"""
-    url = f"/static/css/bootstrap.min.css?{VERSION_QS}"
+    url = f"/static/js/chart.umd.min.js?{VERSION_QS}"
     size = len(client.get(url, headers={"Accept-Encoding": "identity"}).content)
     res = client.head(url, headers={"Accept-Encoding": "gzip"})
     assert res.status_code == 200 and res.content == b""
@@ -548,7 +548,7 @@ def test_head_requests_on_static_files_are_not_compressed(client):
 
 def test_range_requests_are_not_compressed(client):
     res = client.get(
-        "/static/css/bootstrap.min.css",
+        "/static/js/chart.umd.min.js",
         headers={"Accept-Encoding": "gzip", "Range": "bytes=0-99"},
     )
     assert res.status_code == 206
