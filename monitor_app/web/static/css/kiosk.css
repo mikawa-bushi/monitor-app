@@ -144,6 +144,9 @@ body.alert-critical #kiosk {
 
 /* --- アラートバナー(大型用に拡大)--- */
 body.kiosk .alert-banner { font-size: 2.4vh; margin-bottom: 1.5vh; }
+/* 大型表示では警告・異常のバナーを塗りつぶし、離れた場所からも目に入るようにする */
+body.kiosk .alert-banner.level-warning { background: #f59e0b; border-color: #f59e0b; color: #1b1f24; }
+body.kiosk .alert-banner.level-critical { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 
 /* --- テーブル(大きく)--- */
 .kiosk-main { flex: 1; overflow: auto; }
