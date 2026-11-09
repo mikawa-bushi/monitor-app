@@ -320,8 +320,9 @@ def recv_exact(sock: socket.socket, size: int) -> bytes:
 def cdp_connect(port: int, path: str) -> socket.socket:
     """Chrome の DevTools に WebSocket(RFC 6455)で繋ぐ。
 
-    tests/e2e/test_browser_ui.py の websockets は uvicorn[standard] 経由で入っているだけの
-    間接依存なので頼らず、スクリーンショットに要る分だけを cdp() で自前で話す。
+    このスクリプトは標準ライブラリだけで動かすため、スクリーンショットに要る分だけを
+    cdp() で自前で話す。ブラウザ E2E(tests/e2e/test_browser_ui.py の WebSocket)は
+    イベントも受け取り、待ち時間を区切るため、別の小さな実装を持つ。
     """
     key = base64.b64encode(os.urandom(16)).decode()
     sock = socket.create_connection(("127.0.0.1", port), timeout=30)
@@ -490,7 +491,10 @@ def run_command(argv: list[str], log, env: dict[str, str] | None = None) -> str:
 
 def run_browser_tests(log, _shots: str | None) -> str:
     _, env, origin = find_chrome()
-    last = run_command(["uv", "run", *PYTEST, BROWSER_TESTS], log, env)
+    last = run_command(["uv", "run", *PYTEST, "-rs", BROWSER_TESTS], log, env)
+    # pytest はテストをスキップしても終了コード 0 を返すため、要約の行で確かめる
+    if " passed" not in last or " skipped" in last:
+        raise StepFailed(f"走っていないテストがあります(理由はログ): {last}")
     return f"{last} (Chrome: {origin})"
 
 

@@ -174,11 +174,14 @@ or install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh` and run
 `uv tool install monitor-app`.
 
 **64-bit Raspberry Pi OS** works like any Linux PC (and the Docker image supports it).
-**32-bit Raspberry Pi OS** has no prebuilt packages on PyPI for some dependencies
-(uvloop, httptools, PyYAML). Raspberry Pi OS already configures pip to use
-[piwheels](https://www.piwheels.org/), which has them, so `pipx install monitor-app`
-works. If pip starts compiling a package, add `--pip-args=--prefer-binary`. uv does not
-read pip's settings: set `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` for uv.
+**32-bit Raspberry Pi OS** on a Raspberry Pi 2 or newer (Zero 2 W included) gets every
+dependency as a prebuilt package from PyPI, so `pipx install monitor-app` works there
+too. On the ARMv6 boards (Pi 1, and the first Pi Zero and Zero W), PyPI has no prebuilt
+pydantic-core or MarkupSafe. Raspberry Pi OS configures pip to also use
+[piwheels](https://www.piwheels.org/), which builds both for ARMv6. piwheels can lag
+behind the newest pydantic-core release, and building pydantic-core yourself needs a
+Rust compiler. uv does not read pip's settings, so set
+`UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` when you use uv.
 The `[postgres]` extra is not available on 32-bit ARM. Use the built-in pg8000 driver
 (`postgresql+pg8000://...`). There is no 32-bit Docker image.
 
