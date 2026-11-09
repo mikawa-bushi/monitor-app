@@ -2,7 +2,7 @@ name: Code Quality Check
 
 on:
   push:
-    branches: [ '**' ]  # All branches
+    branches: [main]
   pull_request:
     branches: [ '**' ]  # All target branches
 
