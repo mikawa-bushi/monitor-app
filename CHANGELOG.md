@@ -3,10 +3,10 @@
 ## [Unreleased]
 
 ### Changed
-- 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルの色クラスは `app.css` が Bootstrap 5.3 と同じ色で定義する
+- 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルで使う色のクラスと太字の `fw-bold` は、`app.css` が Bootstrap 5.3 と同じ値で定義する
 
 ### Upgrade notes
-- **Bootstrap の CSS を同梱しなくなった**: `config.py` のセルスタイル(`css_class`)の色クラスは、これまでと同じ色で使える(背景色 `bg-primary`・`bg-secondary`・`bg-success`・`bg-danger`・`bg-warning`・`bg-info`・`bg-light`・`bg-dark`・`bg-white`、文字色 `text-primary`・`text-secondary`・`text-success`・`text-danger`・`text-warning`・`text-info`・`text-light`・`text-dark`・`text-white`・`text-black`・`text-muted`・`text-body`)。それ以外の Bootstrap のクラス(`fw-bold`・`text-end` など)は効かなくなる。太字・寄せ・文字の大きさは `CellStyle` の `bold`・`align`・`font_size` で指定する
+- **Bootstrap の CSS を同梱しなくなった**: `config.py` のセルスタイル(`css_class`)の色のクラスと太字の `fw-bold` は、これまでと同じ見た目で使える(背景色 `bg-primary`・`bg-secondary`・`bg-success`・`bg-danger`・`bg-warning`・`bg-info`・`bg-light`・`bg-dark`・`bg-white`、文字色 `text-primary`・`text-secondary`・`text-success`・`text-danger`・`text-warning`・`text-info`・`text-light`・`text-dark`・`text-white`・`text-black`・`text-muted`・`text-body`、太字 `fw-bold`)。それ以外の Bootstrap のクラス(`text-end`・`text-bg-danger` など)は効かなくなる。寄せ・文字の大きさは `CellStyle` の `align`・`font_size` で指定する
 
 ## [2.5.0] - 2026-11-08
 

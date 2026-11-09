@@ -25,7 +25,7 @@
     13. 入力フォーム
     14. table-collapse
     15. 補助クラス
-    16. 色クラス(セルスタイル)
+    16. セルスタイルのクラス(色・太字)
    ============================================================================ */
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
@@ -682,7 +682,7 @@ code {
 }
 .notify-enable-btn:hover { background: var(--surface-alt); }
 
-/* --- 16. 色クラス(セルスタイル)---------------------------------------- */
+/* --- 16. セルスタイルのクラス(色・太字)------------------------------- */
 /* config.py のセルスタイル(css_class)と設定ページの色分けで使う。名前・色・優先の
    付け方は Bootstrap 5.3 と同じ(Bootstrap 前提で書かれた config.py がそのまま使えるように)。 */
 .text-primary { color: #0d6efd !important; }
@@ -706,6 +706,7 @@ code {
 .bg-light { background-color: #f8f9fa !important; }
 .bg-dark { background-color: #212529 !important; }
 .bg-white { background-color: #fff !important; }
+.fw-bold { font-weight: 700 !important; }
 
 /* 背景色クラスだけを指定したセルの文字色(どちらのテーマでも読めるように)。
    文字色クラスを併記すればそちらが優先する。 */
