@@ -13,11 +13,13 @@ chrome-headless-shell の実行ファイルを指定すると走る。追加の�
 
 from __future__ import annotations
 
+import base64
 import http.client
 import json
 import os
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -41,12 +43,86 @@ if not CHROME:
     pytest.skip(
         "MONITOR_TEST_CHROME(Chrome の実行ファイル)が未設定", allow_module_level=True
     )
-sync_client = pytest.importorskip("websockets.sync.client")
 
 
 # ---------------------------------------------------------------------------
 # 最小限の DevTools プロトコル クライアント
 # ---------------------------------------------------------------------------
+class WebSocket:
+    """DevTools と話す WebSocket(RFC 6455)のクライアント。標準ライブラリだけで動かす。
+
+    Chrome はメッセージを分割せずに 1 フレームで送るので、続きのフレームは扱わない。
+    受け取ったバイト列は buffer に貯め、1 フレームがそろってから取り出す(recv が
+    フレームの途中で時間切れになっても、届いた分を失わない)。
+    """
+
+    def __init__(self, sock: socket.socket, path: str) -> None:
+        self.sock = sock
+        self.buffer = bytearray()
+        key = base64.b64encode(os.urandom(16)).decode()
+        sock.sendall(
+            f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+            "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode()
+        )
+        deadline = time.monotonic() + 15
+        while b"\r\n\r\n" not in self.buffer:
+            self._fill(len(self.buffer) + 1, deadline)
+        head, _, rest = bytes(self.buffer).partition(b"\r\n\r\n")
+        if not head.startswith(b"HTTP/1.1 101"):
+            raise ConnectionError(
+                f"DevTools に接続できません: {head.splitlines()[0]!r}"
+            )
+        self.buffer = bytearray(rest)
+
+    def _fill(self, size: int, deadline: float) -> None:
+        """buffer が size バイトになるまで受け取る(deadline を過ぎたら TimeoutError)。"""
+        while len(self.buffer) < size:
+            self.sock.settimeout(max(deadline - time.monotonic(), 0.001))
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise ConnectionError("Chrome が DevTools の接続を閉じました")
+            self.buffer += chunk
+
+    def _send_frame(self, opcode: int, data: bytes) -> None:
+        size = len(data)
+        if size < 126:
+            head = bytes([0x80 | opcode, 0x80 | size])
+        elif size < 65536:
+            head = bytes([0x80 | opcode, 0x80 | 126]) + size.to_bytes(2, "big")
+        else:
+            head = bytes([0x80 | opcode, 0x80 | 127]) + size.to_bytes(8, "big")
+        mask = os.urandom(4)
+        masked = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+        self.sock.sendall(head + mask + masked)
+
+    def send(self, text: str) -> None:
+        self._send_frame(0x1, text.encode())
+
+    def recv(self, timeout: float) -> str:
+        """次のテキストのメッセージ。timeout 秒で届かなければ TimeoutError。"""
+        deadline = time.monotonic() + timeout
+        while True:
+            self._fill(2, deadline)
+            start, size = 2, self.buffer[1] & 0x7F
+            if size == 126:
+                self._fill(4, deadline)
+                start, size = 4, int.from_bytes(self.buffer[2:4], "big")
+            elif size == 127:
+                self._fill(10, deadline)
+                start, size = 10, int.from_bytes(self.buffer[2:10], "big")
+            self._fill(start + size, deadline)
+            opcode = self.buffer[0] & 0x0F
+            payload = bytes(self.buffer[start : start + size])
+            del self.buffer[: start + size]
+            if opcode == 0x1:
+                return payload.decode()
+            if opcode == 0x8:
+                raise ConnectionError("Chrome が DevTools の接続を閉じました")
+            if opcode == 0x9:
+                self._send_frame(0xA, payload)
+
+
 class Cdp:
     def __init__(self, ws) -> None:
         self.ws = ws
@@ -159,8 +235,6 @@ class Tab:
 # フィクスチャ
 # ---------------------------------------------------------------------------
 def _free_port() -> int:
-    import socket
-
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
@@ -259,9 +333,8 @@ def browser(tmp_path_factory):
                 pytest.fail("Chrome が起動しません(MONITOR_TEST_CHROME_ARGS を確認)")
             time.sleep(0.1)
         port, path = port_file.read_text().split()[:2]
-        url = f"ws://127.0.0.1:{port}{path}"
-        with sync_client.connect(url, max_size=None, open_timeout=15) as ws:
-            yield Cdp(ws)
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=15) as sock:
+            yield Cdp(WebSocket(sock, path))
     finally:
         proc.terminate()
         try:
