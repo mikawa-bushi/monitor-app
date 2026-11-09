@@ -224,7 +224,9 @@ def test_stop_returns_within_the_stop_timeout(demo):
 
     async def run() -> tuple[bool, float]:
         sim.start()
-        await asyncio.sleep(0.2)
+        deadline = time.monotonic() + 10
+        while sim.last_tick is None and time.monotonic() < deadline:
+            await asyncio.sleep(0.01)
         started = time.monotonic()
         stopped = await sim.stop()
         return stopped, time.monotonic() - started
