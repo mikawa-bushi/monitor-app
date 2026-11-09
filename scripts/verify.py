@@ -490,7 +490,10 @@ def run_command(argv: list[str], log, env: dict[str, str] | None = None) -> str:
 
 def run_browser_tests(log, _shots: str | None) -> str:
     _, env, origin = find_chrome()
-    last = run_command(["uv", "run", *PYTEST, BROWSER_TESTS], log, env)
+    last = run_command(["uv", "run", *PYTEST, "-rs", BROWSER_TESTS], log, env)
+    # pytest はテストをスキップしても終了コード 0 を返すため、要約の行で確かめる
+    if " passed" not in last or " skipped" in last:
+        raise StepFailed(f"走っていないテストがあります(理由はログ): {last}")
     return f"{last} (Chrome: {origin})"
 
 
