@@ -20,13 +20,15 @@
 
 {% block title %}設定 - {{ app_title }}{% endblock %}
 
+{% block main_class %}page page-narrow{% endblock %}
+
 {% block content %}
 <div class="page-head">
     <div class="page-head__main">
         <h1>設定</h1>
         <p class="page-subtitle">表示・ビュー・KPI・アラートを画面で変えられます。保存すると、サーバーを止めずにすぐ反映され、開いている画面も読み直されます。</p>
     </div>
-    <a class="back-link" href="{{ url_for('upload_page') }}">📤 CSV の取り込み</a>
+    <a class="back-link" href="{{ url_for('upload_page') }}">CSV の取り込み</a>
 </div>
 
 {% if admin_disabled %}

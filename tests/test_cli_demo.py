@@ -125,7 +125,7 @@ def test_demo_serves_a_warehouse_screen_with_both_alerts(
     pages = fake.results["pages"]
     assert {page.status_code for page in pages.values()} == {200}
     assert "<h1>入出庫の入力</h1>" in pages["/form/movements"].text
-    assert '<a href="/form/movements">📝 入出庫の入力</a>' in pages["/"].text
+    assert '<a href="/form/movements">入出庫の入力</a>' in pages["/"].text
     assert fake.results["tasks"]["warehouse demo"]["running"] is True
     tasks = call["app"].state.services.background_tasks
     assert any(isinstance(task, WarehouseSimulator) for task in tasks)

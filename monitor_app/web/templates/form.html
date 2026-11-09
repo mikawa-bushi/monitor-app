@@ -13,6 +13,8 @@
 
 {% block title %}{{ form.heading }} - {{ app_title }}{% endblock %}
 
+{% block main_class %}page page-narrow{% endblock %}
+
 {% block content %}
 <div class="page-head">
     <div class="page-head__main">
@@ -23,7 +25,7 @@
 </div>
 
 <div class="card form-card">
-    <form id="entry-form" data-table="{{ table_name }}">
+    <form id="entry-form" class="form-grid" data-table="{{ table_name }}">
         {% for field in form.fields %}
         <div class="form-row">
             <label for="f-{{ field.name }}">{{ field.label }}</label>

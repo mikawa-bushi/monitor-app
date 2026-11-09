@@ -9,13 +9,13 @@
 /* --- ボタン --------------------------------------------------------------
    Bootstrap の .btn と別の名前にする(Bootstrap の :hover などがテーマの色を上書きするため) */
 .settings-btn {
-  padding: 0.45rem 0.9rem;
-  font-size: 0.9rem;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .settings-btn:hover:not(:disabled) { border-color: var(--accent); }
@@ -29,35 +29,36 @@
 .settings-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 .settings-tabs [role="tab"] {
-  padding: 0.45rem 0.95rem;
-  font-size: 0.9rem;
+  margin-bottom: -1px;
+  padding: 8px 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: none;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
 }
+.settings-tabs [role="tab"]:hover { color: var(--text); }
 .settings-tabs [role="tab"][aria-selected="true"] {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--text);
+  border-bottom-color: var(--accent);
 }
 
 /* --- カード・項目 -------------------------------------------------------- */
-.settings-card { padding: 1.25rem; margin-bottom: 1rem; }
-.settings-card h3 { margin: 0 0 0.75rem; font-size: 1rem; }
-.settings-item { margin-bottom: 0.75rem; }
+.settings-card { padding: 12px 14px; margin-bottom: 10px; }
+.settings-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+.settings-item { margin-bottom: 6px; }
 .settings-item__summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1.1rem;
+  gap: 8px;
+  padding: 8px 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -66,9 +67,9 @@
 .settings-item[open] > .settings-item__summary::before { content: "▾"; }
 .settings-item__title { font-weight: 600; }
 .settings-item__summary code { color: var(--muted); }
-.settings-item__body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); }
-.settings-item__footer { display: flex; justify-content: flex-end; margin-top: 0.75rem; }
-.settings-alert { padding: 1rem 1.1rem; margin-bottom: 0.75rem; }
+.settings-item__body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
+.settings-item__footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+.settings-alert { padding: 10px 12px; margin-bottom: 6px; }
 .settings-name { margin: 0.75rem 0; color: var(--muted); }
 
 .settings-badge {
@@ -76,7 +77,7 @@
   font-size: 0.75rem;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
 }
 .settings-badge--new { color: var(--accent); border-color: var(--accent); }
 
@@ -86,7 +87,7 @@
   padding: 0.75rem;
   margin-bottom: 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 /* 2 列(狭い画面では 1 列)に並べる入力欄 */
@@ -112,7 +113,7 @@
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .settings input:focus,
 .settings select:focus,
@@ -156,7 +157,7 @@
   font-size: 0.8rem;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 /* --- 知らせ・点検の結果・保存の帯 --------------------------------------- */
@@ -166,7 +167,7 @@
   font-size: 0.9rem;
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .settings-notice p { margin: 0; }
@@ -177,7 +178,7 @@
   padding: 0.9rem 1.1rem;
   margin: 1rem 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .settings-issues h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
@@ -185,8 +186,7 @@
 .settings-issues p { margin: 0 0 0.5rem; }
 .issue { margin-bottom: 0.35rem; font-size: 0.9rem; }
 .issue--error strong { color: var(--error-text); }
-.issue--warning strong { color: #b45309; }
-[data-theme="dark"] .issue--warning strong { color: #fbbf24; }
+.issue--warning strong { color: var(--warning-text); }
 .issue__hint { color: var(--muted); font-size: 0.85rem; }
 
 .settings-bar {
@@ -203,7 +203,6 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 -2px 10px rgba(16, 24, 40, 0.08);
 }
 .settings-bar__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .settings-status { font-size: 0.9rem; color: var(--muted); }
@@ -219,11 +218,10 @@
   .settings-bar .settings-btn { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
 }
 
-.settings-disabled { padding: 1.25rem; }
+.settings-disabled { padding: 12px 14px; }
 .settings-disabled p { margin: 0; }
 
 /* --- CSV の取り込み ------------------------------------------------------ */
-.upload-card { max-width: 720px; }
 .upload-mode { border: none; padding: 0; margin: 0 0 1.1rem; }
 .upload-mode legend { margin-bottom: 0.4rem; font-weight: 600; font-size: 0.95rem; }
 .upload-mode label,
@@ -235,7 +233,7 @@
   margin-top: 1rem;
   border: 1px solid var(--border);
   border-left: 4px solid var(--muted);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 .upload-result.ok { border-left-color: var(--ok-text); }
 .upload-result.error { border-left-color: var(--error-text); }

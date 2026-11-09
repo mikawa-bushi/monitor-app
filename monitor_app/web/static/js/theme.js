@@ -54,11 +54,6 @@
     applyTheme(next);
     saveTheme(next);
     document.dispatchEvent(new CustomEvent("monitor:themechange", { detail: { theme: next } }));
-    // テーマトグルボタンのアイコンを更新
-    var btn = document.getElementById("theme-toggle");
-    if (btn) {
-      btn.textContent = next === "dark" ? "☀️" : "🌙";
-    }
   }
 
   // 即時適用(FOUC防止)

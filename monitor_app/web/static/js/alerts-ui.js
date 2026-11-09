@@ -109,7 +109,7 @@
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "notify-enable-btn";
-    btn.textContent = "🔔 通知を有効化";
+    btn.textContent = "通知を有効化";
     btn.addEventListener("click", function () {
       Promise.resolve(Notification.requestPermission()).finally(function () {
         btn.remove();

@@ -1,8 +1,8 @@
 /* ============================================================================
-   app.css — monitor-app のモダンで簡素なテーマ
+   app.css — monitor-app のテーマ
 
    保守の指針(変更するときはここを読む):
-   - 色・角丸・影・フォントはすべて :root の CSS 変数で定義している。
+   - 色・角丸・フォントはすべて :root の CSS 変数で定義している。
      見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
    - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
      親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
@@ -19,7 +19,7 @@
      2. 土台(reset, body)
      3. サイドバーレイアウト
      4. ヘッダー / フッター
-     5. ページレイアウト(container, page-head)
+     5. ページレイアウト(page, page-head, section-head)
      6. カード
      7. テーブル
      8. ビュー一覧
@@ -34,38 +34,63 @@
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
 :root {
-  --bg: #f7f8fa;
+  --bg: #eceef1;
   --surface: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #2563eb;
+  --text: #1b1f24;
+  --muted: #5a6472;
+  --border: #d3d7dd;
+  --accent: #0b5cad;
   --on-accent: #ffffff;          /* --accent を背景にしたときの文字色 */
-  --ok-text: #15803d;            /* 成功メッセージ */
+  --surface-alt: #f3f4f6;
+  --stripe: #f8f9fa;
+  --sidebar-bg: #1f2730;
+  --sidebar-text: #e7eaee;
+  --sidebar-muted: #9aa5b3;
+  --sidebar-hover: #2b3540;
+  --sidebar-accent: #5aa2ff;
+  --ok: #2e9e4f;
+  --warning: #d98200;
+  --critical: #d62828;
+  --idle: #8b95a3;
+  --ok-text: #147238;            /* 成功メッセージ */
   --error-text: #b91c1c;         /* エラーメッセージ */
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  --warning-text: #a14a07;
+  --info-bg: #e8f0fa;
+  --warning-bg: #fdf3e1;
+  --critical-bg: #fdecec;
+  --radius: 3px;
+  --font: "Segoe UI", "Hiragino Sans", "Noto Sans JP", "BIZ UDPGothic", Meiryo,
+    system-ui, sans-serif;
   /* グラフ用変数(U00 §3 契約) */
   --chart-grid: rgba(100, 116, 139, 0.18);
   --chart-tick: #475569;
   /* サイドバー幅 */
-  --sidebar-width: 220px;
+  --sidebar-width: 216px;
+  --header-height: 44px;
+  --page-gutter: 20px;
 }
 
 /* ダークテーマ(U00 §3 契約: [data-theme="dark"] で :root 変数を上書き) */
 [data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --border: #334155;
-  --accent: #60a5fa;
-  --on-accent: #0f172a;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --bg: #0d1014;
+  --surface: #161a20;
+  --text: #e4e7eb;
+  --muted: #9aa3ae;
+  --border: #2a3039;
+  --accent: #5aa2ff;
+  --on-accent: #0d1014;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --surface-alt: #1c2129;
+  --stripe: #191d24;
+  --sidebar-bg: #090b0e;
+  --sidebar-text: #e4e7eb;
+  --sidebar-muted: #8d96a2;
+  --sidebar-hover: #1b2028;
   --ok-text: #4ade80;
   --error-text: #f87171;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --warning-text: #fbbf24;
+  --info-bg: #13243a;
+  --warning-bg: #33260f;
+  --critical-bg: #3a1618;
   --chart-grid: rgba(148, 163, 184, 0.15);
   --chart-tick: #94a3b8;
 }
@@ -78,22 +103,20 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 /* --- 3. サイドバーレイアウト --------------------------------------------- */
 /* 900px 以上: サイドバー常設(左固定) */
-body {
+.app-shell {
   display: flex;
 }
 
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -106,67 +129,68 @@ body {
 }
 
 .sidebar-brand {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: var(--header-height);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--sidebar-hover);
 }
 
 .sidebar-brand a {
   font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--text);
+  font-size: 13.5px;
+  color: var(--sidebar-text);
   text-decoration: none;
-  letter-spacing: -0.01em;
-  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-nav {
-  padding: 0.75rem 0;
+  padding: 6px 0;
   flex: 1;
 }
 
 .nav-group-label {
-  padding: 0.5rem 1.25rem 0.25rem;
-  font-size: 0.7rem;
+  padding: 10px 14px 2px;
+  font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-  margin-top: 0.5rem;
+  letter-spacing: 0.04em;
+  color: var(--sidebar-muted);
 }
 
-.nav-link {
+.side-link {
   display: block;
-  padding: 0.5rem 1.25rem;
-  color: var(--text);
+  padding: 5px 14px 5px 11px;
+  color: var(--sidebar-text);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 13.5px;
   border-left: 3px solid transparent;
-  transition: background 0.1s, border-color 0.1s;
 }
 
-.nav-link:hover {
-  color: var(--text);  /* bootstrap の .nav-link:hover(#0a58ca)を打ち消す */
-  background: var(--bg);
-  border-left-color: var(--border);
+.side-link:hover,
+.side-link:focus-visible {
+  color: var(--sidebar-text);
+  background: var(--sidebar-hover);
 }
 
-.nav-link.active,
-.nav-link[aria-current="page"] {
-  color: var(--accent);
-  border-left-color: var(--accent);
+.side-link.active,
+.side-link[aria-current="page"] {
+  color: var(--sidebar-text);
+  border-left-color: var(--sidebar-accent);
   font-weight: 600;
-  background: var(--bg);
+  background: var(--sidebar-hover);
 }
 
 .nav-section-divider {
-  margin: 0.5rem 0;
-  border-top: 1px solid var(--border);
+  margin: 6px 0;
+  border-top: 1px solid var(--sidebar-hover);
 }
 
-.nav-link--kiosk,
-.nav-link--admin {
-  font-size: 0.85rem;
-  color: var(--muted);
+.side-link--kiosk,
+.side-link--admin {
+  color: var(--sidebar-muted);
 }
 
 .sidebar-overlay {
@@ -196,12 +220,11 @@ body {
   width: 22px;
   height: 2px;
   background: var(--text);
-  border-radius: 2px;
 }
 
 /* 900px 未満: サイドバーをオフキャンバスに */
 @media (max-width: 899px) {
-  body {
+  .app-shell {
     display: block;
   }
 
@@ -211,7 +234,6 @@ body {
     left: 0;
     height: 100vh;
     transform: translateX(-100%);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
 
   .sidebar.is-open {
@@ -222,7 +244,7 @@ body {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0, 0.45);
     z-index: 15;
     opacity: 0;
     pointer-events: none;
@@ -246,23 +268,16 @@ body {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  height: 56px;
-  padding: 0 1.5rem;
+  gap: 10px;
+  height: var(--header-height);
+  padding: 0 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.site-header .brand {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text);
-  text-decoration: none;
-}
-
 .site-header__title {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 14px;
   color: var(--text);
   flex: 1;
   min-width: 0;
@@ -274,68 +289,88 @@ body {
 .site-header__actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   margin-left: auto;
 }
 
 /* テーマトグルボタン */
 .theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
   cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: var(--text);
-  transition: background 0.15s;
+  color: var(--muted);
 }
 
 .theme-toggle-btn:hover {
+  color: var(--text);
   background: var(--bg);
 }
 
+.theme-toggle-btn svg { width: 16px; height: 16px; }
+
 .site-footer {
-  padding: 0 1.5rem 2rem;
+  padding: 0 20px 12px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 12px;
 }
 
 /* --- 5. ページレイアウト ------------------------------------------------ */
-.container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
+.page {
+  padding: 16px var(--page-gutter) 24px;
 }
+
+.page-narrow { max-width: calc(960px + 2 * var(--page-gutter)); }
 
 .page-head {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: 6px 12px;
+  margin-bottom: 10px;
 }
 
 .page-head__main { min-width: 0; }       /* タイトルと補足をまとめる左側ブロック */
-.page-head__actions { display: flex; align-items: center; gap: 1rem; }
+.page-head__actions { display: flex; align-items: center; gap: 12px; }
 
 .page-head h1 {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .page-subtitle {
-  margin: 0.25rem 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 12.5px;
 }
 
-/* 見出し横の小さなリンク(「← 一覧へ」「⬇ CSV」「📺 大型表示」)。bootstrap の
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 6px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 見出し横の小さなリンク。bootstrap の
    既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
 .back-link {
   color: var(--accent);
+  font-size: 13px;
   white-space: nowrap;
   text-underline-offset: 2px;
 }
@@ -349,17 +384,16 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 /* --- 7. テーブル --------------------------------------------------------- */
-.table-wrap { max-height: 72vh; overflow: auto; }
+.table-wrap { max-height: calc(100vh - 170px); overflow: auto; }
+.table-wrap td { white-space: nowrap; }
 
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
 }
 
 td, th {
@@ -369,31 +403,25 @@ td, th {
 table.data thead th {
   position: sticky;
   top: 0;
-  background: var(--surface);
-  filter: brightness(0.96);
+  background: var(--surface-alt);
   text-align: left;
   font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12px;
   color: var(--muted);
-  padding: 0.7rem 1rem;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-[data-theme="dark"] table.data thead th {
-  background: var(--surface);
-  filter: brightness(1.1);
-}
-
 table.data tbody td {
-  padding: 0.7rem 1rem;
+  padding: 5px 10px;
+  font-size: 13.5px;
   border-bottom: 1px solid var(--border);
 }
 
+table.data tbody tr:nth-child(even) { background: var(--stripe); }
 table.data tbody tr:last-child td { border-bottom: none; }
-table.data tbody tr:hover { background: var(--bg); }
+table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 
 /* セルスタイル(config の css_class)で背景色クラスだけを指定した場合の文字色。
    bootstrap の text-bg-* と同じ組み合わせにし、どちらのテーマでも読めるようにする。
@@ -409,20 +437,25 @@ table.data td.bg-light,
 table.data td.bg-white { color: #000; }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
-.view-list { display: flex; flex-direction: column; }
+.view-list {
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+}
 
 .view-list a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.1rem;
+  gap: 8px;
+  padding: 10px 12px;
   color: var(--text);
   text-decoration: none;
-  border-bottom: 1px solid var(--border);
+  box-shadow: 0 0 0 1px var(--border);
 }
 
-.view-list a:last-child { border-bottom: none; }
-.view-list a:hover { background: var(--bg); }
+.view-list a:hover { background: var(--surface-alt); }
 .view-list a::after { content: "→"; color: var(--muted); }
 
 /* --- 9. 状態インジケータ ------------------------------------------------ */
@@ -430,8 +463,8 @@ table.data td.bg-white { color: #000; }
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
+  gap: 6px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -440,22 +473,25 @@ table.data td.bg-white { color: #000; }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d1d5db;            /* 既定(読み込み中) */
+  background: var(--idle);         /* 既定(読み込み中) */
 }
 
-.status.live .dot { background: #22c55e; }   /* 取得成功 */
-.status.error .dot { background: #ef4444; }  /* 取得失敗 */
+.status.live .dot { background: var(--ok); }        /* 取得成功 */
+.status.error .dot { background: var(--critical); } /* 取得失敗 */
 
 /* --- 10. アラートバナー(フェーズ1・A)----------------------------------- */
 /* level-info / level-warning / level-critical で色が変わる。 */
 .alert-banner {
-  margin-bottom: 1.25rem;
-  padding: 0.75rem 1rem;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
   border-radius: var(--radius);
-  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
 }
-.alert-banner .alert-item + .alert-item { margin-top: 0.25rem; }
+.alert-banner .alert-item + .alert-item { margin-top: 2px; }
 /* アラートが無い間のバナー(alerts-ui.js が付け外しする)。ライブリージョンとして
    アクセシビリティツリーに残したまま(最初のアラートも読み上げられるように)、
    見えなくし、場所も取らない。 */
@@ -471,96 +507,101 @@ table.data td.bg-white { color: #000; }
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.alert-banner.level-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
-.alert-banner.level-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.alert-banner.level-info { background: var(--info-bg); border-left-color: var(--accent); }
+.alert-banner.level-warning { background: var(--warning-bg); border-left-color: var(--warning); }
 .alert-banner.level-critical {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--critical-bg);
+  border-left-color: var(--critical);
   animation: alert-pulse 1.2s ease-in-out infinite;
 }
 @keyframes alert-pulse {
-  50% { border-color: #ef4444; }
+  50% { border-color: var(--critical); }
 }
 
 /* --- 11. グラフ(フェーズ2・D)------------------------------------------ */
-.chart-card { padding: 1rem; height: 440px; margin-bottom: 1.25rem; }
+.chart-card { padding: 10px; height: 420px; margin-bottom: 10px; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
 
 /* --- 12. KPIカード(フェーズ2・E)-------------------------------------- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
 }
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
+  border-top: 3px solid var(--idle);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1rem 1.1rem;
+  padding: 8px 12px;
 }
-.kpi-card .kpi-title { color: var(--muted); font-size: 0.85rem; }
-.kpi-card .kpi-value { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
-.kpi-card .kpi-unit { font-size: 0.8rem; color: var(--muted); margin-left: 0.2rem; }
+.kpi-card .kpi-title { color: var(--muted); font-size: 12px; }
+.kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.kpi-card .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
 
 /* kpis.js が付与する status クラス(API は good / bad / neutral を返す)*/
 .kpi-card.good,
-.kpi-card.ok { border-left-color: #22c55e; }
-.kpi-card.bad { border-left-color: #ef4444; }
-.kpi-card.neutral { border-left-color: var(--accent); }
+.kpi-card.ok { border-top-color: var(--ok); }
+.kpi-card.bad { border-top-color: var(--critical); }
+.kpi-card.bad .kpi-value { color: var(--error-text); }
 
 /* link_view 付き KPI(<a> として描画される)。クリックで関連ビューへ */
 a.kpi-card {
   display: block;
   color: inherit;
   text-decoration: none;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-a.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.12);
-}
+a.kpi-card:hover { background: var(--surface-alt); }
 
 /* --- 13. 入力フォーム(フェーズ3・F)----------------------------------- */
 /* タッチ操作向けに入力欄・ボタンを大きめにする。 */
-.form-card { padding: 1.5rem; }
-.form-row { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
-.form-row label { font-weight: 600; font-size: 0.95rem; }
-.form-row input[type="text"],
-.form-row input[type="number"],
-.form-row input[type="date"],
-.form-row select {
-  padding: 0.7rem 0.8rem;
-  font-size: 1.1rem;
+.form-card { padding: 14px 16px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 10px 16px;
+}
+.form-grid .btn-submit,
+.form-grid .form-message { grid-column: 1 / -1; }
+.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.form-grid .form-row { margin-bottom: 0; }
+.form-row label { font-weight: 600; font-size: 13px; }
+.form-row input:where(:not([type="checkbox"], [type="radio"])),
+.form-row select,
+.form-row textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 15px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
 }
 .form-row input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
 .btn-submit {
   width: 100%;
-  padding: 0.9rem;
-  font-size: 1.1rem;
+  min-height: 44px;
+  padding: 10px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--on-accent);
   background: var(--accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .btn-submit:active { opacity: 0.85; }
 .btn-submit:disabled { cursor: progress; opacity: 0.7; }
-.form-message { margin-top: 1rem; font-weight: 600; }
+.form-message { margin: 10px 0 0; font-weight: 600; }
+.form-grid .form-message { margin: 0; }
 .form-message.ok { color: var(--ok-text); }
 .form-message.error { color: var(--error-text); }
 
 /* --- 14. table-collapse(U04 が使う) ------------------------------------- */
 details.table-collapse {
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 }
 
 details.table-collapse > summary {
@@ -568,11 +609,11 @@ details.table-collapse > summary {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   color: var(--accent);
-  font-size: 0.9rem;
+  font-size: 13px;
   font-weight: 600;
-  padding: 0.4rem 0;
+  padding: 4px 0;
   user-select: none;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -600,7 +641,7 @@ details.table-collapse[open] > summary::before {
 code { color: inherit; font-size: 0.9em; }
 
 .empty {
-  padding: 2rem 1rem;
+  padding: 24px 16px;
   text-align: center;
   color: var(--muted);
 }
@@ -612,16 +653,15 @@ code { color: inherit; font-size: 0.9em; }
    ユーザーがクリックして初めて許可要求する。未決定のときだけ表示される。 */
 .notify-enable-btn {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: 16px;
+  bottom: 16px;
   z-index: 50;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--border, #cbd5e1);
-  border-radius: 999px;
-  background: var(--surface, #fff);
-  color: var(--text, #0f172a);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 13px;
 }
-.notify-enable-btn:hover { filter: brightness(0.97); }
+.notify-enable-btn:hover { background: var(--surface-alt); }
