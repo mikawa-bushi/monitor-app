@@ -435,6 +435,17 @@ def test_kiosk_rotates_through_the_views(server, tab):
     assert tab.errors() == []
 
 
+def test_kiosk_uses_the_full_screen_width(server, tab):
+    tab.send(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    tab.goto(_url(server, "/kiosk"))
+    width = tab.eval('document.getElementById("kiosk").getBoundingClientRect().width')
+    assert width == 1440
+    assert tab.errors() == []
+
+
 def test_form_submit_inserts_a_row(server, tab):
     _, body = _request(server, "GET", ROOT + "/api/tables/orders?limit=1000")
     before = len(json.loads(body)["data"])

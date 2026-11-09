@@ -84,8 +84,10 @@ body {
 }
 
 /* --- 3. サイドバーレイアウト --------------------------------------------- */
-/* 900px 以上: サイドバー常設(左固定) */
-body {
+/* base.html の body だけに付ける。kiosk.html・login.html も app.css を読むため、
+   body 全体を flex にすると、それらのページが画面幅を使えなくなる。
+   900px 以上: サイドバー常設(左固定) */
+.app-shell {
   display: flex;
 }
 
@@ -201,7 +203,7 @@ body {
 
 /* 900px 未満: サイドバーをオフキャンバスに */
 @media (max-width: 899px) {
-  body {
+  .app-shell {
     display: block;
   }
 
