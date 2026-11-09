@@ -1,9 +1,18 @@
 /* ============================================================================
-   app.css — monitor-app のモダンで簡素なテーマ
+   app.css — monitor-app の高密度・工業用 HMI 風テーマ
+
+   ねらい: 製造・物流の現場で、表とダッシュボードを一目で読み、タブレットで入力する。
+   - 余白を詰め、1 画面に載る行・数値を増やす。表は折り返さず、見出し行を固定する。
+   - 角丸は小さく、影は付けない。平らなパネルを 1px の線で区切る。
+   - 色は状態(正常・警告・異常)を示すときだけ使い、それ以外は無彩色に近づける。
+   - サイドバーはどちらのテーマでも暗い枠(--frame)にして、作業領域と分ける。
 
    保守の指針(変更するときはここを読む):
-   - 色・角丸・影・フォントはすべて :root の CSS 変数で定義している。
+   - 色・角丸・フォントはすべて :root の CSS 変数で定義している。
      見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
+     dashboard.css・settings.css もこの変数を使う(kiosk.css だけは大型表示用の --k-* を持つ)。
+   - 状態の色(--ok / --warning / --critical / --idle)は表示灯・枠線に使う。
+     文字の色には --ok-text / --error-text を使う(背景とのコントラストを確かめてある)。
    - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
      親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
    - bootstrap.min.css も読み込まれているが、用途は config.py のセルスタイル
@@ -12,14 +21,15 @@
      bootstrap の部品ルール(.card の文字色・a の色など)はライト配色前提なので、
      本アプリが使う要素は色をここで必ず指定する(ダークテーマで文字が消えないように)。
    - 文字色と背景の組み合わせは両テーマでコントラスト比 4.5:1 以上を保つ
-     (WCAG AA。--accent の上の文字は --on-accent を使う)。
+     (WCAG AA。--accent の上の文字は --on-accent、--frame の上は --frame-text /
+     --frame-muted を使う)。
 
    セクション目次:
      1. テーマ変数(:root / [data-theme="dark"])
      2. 土台(reset, body)
      3. サイドバーレイアウト
      4. ヘッダー / フッター
-     5. ページレイアウト(container, page-head)
+     5. ページレイアウト(container, page-head, section-head)
      6. カード
      7. テーブル
      8. ビュー一覧
@@ -34,38 +44,63 @@
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
 :root {
-  --bg: #f7f8fa;
+  --bg: #eceef1;
   --surface: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #2563eb;
+  --text: #1b1f24;
+  --muted: #5a6472;
+  --border: #d3d7dd;
+  --accent: #0b5cad;
   --on-accent: #ffffff;          /* --accent を背景にしたときの文字色 */
-  --ok-text: #15803d;            /* 成功メッセージ */
-  --error-text: #b91c1c;         /* エラーメッセージ */
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  --head: #f3f4f6;               /* 表の見出し行 */
+  --stripe: #f8f9fa;             /* 表の偶数行 */
+  /* サイドバーの枠。どちらのテーマでも暗いので、ダークテーマで上書きしない値もある */
+  --frame: #1f2730;
+  --frame-text: #e7eaee;
+  --frame-muted: #9aa5b3;
+  --frame-hover: #2b3540;
+  --frame-accent: #5aa2ff;       /* 枠の上の選択中の印(--accent では暗い枠に沈む) */
+  /* 状態の色(表示灯・枠線) */
+  --ok: #2e9e4f;
+  --warning: #d98200;
+  --critical: #d62828;
+  --idle: #8b95a3;               /* 読み込み中・不明・中立 */
+  --ok-text: #147238;            /* 成功メッセージ */
+  --error-text: #b91c1c;         /* エラーメッセージ・目標未達の KPI */
+  /* アラートバナーの地の色(文字は --text) */
+  --info-bg: #e8f0fa;
+  --warning-bg: #fdf3e1;
+  --critical-bg: #fdecec;
+  --radius: 3px;
+  --font: "Segoe UI", "Hiragino Sans", "Noto Sans JP", "BIZ UDPGothic", Meiryo,
+    system-ui, sans-serif;
   /* グラフ用変数(U00 §3 契約) */
   --chart-grid: rgba(100, 116, 139, 0.18);
   --chart-tick: #475569;
-  /* サイドバー幅 */
-  --sidebar-width: 220px;
+  /* サイドバー幅(デモのビュー名「本日の時間帯別 出荷・入荷」が折り返さない幅) */
+  --sidebar-width: 216px;
+  --header-height: 44px;
 }
 
 /* ダークテーマ(U00 §3 契約: [data-theme="dark"] で :root 変数を上書き) */
 [data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --border: #334155;
-  --accent: #60a5fa;
-  --on-accent: #0f172a;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --bg: #0d1014;
+  --surface: #161a20;
+  --text: #e4e7eb;
+  --muted: #9aa3ae;
+  --border: #2a3039;
+  --accent: #5aa2ff;
+  --on-accent: #0d1014;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --head: #1c2129;
+  --stripe: #191d24;
+  --frame: #090b0e;
+  --frame-text: #e4e7eb;
+  --frame-muted: #8d96a2;
+  --frame-hover: #1b2028;
   --ok-text: #4ade80;
   --error-text: #f87171;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --info-bg: #13243a;
+  --warning-bg: #33260f;
+  --critical-bg: #3a1618;
   --chart-grid: rgba(148, 163, 184, 0.15);
   --chart-tick: #94a3b8;
 }
@@ -78,7 +113,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -93,9 +128,7 @@ body {
 
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--frame);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -108,67 +141,69 @@ body {
 }
 
 .sidebar-brand {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: var(--header-height);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--frame-hover);
 }
 
 .sidebar-brand a {
   font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--text);
+  font-size: 13.5px;
+  color: var(--frame-text);
   text-decoration: none;
-  letter-spacing: -0.01em;
-  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-nav {
-  padding: 0.75rem 0;
+  padding: 6px 0;
   flex: 1;
 }
 
 .nav-group-label {
-  padding: 0.5rem 1.25rem 0.25rem;
-  font-size: 0.7rem;
+  padding: 10px 14px 2px;
+  font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-  margin-top: 0.5rem;
+  letter-spacing: 0.04em;
+  color: var(--frame-muted);
 }
 
 .nav-link {
   display: block;
-  padding: 0.5rem 1.25rem;
-  color: var(--text);
+  padding: 5px 14px 5px 11px;
+  color: var(--frame-text);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 13.5px;
   border-left: 3px solid transparent;
-  transition: background 0.1s, border-color 0.1s;
 }
 
-.nav-link:hover {
-  color: var(--text);  /* bootstrap の .nav-link:hover(#0a58ca)を打ち消す */
-  background: var(--bg);
-  border-left-color: var(--border);
+/* bootstrap の .nav-link:hover / :focus(#0a58ca)は暗い枠の上で読めないので打ち消す */
+.nav-link:hover,
+.nav-link:focus {
+  color: var(--frame-text);
+  background: var(--frame-hover);
 }
 
 .nav-link.active,
 .nav-link[aria-current="page"] {
-  color: var(--accent);
-  border-left-color: var(--accent);
+  color: var(--frame-text);
+  border-left-color: var(--frame-accent);
   font-weight: 600;
-  background: var(--bg);
+  background: var(--frame-hover);
 }
 
 .nav-section-divider {
-  margin: 0.5rem 0;
-  border-top: 1px solid var(--border);
+  margin: 6px 0;
+  border-top: 1px solid var(--frame-hover);
 }
 
 .nav-link--kiosk,
 .nav-link--admin {
-  font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--frame-muted);
 }
 
 .sidebar-overlay {
@@ -198,7 +233,6 @@ body {
   width: 22px;
   height: 2px;
   background: var(--text);
-  border-radius: 2px;
 }
 
 /* 900px 未満: サイドバーをオフキャンバスに */
@@ -213,7 +247,6 @@ body {
     left: 0;
     height: 100vh;
     transform: translateX(-100%);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
 
   .sidebar.is-open {
@@ -224,7 +257,7 @@ body {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0, 0.45);
     z-index: 15;
     opacity: 0;
     pointer-events: none;
@@ -248,23 +281,16 @@ body {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  height: 56px;
-  padding: 0 1.5rem;
+  gap: 10px;
+  height: var(--header-height);
+  padding: 0 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.site-header .brand {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text);
-  text-decoration: none;
-}
-
 .site-header__title {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 14px;
   color: var(--text);
   flex: 1;
   min-width: 0;
@@ -276,68 +302,94 @@ body {
 .site-header__actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   margin-left: auto;
 }
 
-/* テーマトグルボタン */
+/* テーマトグルボタン(アイコンはテーマによらず同じ) */
 .theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
   cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: var(--text);
-  transition: background 0.15s;
+  color: var(--muted);
 }
 
 .theme-toggle-btn:hover {
+  color: var(--text);
   background: var(--bg);
 }
 
+.theme-toggle-btn svg { width: 16px; height: 16px; }
+
 .site-footer {
-  padding: 0 1.5rem 2rem;
+  padding: 0 20px 12px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 12px;
 }
 
 /* --- 5. ページレイアウト ------------------------------------------------ */
+/* 表やダッシュボードは画面の幅いっぱいに使う。bootstrap の .container は画面幅ごとに
+   max-width(最大 1320px)を持つので打ち消す。 */
 .container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
+  max-width: none;
+  margin: 0;
+  padding: 16px 20px 24px;
 }
+
+/* 入力・設定の画面は 1 行が長くなりすぎないよう幅を抑える(見出しとカードの端を揃える) */
+.page-narrow { max-width: 960px; }
 
 .page-head {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: 6px 12px;
+  margin-bottom: 10px;
 }
 
 .page-head__main { min-width: 0; }       /* タイトルと補足をまとめる左側ブロック */
-.page-head__actions { display: flex; align-items: center; gap: 1rem; }
+.page-head__actions { display: flex; align-items: center; gap: 12px; }
 
 .page-head h1 {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .page-subtitle {
-  margin: 0.25rem 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 12.5px;
 }
 
-/* 見出し横の小さなリンク(「← 一覧へ」「⬇ CSV」「📺 大型表示」)。bootstrap の
+/* ページの中の区切り見出し(ダッシュボード・ビュー一覧・データ入力) */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 6px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 見出し横の小さなリンク(「← 一覧へ」「CSV 出力」「大型表示」)。bootstrap の
    既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
 .back-link {
   color: var(--accent);
+  font-size: 13px;
   white-space: nowrap;
   text-underline-offset: 2px;
 }
@@ -351,17 +403,18 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 /* --- 7. テーブル --------------------------------------------------------- */
-.table-wrap { max-height: 72vh; overflow: auto; }
+/* 枠の高さは画面の高さから決める(ヘッダー・見出し・余白の分を引き、見出し行が
+   常に画面に残るように)。セルは折り返さず、はみ出す分は横スクロールで見せる。 */
+.table-wrap { max-height: calc(100vh - 170px); overflow: auto; }
+.table-wrap td { white-space: nowrap; }
 
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
 }
 
 td, th {
@@ -371,31 +424,25 @@ td, th {
 table.data thead th {
   position: sticky;
   top: 0;
-  background: var(--surface);
-  filter: brightness(0.96);
+  background: var(--head);
   text-align: left;
   font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12px;
   color: var(--muted);
-  padding: 0.7rem 1rem;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-[data-theme="dark"] table.data thead th {
-  background: var(--surface);
-  filter: brightness(1.1);
-}
-
 table.data tbody td {
-  padding: 0.7rem 1rem;
+  padding: 5px 10px;
+  font-size: 13.5px;
   border-bottom: 1px solid var(--border);
 }
 
+table.data tbody tr:nth-child(even) { background: var(--stripe); }
 table.data tbody tr:last-child td { border-bottom: none; }
-table.data tbody tr:hover { background: var(--bg); }
+table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 
 /* セルスタイル(config の css_class)で背景色クラスだけを指定した場合の文字色。
    bootstrap の text-bg-* と同じ組み合わせにし、どちらのテーマでも読めるようにする。
@@ -411,20 +458,26 @@ table.data td.bg-light,
 table.data td.bg-white { color: #000; }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
-.view-list { display: flex; flex-direction: column; }
+/* リンクのタイルを格子に並べる。区切り線は 1px の隙間に落ちる影で描く
+   (外周にはみ出した分は .card の overflow: hidden で切れ、カードの枠と重ならない)。 */
+.view-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+}
 
 .view-list a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.1rem;
+  gap: 8px;
+  padding: 10px 12px;
   color: var(--text);
   text-decoration: none;
-  border-bottom: 1px solid var(--border);
+  box-shadow: 0 0 0 1px var(--border);
 }
 
-.view-list a:last-child { border-bottom: none; }
-.view-list a:hover { background: var(--bg); }
+.view-list a:hover { background: var(--head); }
 .view-list a::after { content: "→"; color: var(--muted); }
 
 /* --- 9. 状態インジケータ ------------------------------------------------ */
@@ -432,8 +485,8 @@ table.data td.bg-white { color: #000; }
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
+  gap: 6px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -442,22 +495,25 @@ table.data td.bg-white { color: #000; }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d1d5db;            /* 既定(読み込み中) */
+  background: var(--idle);         /* 既定(読み込み中) */
 }
 
-.status.live .dot { background: #22c55e; }   /* 取得成功 */
-.status.error .dot { background: #ef4444; }  /* 取得失敗 */
+.status.live .dot { background: var(--ok); }        /* 取得成功 */
+.status.error .dot { background: var(--critical); } /* 取得失敗 */
 
 /* --- 10. アラートバナー(フェーズ1・A)----------------------------------- */
-/* level-info / level-warning / level-critical で色が変わる。 */
+/* level-info / level-warning / level-critical で左の帯と地の色が変わる。 */
 .alert-banner {
-  margin-bottom: 1.25rem;
-  padding: 0.75rem 1rem;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
   border-radius: var(--radius);
-  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
 }
-.alert-banner .alert-item + .alert-item { margin-top: 0.25rem; }
+.alert-banner .alert-item + .alert-item { margin-top: 2px; }
 /* アラートが無い間のバナー(alerts-ui.js が付け外しする)。ライブリージョンとして
    アクセシビリティツリーに残したまま(最初のアラートも読み上げられるように)、
    見えなくし、場所も取らない。 */
@@ -473,96 +529,104 @@ table.data td.bg-white { color: #000; }
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.alert-banner.level-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
-.alert-banner.level-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.alert-banner.level-info { background: var(--info-bg); border-left-color: var(--accent); }
+.alert-banner.level-warning { background: var(--warning-bg); border-left-color: var(--warning); }
 .alert-banner.level-critical {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--critical-bg);
+  border-left-color: var(--critical);
   animation: alert-pulse 1.2s ease-in-out infinite;
 }
 @keyframes alert-pulse {
-  50% { border-color: #ef4444; }
+  50% { border-color: var(--critical); }
 }
 
 /* --- 11. グラフ(フェーズ2・D)------------------------------------------ */
-.chart-card { padding: 1rem; height: 440px; margin-bottom: 1.25rem; }
+.chart-card { padding: 10px; height: 420px; margin-bottom: 10px; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
 
 /* --- 12. KPIカード(フェーズ2・E)-------------------------------------- */
+/* 最小幅 150px: 1440px の画面で 5 枚が 1 行に並ぶ */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
 }
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
+  border-top: 3px solid var(--idle);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1rem 1.1rem;
+  padding: 8px 12px;
 }
-.kpi-card .kpi-title { color: var(--muted); font-size: 0.85rem; }
-.kpi-card .kpi-value { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
-.kpi-card .kpi-unit { font-size: 0.8rem; color: var(--muted); margin-left: 0.2rem; }
+.kpi-card .kpi-title { color: var(--muted); font-size: 12px; }
+.kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.kpi-card .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
 
-/* kpis.js が付与する status クラス(API は good / bad / neutral を返す)*/
+/* kpis.js が付与する status クラス(API は good / bad / neutral を返す。neutral は既定の灰)*/
 .kpi-card.good,
-.kpi-card.ok { border-left-color: #22c55e; }
-.kpi-card.bad { border-left-color: #ef4444; }
-.kpi-card.neutral { border-left-color: var(--accent); }
+.kpi-card.ok { border-top-color: var(--ok); }
+.kpi-card.bad { border-top-color: var(--critical); }
+.kpi-card.bad .kpi-value { color: var(--error-text); }
 
 /* link_view 付き KPI(<a> として描画される)。クリックで関連ビューへ */
 a.kpi-card {
   display: block;
   color: inherit;
   text-decoration: none;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-a.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.12);
-}
+a.kpi-card:hover { background: var(--head); }
 
 /* --- 13. 入力フォーム(フェーズ3・F)----------------------------------- */
-/* タッチ操作向けに入力欄・ボタンを大きめにする。 */
-.form-card { padding: 1.5rem; }
-.form-row { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
-.form-row label { font-weight: 600; font-size: 0.95rem; }
-.form-row input[type="text"],
-.form-row input[type="number"],
-.form-row input[type="date"],
-.form-row select {
-  padding: 0.7rem 0.8rem;
-  font-size: 1.1rem;
+/* タッチ操作向けに入力欄・ボタンは高さ 40px 以上にする。 */
+.form-card { padding: 14px 16px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 10px 16px;
+}
+.form-grid .btn-submit,
+.form-grid .form-message { grid-column: 1 / -1; }
+.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.form-grid .form-row { margin-bottom: 0; }
+.form-row label { font-weight: 600; font-size: 13px; }
+/* 種類を列挙しない(datetime-local などの付け忘れを防ぐ)。:where() で詳細度を
+   上げず、settings.css の小さめの入力欄が上書きできるようにする。 */
+.form-row input:where(:not([type="checkbox"], [type="radio"])),
+.form-row select,
+.form-row textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 15px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
 }
 .form-row input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
 .btn-submit {
   width: 100%;
-  padding: 0.9rem;
-  font-size: 1.1rem;
+  min-height: 44px;
+  padding: 10px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--on-accent);
   background: var(--accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .btn-submit:active { opacity: 0.85; }
 .btn-submit:disabled { cursor: progress; opacity: 0.7; }
-.form-message { margin-top: 1rem; font-weight: 600; }
+.form-message { margin: 10px 0 0; font-weight: 600; }
+.form-grid .form-message { margin: 0; }
 .form-message.ok { color: var(--ok-text); }
 .form-message.error { color: var(--error-text); }
 
 /* --- 14. table-collapse(U04 が使う) ------------------------------------- */
 details.table-collapse {
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 }
 
 details.table-collapse > summary {
@@ -570,11 +634,11 @@ details.table-collapse > summary {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   color: var(--accent);
-  font-size: 0.9rem;
+  font-size: 13px;
   font-weight: 600;
-  padding: 0.4rem 0;
+  padding: 4px 0;
   user-select: none;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -602,7 +666,7 @@ details.table-collapse[open] > summary::before {
 code { color: inherit; font-size: 0.9em; }
 
 .empty {
-  padding: 2rem 1rem;
+  padding: 24px 16px;
   text-align: center;
   color: var(--muted);
 }
@@ -614,16 +678,15 @@ code { color: inherit; font-size: 0.9em; }
    ユーザーがクリックして初めて許可要求する。未決定のときだけ表示される。 */
 .notify-enable-btn {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: 16px;
+  bottom: 16px;
   z-index: 50;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--border, #cbd5e1);
-  border-radius: 999px;
-  background: var(--surface, #fff);
-  color: var(--text, #0f172a);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 13px;
 }
-.notify-enable-btn:hover { filter: brightness(0.97); }
+.notify-enable-btn:hover { background: var(--head); }
