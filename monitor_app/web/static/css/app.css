@@ -1,18 +1,9 @@
 /* ============================================================================
-   app.css — monitor-app の高密度・工業用 HMI 風テーマ
-
-   ねらい: 製造・物流の現場で、表とダッシュボードを一目で読み、タブレットで入力する。
-   - 余白を詰め、1 画面に載る行・数値を増やす。表は折り返さず、見出し行を固定する。
-   - 角丸は小さく、影は付けない。平らなパネルを 1px の線で区切る。
-   - 色は状態(正常・警告・異常)を示すときだけ使い、それ以外は無彩色に近づける。
-   - サイドバーはどちらのテーマでも暗い枠(--frame)にして、作業領域と分ける。
+   app.css — monitor-app のテーマ
 
    保守の指針(変更するときはここを読む):
    - 色・角丸・フォントはすべて :root の CSS 変数で定義している。
      見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
-     dashboard.css・settings.css もこの変数を使う(kiosk.css だけは大型表示用の --k-* を持つ)。
-   - 状態の色(--ok / --warning / --critical / --idle)は表示灯・枠線に使う。
-     文字の色には --ok-text / --error-text を使う(背景とのコントラストを確かめてある)。
    - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
      親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
    - bootstrap.min.css も読み込まれているが、用途は config.py のセルスタイル
@@ -21,15 +12,14 @@
      bootstrap の部品ルール(.card の文字色・a の色など)はライト配色前提なので、
      本アプリが使う要素は色をここで必ず指定する(ダークテーマで文字が消えないように)。
    - 文字色と背景の組み合わせは両テーマでコントラスト比 4.5:1 以上を保つ
-     (WCAG AA。--accent の上の文字は --on-accent、--frame の上は --frame-text /
-     --frame-muted を使う)。
+     (WCAG AA。--accent の上の文字は --on-accent を使う)。
 
    セクション目次:
      1. テーマ変数(:root / [data-theme="dark"])
      2. 土台(reset, body)
      3. サイドバーレイアウト
      4. ヘッダー / フッター
-     5. ページレイアウト(container, page-head, section-head)
+     5. ページレイアウト(page, page-head, section-head)
      6. カード
      7. テーブル
      8. ビュー一覧
@@ -51,23 +41,20 @@
   --border: #d3d7dd;
   --accent: #0b5cad;
   --on-accent: #ffffff;          /* --accent を背景にしたときの文字色 */
-  --head: #f3f4f6;               /* 表の見出し行 */
-  --stripe: #f8f9fa;             /* 表の偶数行 */
-  /* サイドバーの枠。どちらのテーマでも暗いので、ダークテーマで上書きしない値もある */
-  --frame: #1f2730;
-  --frame-text: #e7eaee;
-  --frame-muted: #9aa5b3;
-  --frame-hover: #2b3540;
-  --frame-accent: #5aa2ff;       /* 枠の上の選択中の印(--accent では暗い枠に沈む) */
-  /* 状態の色(表示灯・枠線) */
+  --surface-alt: #f3f4f6;
+  --stripe: #f8f9fa;
+  --sidebar-bg: #1f2730;
+  --sidebar-text: #e7eaee;
+  --sidebar-muted: #9aa5b3;
+  --sidebar-hover: #2b3540;
+  --sidebar-accent: #5aa2ff;
   --ok: #2e9e4f;
   --warning: #d98200;
   --critical: #d62828;
-  --idle: #8b95a3;               /* 読み込み中・不明・中立 */
+  --idle: #8b95a3;
   --ok-text: #147238;            /* 成功メッセージ */
-  --error-text: #b91c1c;         /* エラーメッセージ・目標未達の KPI */
-  --warning-text: #a14a07;       /* 警告の文字 */
-  /* アラートバナーの地の色(文字は --text) */
+  --error-text: #b91c1c;         /* エラーメッセージ */
+  --warning-text: #a14a07;
   --info-bg: #e8f0fa;
   --warning-bg: #fdf3e1;
   --critical-bg: #fdecec;
@@ -77,9 +64,10 @@
   /* グラフ用変数(U00 §3 契約) */
   --chart-grid: rgba(100, 116, 139, 0.18);
   --chart-tick: #475569;
-  /* サイドバー幅(デモのビュー名「本日の時間帯別 出荷・入荷」が折り返さない幅) */
+  /* サイドバー幅 */
   --sidebar-width: 216px;
   --header-height: 44px;
+  --page-gutter: 20px;
 }
 
 /* ダークテーマ(U00 §3 契約: [data-theme="dark"] で :root 変数を上書き) */
@@ -91,12 +79,12 @@
   --border: #2a3039;
   --accent: #5aa2ff;
   --on-accent: #0d1014;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
-  --head: #1c2129;
+  --surface-alt: #1c2129;
   --stripe: #191d24;
-  --frame: #090b0e;
-  --frame-text: #e4e7eb;
-  --frame-muted: #8d96a2;
-  --frame-hover: #1b2028;
+  --sidebar-bg: #090b0e;
+  --sidebar-text: #e4e7eb;
+  --sidebar-muted: #8d96a2;
+  --sidebar-hover: #1b2028;
   --ok-text: #4ade80;
   --error-text: #f87171;
   --warning-text: #fbbf24;
@@ -121,16 +109,14 @@ body {
 }
 
 /* --- 3. サイドバーレイアウト --------------------------------------------- */
-/* base.html の body だけに付ける。kiosk.html・login.html も app.css を読むため、
-   body 全体を flex にすると、それらのページが画面幅を使えなくなる。
-   900px 以上: サイドバー常設(左固定) */
+/* 900px 以上: サイドバー常設(左固定) */
 .app-shell {
   display: flex;
 }
 
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--frame);
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -148,13 +134,13 @@ body {
   flex-shrink: 0;
   height: var(--header-height);
   padding: 0 14px;
-  border-bottom: 1px solid var(--frame-hover);
+  border-bottom: 1px solid var(--sidebar-hover);
 }
 
 .sidebar-brand a {
   font-weight: 700;
   font-size: 13.5px;
-  color: var(--frame-text);
+  color: var(--sidebar-text);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -171,41 +157,40 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--frame-muted);
+  color: var(--sidebar-muted);
 }
 
-.nav-link {
+.side-link {
   display: block;
   padding: 5px 14px 5px 11px;
-  color: var(--frame-text);
+  color: var(--sidebar-text);
   text-decoration: none;
   font-size: 13.5px;
   border-left: 3px solid transparent;
 }
 
-/* bootstrap の .nav-link:hover / :focus(#0a58ca)は暗い枠の上で読めないので打ち消す */
-.nav-link:hover,
-.nav-link:focus {
-  color: var(--frame-text);
-  background: var(--frame-hover);
+.side-link:hover,
+.side-link:focus-visible {
+  color: var(--sidebar-text);
+  background: var(--sidebar-hover);
 }
 
-.nav-link.active,
-.nav-link[aria-current="page"] {
-  color: var(--frame-text);
-  border-left-color: var(--frame-accent);
+.side-link.active,
+.side-link[aria-current="page"] {
+  color: var(--sidebar-text);
+  border-left-color: var(--sidebar-accent);
   font-weight: 600;
-  background: var(--frame-hover);
+  background: var(--sidebar-hover);
 }
 
 .nav-section-divider {
   margin: 6px 0;
-  border-top: 1px solid var(--frame-hover);
+  border-top: 1px solid var(--sidebar-hover);
 }
 
-.nav-link--kiosk,
-.nav-link--admin {
-  color: var(--frame-muted);
+.side-link--kiosk,
+.side-link--admin {
+  color: var(--sidebar-muted);
 }
 
 .sidebar-overlay {
@@ -308,7 +293,7 @@ body {
   margin-left: auto;
 }
 
-/* テーマトグルボタン(アイコンはテーマによらず同じ) */
+/* テーマトグルボタン */
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -337,17 +322,11 @@ body {
 }
 
 /* --- 5. ページレイアウト ------------------------------------------------ */
-/* 表やダッシュボードは画面の幅いっぱいに使う。bootstrap の .container は画面幅ごとに
-   max-width(最大 1320px)を持つので打ち消す。 */
-.container {
-  max-width: none;
-  margin: 0;
-  padding: 16px 20px 24px;
+.page {
+  padding: 16px var(--page-gutter) 24px;
 }
 
-/* 入力・設定の画面(base.html の main_class)は、1 行が長くなりすぎないよう
-   本文の幅を 960px に抑える(左右の余白 20px を含めて 1000px)。 */
-.page-narrow { max-width: 1000px; }
+.page-narrow { max-width: calc(960px + 2 * var(--page-gutter)); }
 
 .page-head {
   display: flex;
@@ -373,7 +352,6 @@ body {
   font-size: 12.5px;
 }
 
-/* ページの中の区切り見出し(ダッシュボード・ビュー一覧・データ入力) */
 .section-head {
   display: flex;
   align-items: baseline;
@@ -388,7 +366,7 @@ body {
   font-weight: 700;
 }
 
-/* 見出し横の小さなリンク(「← 一覧へ」「CSV 出力」「大型表示」)。bootstrap の
+/* 見出し横の小さなリンク。bootstrap の
    既定リンク色 #0d6efd はダークテーマで 3.97:1 しかないため、テーマの色を使う。 */
 .back-link {
   color: var(--accent);
@@ -410,8 +388,6 @@ body {
 }
 
 /* --- 7. テーブル --------------------------------------------------------- */
-/* 枠の高さは画面の高さから決める(ヘッダー・見出し・余白の分を引き、見出し行が
-   常に画面に残るように)。セルは折り返さず、はみ出す分は横スクロールで見せる。 */
 .table-wrap { max-height: calc(100vh - 170px); overflow: auto; }
 .table-wrap td { white-space: nowrap; }
 
@@ -427,7 +403,7 @@ td, th {
 table.data thead th {
   position: sticky;
   top: 0;
-  background: var(--head);
+  background: var(--surface-alt);
   text-align: left;
   font-weight: 600;
   font-size: 12px;
@@ -461,9 +437,8 @@ table.data td.bg-light,
 table.data td.bg-white { color: #000; }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
-/* リンクのタイルを格子に並べる。区切り線は 1px の隙間に落ちる影で描く
-   (外周にはみ出した分は .card の overflow: hidden で切れ、カードの枠と重ならない)。 */
 .view-list {
+  overflow: hidden;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1px;
@@ -480,7 +455,7 @@ table.data td.bg-white { color: #000; }
   box-shadow: 0 0 0 1px var(--border);
 }
 
-.view-list a:hover { background: var(--head); }
+.view-list a:hover { background: var(--surface-alt); }
 .view-list a::after { content: "→"; color: var(--muted); }
 
 /* --- 9. 状態インジケータ ------------------------------------------------ */
@@ -505,7 +480,7 @@ table.data td.bg-white { color: #000; }
 .status.error .dot { background: var(--critical); } /* 取得失敗 */
 
 /* --- 10. アラートバナー(フェーズ1・A)----------------------------------- */
-/* level-info / level-warning / level-critical で左の帯と地の色が変わる。 */
+/* level-info / level-warning / level-critical で色が変わる。 */
 .alert-banner {
   margin-bottom: 10px;
   padding: 6px 12px;
@@ -548,7 +523,6 @@ table.data td.bg-white { color: #000; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
 
 /* --- 12. KPIカード(フェーズ2・E)-------------------------------------- */
-/* 最小幅 150px: 1440px の画面で 5 枚が 1 行に並ぶ */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -566,7 +540,7 @@ table.data td.bg-white { color: #000; }
 .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
 .kpi-card .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
 
-/* kpis.js が付与する status クラス(API は good / bad / neutral を返す。neutral は既定の灰)*/
+/* kpis.js が付与する status クラス(API は good / bad / neutral を返す)*/
 .kpi-card.good,
 .kpi-card.ok { border-top-color: var(--ok); }
 .kpi-card.bad { border-top-color: var(--critical); }
@@ -578,10 +552,10 @@ a.kpi-card {
   color: inherit;
   text-decoration: none;
 }
-a.kpi-card:hover { background: var(--head); }
+a.kpi-card:hover { background: var(--surface-alt); }
 
 /* --- 13. 入力フォーム(フェーズ3・F)----------------------------------- */
-/* タッチ操作向けに入力欄・ボタンは高さ 40px 以上にする。 */
+/* タッチ操作向けに入力欄・ボタンを大きめにする。 */
 .form-card { padding: 14px 16px; }
 .form-grid {
   display: grid;
@@ -593,8 +567,6 @@ a.kpi-card:hover { background: var(--head); }
 .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .form-grid .form-row { margin-bottom: 0; }
 .form-row label { font-weight: 600; font-size: 13px; }
-/* 種類を列挙しない(datetime-local などの付け忘れを防ぐ)。:where() で詳細度を
-   上げず、settings.css の小さめの入力欄が上書きできるようにする。 */
 .form-row input:where(:not([type="checkbox"], [type="radio"])),
 .form-row select,
 .form-row textarea {
@@ -692,4 +664,4 @@ code { color: inherit; font-size: 0.9em; }
   cursor: pointer;
   font-size: 13px;
 }
-.notify-enable-btn:hover { background: var(--head); }
+.notify-enable-btn:hover { background: var(--surface-alt); }

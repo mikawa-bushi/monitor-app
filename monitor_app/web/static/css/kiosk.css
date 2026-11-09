@@ -1,8 +1,7 @@
 /* Andon / 大型表示モードのテーマ(フェーズ1・B)。
    遠くから見えるよう大きなフォント・高コントラスト。
    <html data-theme="dark|light"> で配色を切り替える。
-   文字と背景はどちらのテーマでもコントラスト比 4.5:1 以上(--k-muted を含む)。
-   角は app.css と同じ var(--radius)(平らなパネル)。 */
+   文字と背景はどちらのテーマでもコントラスト比 4.5:1 以上(--k-muted を含む)。 */
 
 :root[data-theme="dark"] {
   --k-bg: #0b1220;
@@ -144,7 +143,6 @@ body.alert-critical #kiosk {
 
 /* --- アラートバナー(大型用に拡大)--- */
 body.kiosk .alert-banner { font-size: 2.4vh; margin-bottom: 1.5vh; }
-/* 大型表示では警告・異常のバナーを塗りつぶし、離れた場所からも目に入るようにする */
 body.kiosk .alert-banner.level-warning { background: #f59e0b; border-color: #f59e0b; color: #1b1f24; }
 body.kiosk .alert-banner.level-critical { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 
