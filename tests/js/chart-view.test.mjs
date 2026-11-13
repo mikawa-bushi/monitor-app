@@ -15,15 +15,17 @@ function load() {
   const created = [];
   const document = { documentElement: {}, addEventListener() {} };
   const window = {};
+  function Chart(_ctx, config) {
+    created.push(config);
+    this.data = config.data;
+    this.update = () => {};
+  }
+  Chart.defaults = { font: {} };
   vm.runInNewContext(source, {
     window,
     document,
     getComputedStyle: () => ({ getPropertyValue: () => "" }),
-    Chart: function (_ctx, config) {
-      created.push(config);
-      this.data = config.data;
-      this.update = () => {};
-    },
+    Chart,
   });
   const canvas = { getContext: () => ({}) };
   return { MonitorChart: window.MonitorChart, canvas, created };

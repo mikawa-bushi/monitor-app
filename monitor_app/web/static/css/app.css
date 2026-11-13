@@ -2,7 +2,7 @@
    app.css — monitor-app のテーマ
 
    保守の指針(変更するときはここを読む):
-   - 色・角丸・フォントはすべて :root の CSS 変数で定義している。
+   - 色・角丸・影・フォントはすべて :root の CSS 変数で定義している。
      見た目を変えるときは、まず変数を編集すれば全体に反映される(単一の真実の源)。
    - クラス名は「見たまま」の素朴な名前にしている(.card, .status, .view-list 等)。
      親子で意味が結びつく場合のみ二重アンダースコア(.page-head__main)を使う。
@@ -11,15 +11,15 @@
 
    セクション目次:
      1. テーマ変数(:root / [data-theme="dark"])
-     2. 土台(body, 見出し, 入力欄)
+     2. 土台(body, 見出し, 入力欄, フォーカス)
      3. サイドバーレイアウト
      4. ヘッダー / フッター
-     5. ページレイアウト(page, page-head, section-head)
+     5. ページレイアウト(page, page-head, section-head, 控えめなボタン)
      6. カード
      7. テーブル
      8. ビュー一覧
      9. 状態インジケータ
-    10. アラートバナー
+    10. 知らせの枠(アラートバナー・設定ページの知らせ・点検と取り込みの結果)
     11. グラフ
     12. KPIカード
     13. 入力フォーム
@@ -30,65 +30,72 @@
 
 /* --- 1. テーマ変数 ------------------------------------------------------- */
 :root {
-  --bg: #eceef1;
+  color-scheme: light;
+  --bg: #f4f4f5;
   --surface: #ffffff;
-  --text: #1b1f24;
-  --muted: #5a6472;
-  --border: #d3d7dd;
-  --accent: #0b5cad;
+  --hover: color-mix(in srgb, var(--text) 5%, transparent);
+  --hover-layer: linear-gradient(var(--hover), var(--hover));
+  --text: #18181b;
+  --muted: #63636b;
+  --border: #e4e4e7;
+  --accent: #2563eb;
   --on-accent: #ffffff;          /* --accent を背景にしたときの文字色 */
-  --surface-alt: #f3f4f6;
-  --stripe: #f8f9fa;
-  --sidebar-bg: #1f2730;
-  --sidebar-text: #e7eaee;
-  --sidebar-muted: #9aa5b3;
-  --sidebar-hover: #2b3540;
-  --sidebar-accent: #5aa2ff;
-  --ok: #2e9e4f;
-  --warning: #d98200;
-  --critical: #d62828;
-  --idle: #8b95a3;
+  --ok: #16a34a;
+  --warning: #d97706;
+  --critical: #dc2626;
+  --idle: #a1a1aa;
   --ok-text: #147238;            /* 成功メッセージ */
   --error-text: #b91c1c;         /* エラーメッセージ */
   --warning-text: #a14a07;
-  --info-bg: #e8f0fa;
-  --warning-bg: #fdf3e1;
-  --critical-bg: #fdecec;
-  --radius: 3px;
+  --info-bg: #eff6ff;
+  --warning-bg: #fffbeb;
+  --critical-bg: #fef2f2;
+  --scrim: rgb(0 0 0 / 0.45);
+  --andon-warning: #f59e0b;
+  --on-andon-warning: #18181b;
+  --andon-critical: #b91c1c;
+  --on-andon-critical: #ffffff;
+  --shadow: 0 0 0 1px rgb(24 24 27 / 0.04), 0 1px 2px rgb(24 24 27 / 0.05),
+    0 2px 8px rgb(24 24 27 / 0.04);
+  --radius: 10px;
+  --radius-lg: 16px;
   --font: "Segoe UI", "Hiragino Sans", "Noto Sans JP", "BIZ UDPGothic", Meiryo,
     system-ui, sans-serif;
   /* グラフ用変数(U00 §3 契約) */
-  --chart-grid: rgba(100, 116, 139, 0.18);
-  --chart-tick: #475569;
-  /* サイドバー幅 */
-  --sidebar-width: 216px;
-  --header-height: 44px;
-  --page-gutter: 20px;
+  --chart-grid: rgb(113 113 122 / 0.16);
+  --chart-tick: #63636b;
+  --sidebar-width: 232px;
+  --header-height: 56px;
+  --page-gutter: 32px;
 }
 
 /* ダークテーマ(U00 §3 契約: [data-theme="dark"] で :root 変数を上書き) */
 [data-theme="dark"] {
-  --bg: #0d1014;
-  --surface: #161a20;
-  --text: #e4e7eb;
-  --muted: #9aa3ae;
-  --border: #2a3039;
-  --accent: #5aa2ff;
-  --on-accent: #0d1014;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
-  --surface-alt: #1c2129;
-  --stripe: #191d24;
-  --sidebar-bg: #090b0e;
-  --sidebar-text: #e4e7eb;
-  --sidebar-muted: #8d96a2;
-  --sidebar-hover: #1b2028;
+  color-scheme: dark;
+  --bg: #09090b;
+  --surface: #18181b;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --border: #2e2e33;
+  --accent: #60a5fa;
+  --on-accent: #09090b;          /* 明るい青の上は濃い文字(白だと 2.5:1 しかない) */
+  --ok: #22c55e;
+  --warning: #f59e0b;
+  --critical: #ef4444;
+  --idle: #71717a;
   --ok-text: #4ade80;
   --error-text: #f87171;
   --warning-text: #fbbf24;
-  --info-bg: #13243a;
-  --warning-bg: #33260f;
-  --critical-bg: #3a1618;
-  --chart-grid: rgba(148, 163, 184, 0.15);
-  --chart-tick: #94a3b8;
+  --info-bg: #0f1d33;
+  --warning-bg: #2a1f0a;
+  --critical-bg: #2c1012;
+  --shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
+  --chart-grid: rgb(161 161 170 / 0.14);
+  --chart-tick: #a1a1aa;
+}
+
+@media (max-width: 599px) {
+  :root { --page-gutter: 16px; }
 }
 
 /* --- 2. 土台 ------------------------------------------------------------- */
@@ -123,7 +130,17 @@ button, input, select {
   font-size: inherit;
   line-height: inherit;
 }
-::file-selector-button { font: inherit; -webkit-appearance: button; }
+::file-selector-button {
+  margin-right: 12px;
+  padding: 4px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  -webkit-appearance: button;
+}
 /* 日付・日時の入力欄の中の余白。分の欄はこれまでも余白が残っていたので含めない
    (含めると「--:--」の分だけ 2px 左に寄る) */
 ::-webkit-datetime-edit-fields-wrapper,
@@ -139,6 +156,29 @@ legend { float: left; padding: 0; }
 /* display を指定したクラス(.form-row など)を付けた要素も hidden で隠す */
 [hidden] { display: none !important; }
 
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:where(:not([type="checkbox"], [type="radio"])),
+select,
+textarea {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+input:where(:not([type="checkbox"], [type="radio"])):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 /* --- 3. サイドバーレイアウト --------------------------------------------- */
 /* 900px 以上: サイドバー常設(左固定) */
 .app-shell {
@@ -147,7 +187,6 @@ legend { float: left; padding: 0; }
 
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -164,14 +203,13 @@ legend { float: left; padding: 0; }
   align-items: center;
   flex-shrink: 0;
   height: var(--header-height);
-  padding: 0 14px;
-  border-bottom: 1px solid var(--sidebar-hover);
+  padding: 0 20px;
 }
 
 .sidebar-brand a {
-  font-weight: 700;
-  font-size: 13.5px;
-  color: var(--sidebar-text);
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--text);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -179,49 +217,45 @@ legend { float: left; padding: 0; }
 }
 
 .sidebar-nav {
-  padding: 6px 0;
+  padding: 4px 10px 16px;
   flex: 1;
 }
 
 .nav-group-label {
-  padding: 10px 14px 2px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--sidebar-muted);
+  padding: 18px 10px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .side-link {
   display: block;
-  padding: 5px 14px 5px 11px;
-  color: var(--sidebar-text);
+  margin: 1px 0;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
   text-decoration: none;
-  font-size: 13.5px;
-  border-left: 3px solid transparent;
+  font-size: 14px;
 }
 
-.side-link:hover,
-.side-link:focus-visible {
-  color: var(--sidebar-text);
-  background: var(--sidebar-hover);
-}
+.side-link:hover { background: var(--hover); }
 
 .side-link.active,
 .side-link[aria-current="page"] {
-  color: var(--sidebar-text);
-  border-left-color: var(--sidebar-accent);
+  color: var(--text);
   font-weight: 600;
-  background: var(--sidebar-hover);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .nav-section-divider {
-  margin: 6px 0;
-  border-top: 1px solid var(--sidebar-hover);
+  margin: 12px 0;
+  border-top: 1px solid var(--border);
 }
 
 .side-link--kiosk,
 .side-link--admin {
-  color: var(--sidebar-muted);
+  color: var(--muted);
 }
 
 .sidebar-overlay {
@@ -261,21 +295,21 @@ legend { float: left; padding: 0; }
 
   .sidebar {
     position: fixed;
-    top: 0;
     left: 0;
-    height: 100vh;
+    background: var(--bg);
     transform: translateX(-100%);
   }
 
   .sidebar.is-open {
     transform: translateX(0);
+    box-shadow: var(--shadow);
   }
 
   .sidebar-overlay {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--scrim);
     z-index: 15;
     opacity: 0;
     pointer-events: none;
@@ -301,15 +335,14 @@ legend { float: left; padding: 0; }
   align-items: center;
   gap: 10px;
   height: var(--header-height);
-  padding: 0 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  padding: 0 var(--page-gutter);
+  background: var(--bg);
 }
 
 .site-header__title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -329,11 +362,11 @@ legend { float: left; padding: 0; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   background: none;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   color: var(--muted);
@@ -341,20 +374,20 @@ legend { float: left; padding: 0; }
 
 .theme-toggle-btn:hover {
   color: var(--text);
-  background: var(--bg);
+  background: var(--hover);
 }
 
 .theme-toggle-btn svg { width: 16px; height: 16px; }
 
 .site-footer {
-  padding: 0 20px 12px;
+  padding: 0 var(--page-gutter) 24px;
   color: var(--muted);
   font-size: 12px;
 }
 
 /* --- 5. ページレイアウト ------------------------------------------------ */
 .page {
-  padding: 16px var(--page-gutter) 24px;
+  padding: 4px var(--page-gutter) 40px;
 }
 
 .page-narrow { max-width: calc(960px + 2 * var(--page-gutter)); }
@@ -364,23 +397,23 @@ legend { float: left; padding: 0; }
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 6px 12px;
-  margin-bottom: 10px;
+  gap: 8px 16px;
+  margin-bottom: 20px;
 }
 
-.page-head__main { min-width: 0; }       /* タイトルと補足をまとめる左側ブロック */
-.page-head__actions { display: flex; align-items: center; gap: 12px; }
+.page-head__main { flex: 1 1 20rem; min-width: 0; }  /* タイトルと補足をまとめる左側ブロック */
+.page-head__actions { display: flex; align-items: center; gap: 8px; }
 
 .page-head h1 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 650;
 }
 
 .page-subtitle {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 
 .section-head {
@@ -388,37 +421,57 @@ legend { float: left; padding: 0; }
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 16px 0 6px;
+  margin: 32px 0 12px;
 }
 
 .section-head h2 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.back-link {
-  color: var(--accent);
+.back-link,
+.notify-enable-btn,
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
   font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
   white-space: nowrap;
-  text-underline-offset: 2px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  cursor: pointer;
 }
-.back-link:hover { color: var(--accent); text-decoration-thickness: 2px; }
+.back-link:hover,
+.notify-enable-btn:hover,
+.settings-btn:hover:not(:disabled) { background-image: var(--hover-layer); }
 
 /* --- 6. カード ----------------------------------------------------------- */
+.card,
+.kpi-card,
+.view-list a,
+.settings-bar {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
 /* 縦の flex にするのは、中の要素の上下の余白を重ねずに足すため。長い語はカードの幅で折り返す */
 .card {
   display: flex;
   flex-direction: column;
   overflow-wrap: break-word;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   overflow: hidden;
 }
 
 /* --- 7. テーブル --------------------------------------------------------- */
-.table-wrap { max-height: calc(100vh - 170px); overflow: auto; }
+.table-wrap { max-height: calc(100vh - 200px); overflow: auto; }
 .table-wrap td { white-space: nowrap; }
 
 table.data {
@@ -433,32 +486,30 @@ td, th {
 table.data thead th {
   position: sticky;
   top: 0;
-  background: var(--surface-alt);
+  background: var(--surface);
   text-align: left;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 12.5px;
   color: var(--muted);
-  padding: 6px 10px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 table.data tbody td {
-  padding: 5px 10px;
+  padding: 5px 16px;
   font-size: 13.5px;
   border-bottom: 1px solid var(--border);
 }
 
-table.data tbody tr:nth-child(even) { background: var(--stripe); }
 table.data tbody tr:last-child td { border-bottom: none; }
-table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+table.data tbody tr:hover { background: var(--hover); }
 
 /* --- 8. ビュー一覧 ------------------------------------------------------- */
 .view-list {
-  overflow: hidden;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1px;
+  gap: 8px;
 }
 
 .view-list a {
@@ -466,13 +517,13 @@ table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   color: var(--text);
+  font-weight: 500;
   text-decoration: none;
-  box-shadow: 0 0 0 1px var(--border);
 }
 
-.view-list a:hover { background: var(--surface-alt); }
+.view-list a:hover { background-image: var(--hover-layer); }
 .view-list a::after { content: "→"; color: var(--muted); }
 
 /* --- 9. 状態インジケータ ------------------------------------------------ */
@@ -481,9 +532,13 @@ table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  padding: 4px 10px;
+  font-size: 12.5px;
   color: var(--muted);
   white-space: nowrap;
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
 }
 
 .status .dot {
@@ -496,16 +551,36 @@ table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var
 .status.live .dot { background: var(--ok); }        /* 取得成功 */
 .status.error .dot { background: var(--critical); } /* 取得失敗 */
 
-/* --- 10. アラートバナー(フェーズ1・A)----------------------------------- */
-/* level-info / level-warning / level-critical で色が変わる。 */
-.alert-banner {
-  margin-bottom: 10px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  border-radius: var(--radius);
-  background: var(--surface);
+/* --- 10. 知らせの枠 ------------------------------------------------------ */
+.alert-banner,
+.settings-notice,
+.settings-issues,
+.upload-result {
+  padding: 12px 16px;
   color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.alert-banner.level-info,
+.settings-notice {
+  background: var(--info-bg);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.alert-banner.level-warning {
+  background: var(--warning-bg);
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+}
+.alert-banner.level-critical,
+.settings-notice--error,
+.upload-result.error {
+  background: var(--critical-bg);
+  border-color: color-mix(in srgb, var(--critical) 45%, transparent);
+}
+.upload-result.ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+
+.alert-banner {
+  margin-bottom: 16px;
   font-weight: 600;
 }
 .alert-banner .alert-item + .alert-item { margin-top: 2px; }
@@ -524,83 +599,86 @@ table.data tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, var
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.alert-banner.level-info { background: var(--info-bg); border-left-color: var(--accent); }
-.alert-banner.level-warning { background: var(--warning-bg); border-left-color: var(--warning); }
-.alert-banner.level-critical {
-  background: var(--critical-bg);
-  border-left-color: var(--critical);
-  animation: alert-pulse 1.2s ease-in-out infinite;
-}
+.alert-banner.level-critical { animation: alert-pulse 1.2s ease-in-out infinite; }
 @keyframes alert-pulse {
   50% { border-color: var(--critical); }
 }
 
 /* --- 11. グラフ(フェーズ2・D)------------------------------------------ */
-.chart-card { padding: 10px; height: 420px; margin-bottom: 10px; }
+.chart-card { padding: 20px; height: 420px; margin-bottom: 16px; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
 
 /* --- 12. KPIカード(フェーズ2・E)-------------------------------------- */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 .kpi-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--idle);
-  border-radius: var(--radius);
-  padding: 8px 12px;
+  position: relative;
+  padding: 16px 18px;
 }
-.kpi-card .kpi-title { color: var(--muted); font-size: 12px; }
-.kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
-.kpi-card .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
+.kpi-card .kpi-title { color: var(--muted); font-size: 13px; }
+.kpi-card .kpi-value {
+  margin-top: 6px;
+  font-size: 30px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.kpi-card .kpi-unit { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+.kpi-card .kpi-target-row { margin-top: 6px; }
 
 /* kpis.js が付与する status クラス(API は good / bad / neutral を返す)*/
-.kpi-card.good,
-.kpi-card.ok { border-top-color: var(--ok); }
-.kpi-card.bad { border-top-color: var(--critical); }
+.kpi-card.good::after,
+.kpi-card.ok::after,
+.kpi-card.bad::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.kpi-card.bad::after { background: var(--critical); }
 .kpi-card.bad .kpi-value { color: var(--error-text); }
 
 /* link_view 付き KPI(<a> として描画される)。クリックで関連ビューへ */
 a.kpi-card {
-  display: block;
   color: inherit;
   text-decoration: none;
 }
-a.kpi-card:hover { background: var(--surface-alt); }
+a.kpi-card:hover { background-image: var(--hover-layer); }
 
 /* --- 13. 入力フォーム(フェーズ3・F)----------------------------------- */
 /* タッチ操作向けに入力欄・ボタンを大きめにする。 */
-.form-card { padding: 14px 16px; }
+.form-card { padding: 24px; }
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
-  gap: 10px 16px;
+  gap: 16px 20px;
 }
 .form-grid .btn-submit,
 .form-grid .form-message { grid-column: 1 / -1; }
-.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .form-grid .form-row { margin-bottom: 0; }
-.form-row label { font-weight: 600; font-size: 13px; }
+.form-row label { font-weight: 500; font-size: 13.5px; }
 .form-row input:where(:not([type="checkbox"], [type="radio"])),
 .form-row select,
 .form-row textarea {
   width: 100%;
-  min-height: 40px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 8px 12px;
   font-size: 15px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
 }
 .form-row input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
 .btn-submit {
   width: 100%;
-  min-height: 44px;
-  padding: 10px;
+  min-height: 48px;
+  padding: 12px;
   font-size: 15px;
   font-weight: 600;
   color: var(--on-accent);
@@ -611,14 +689,14 @@ a.kpi-card:hover { background: var(--surface-alt); }
 }
 .btn-submit:active { opacity: 0.85; }
 .btn-submit:disabled { cursor: progress; opacity: 0.7; }
-.form-message { margin: 10px 0 0; font-weight: 600; }
+.form-message { margin: 12px 0 0; font-weight: 600; }
 .form-grid .form-message { margin: 0; }
 .form-message.ok { color: var(--ok-text); }
 .form-message.error { color: var(--error-text); }
 
 /* --- 14. table-collapse(U04 が使う) ------------------------------------- */
 details.table-collapse {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
 
 details.table-collapse > summary {
@@ -626,14 +704,13 @@ details.table-collapse > summary {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  margin-bottom: 8px;
   padding: 4px 0;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
   user-select: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 details.table-collapse > summary::-webkit-details-marker {
@@ -641,14 +718,18 @@ details.table-collapse > summary::-webkit-details-marker {
 }
 
 details.table-collapse > summary::before {
-  content: "▶";
-  font-size: 0.65rem;
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
   transition: transform 0.15s;
-  color: var(--muted);
 }
 
 details.table-collapse[open] > summary::before {
-  transform: rotate(90deg);
+  transform: rotate(45deg);
 }
 
 /* --- 15. 補助クラス ------------------------------------------------------ */
@@ -675,15 +756,7 @@ code {
   right: 16px;
   bottom: 16px;
   z-index: 50;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 13px;
 }
-.notify-enable-btn:hover { background: var(--surface-alt); }
 
 /* --- 16. セルスタイルのクラス(色・太字)------------------------------- */
 /* config.py のセルスタイル(css_class)と設定ページの色分けで使う。名前・色・優先の

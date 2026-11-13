@@ -1,33 +1,8 @@
-/* Andon / 大型表示モードのテーマ(フェーズ1・B)。
-   遠くから見えるよう大きなフォント・高コントラスト。
-   <html data-theme="dark|light"> で配色を切り替える。
-   文字と背景はどちらのテーマでもコントラスト比 4.5:1 以上(--k-muted を含む)。 */
-
-:root[data-theme="dark"] {
-  --k-bg: #0b1220;
-  --k-surface: #131c2e;
-  --k-text: #f1f5f9;
-  --k-muted: #94a3b8;
-  --k-border: #24314a;
-  --k-head: #1c2740;
-  --k-stripe: #0f1829;
-}
-:root[data-theme="light"] {
-  --k-bg: #f1f5f9;
-  --k-surface: #ffffff;
-  --k-text: #0f172a;
-  --k-muted: #475569;  /* #64748b は見出し行の背景上で 4.1:1 だった */
-  --k-border: #e2e8f0;
-  --k-head: #e8eef6;
-  --k-stripe: #f8fafc;
-}
+/* Andon / 大型表示モードのテーマ(フェーズ1・B)。 */
 
 body.kiosk {
-  margin: 0;
   height: 100vh;
   overflow: hidden;
-  background: var(--k-bg);
-  color: var(--k-text);
 }
 
 #kiosk {
@@ -35,7 +10,6 @@ body.kiosk {
   flex-direction: column;
   height: 100vh;
   padding: 1.5vh 2vw;
-  box-sizing: border-box;
 }
 
 /* --- ヘッダー(信号灯 + タイトル + 時計)--- */
@@ -46,64 +20,75 @@ body.kiosk {
   margin-bottom: 1.5vh;
 }
 .kiosk-titles { flex: 1; display: flex; flex-direction: column; gap: 0.2vh; }
-.kiosk-brand { font-size: 1.6vh; color: var(--k-muted); letter-spacing: 0.05em; }
+.kiosk-brand { font-size: 1.6vh; color: var(--muted); letter-spacing: 0.05em; }
 .kiosk-header h1 { margin: 0; font-size: 3.4vh; font-weight: 700; }
-.kiosk-clock { font-size: 3vh; font-variant-numeric: tabular-nums; color: var(--k-muted); }
+.kiosk-clock { font-size: 3vh; font-variant-numeric: tabular-nums; color: var(--muted); }
 
 /* --- ローテーション進行バー(次の切替までの残り時間) --- */
 .kiosk-progress {
-  height: 0.5vh;
-  background: var(--k-border);
+  height: 0.35vh;
+  background: var(--border);
+  border-radius: 999px;
   overflow: hidden;
   margin-bottom: 1.2vh;
 }
 #kiosk-progress-fill {
   height: 100%;
   width: 0;
-  background: var(--k-muted);
+  background: var(--muted);
 }
-body.alert-critical #kiosk-progress-fill { background: #ef4444; }
+body.alert-critical #kiosk-progress-fill { background: var(--critical); }
 
 /* --- KPI ストリップ(大型表示用の横並びカード) --- */
 .kiosk-kpis {
   display: flex;
   gap: 1vw;
-  margin-bottom: 1.5vh;
+  padding: 1px 1px 1vh;
+  margin-bottom: 0.5vh;
   overflow-x: auto;
 }
 .kiosk-kpi {
+  position: relative;
   flex: 1;
   min-width: 12vw;
-  background: var(--k-surface);
-  border: 1px solid var(--k-border);
-  border-top: 0.5vh solid var(--k-muted);
-  border-radius: var(--radius);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
   padding: 1.2vh 1.2vw;
 }
-.kiosk-kpi.good,
-.kiosk-kpi.ok { border-top-color: #22c55e; }
-.kiosk-kpi.bad { border-top-color: #ef4444; }
+.kiosk-kpi.good::after,
+.kiosk-kpi.ok::after,
+.kiosk-kpi.bad::after {
+  content: "";
+  position: absolute;
+  top: 1.9vh;
+  right: 1.2vw;
+  width: 1.1vh;
+  height: 1.1vh;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.kiosk-kpi.bad::after { background: var(--critical); }
 a.kiosk-kpi { color: inherit; text-decoration: none; cursor: pointer; }
-a.kiosk-kpi:hover { border-color: var(--k-muted); }
-.kiosk-kpi-title { font-size: 1.7vh; color: var(--k-muted); white-space: nowrap; }
+a.kiosk-kpi:hover { background-image: var(--hover-layer); }
+.kiosk-kpi-title { font-size: 1.7vh; color: var(--muted); white-space: nowrap; }
 .kiosk-kpi-value {
   font-size: 4vh;
-  font-weight: 700;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
-.kiosk-kpi-unit { font-size: 1.8vh; font-weight: 400; color: var(--k-muted); margin-left: 0.4vw; }
+.kiosk-kpi-unit { font-size: 1.8vh; font-weight: 400; color: var(--muted); margin-left: 0.4vw; }
 
 /* --- チャート表示(ビューごとの canvas を切り替え) --- */
-.kiosk-charts { height: 100%; }
+.kiosk-charts { height: 100%; padding: 1px; }
 .kiosk-chart-card {
   display: none;
   height: 100%;
-  background: var(--k-surface);
-  border: 1px solid var(--k-border);
-  border-radius: var(--radius);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
   padding: 2vh 1.5vw;
-  box-sizing: border-box;
   position: relative;
 }
 .kiosk-chart-card.active { display: block; }
@@ -113,9 +98,10 @@ a.kiosk-kpi:hover { border-color: var(--k-muted); }
 body.alert-critical #kiosk {
   animation: kiosk-frame-pulse 1.2s ease-in-out infinite;
 }
+/* color-mix は使わない。Chromium 111 より前は値ごと捨てるため、古い壁面ブラウザで警報の枠が出なくなる。 */
 @keyframes kiosk-frame-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
-  50% { box-shadow: inset 0 0 0 1.2vh rgba(239, 68, 68, 0.55); }
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 1.2vh var(--andon-critical); }
 }
 
 /* 全体ステータス信号灯。JS が ok/warning/critical を付け替える。 */
@@ -123,28 +109,35 @@ body.alert-critical #kiosk {
   width: 4vh;
   height: 4vh;
   border-radius: 50%;
-  background: #64748b;
-  box-shadow: 0 0 1.5vh rgba(0, 0, 0, 0.4);
+  background: var(--idle);
 }
-.status-light.ok { background: #22c55e; box-shadow: 0 0 2vh #22c55e; }
-.status-light.warning { background: #f59e0b; box-shadow: 0 0 2vh #f59e0b; }
+.status-light.ok { background: var(--ok); box-shadow: 0 0 2vh var(--ok); }
+.status-light.warning { background: var(--warning); box-shadow: 0 0 2vh var(--warning); }
 .status-light.critical {
-  background: #ef4444;
-  box-shadow: 0 0 2.5vh #ef4444;
+  background: var(--critical);
+  box-shadow: 0 0 2.5vh var(--critical);
   animation: kiosk-blink 0.8s steps(1) infinite;
 }
 /* 取得失敗(stale): 灰の点滅で「更新されていない」ことを大型表示でも明示(#E9) */
 .status-light.stale {
-  background: #94a3b8;
-  box-shadow: 0 0 2vh #94a3b8;
+  background: var(--idle);
+  box-shadow: 0 0 2vh var(--idle);
   animation: kiosk-blink 1s steps(1) infinite;
 }
 @keyframes kiosk-blink { 50% { opacity: 0.35; } }
 
 /* --- アラートバナー(大型用に拡大)--- */
 body.kiosk .alert-banner { font-size: 2.4vh; margin-bottom: 1.5vh; }
-body.kiosk .alert-banner.level-warning { background: #f59e0b; border-color: #f59e0b; color: #1b1f24; }
-body.kiosk .alert-banner.level-critical { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+body.kiosk .alert-banner.level-warning {
+  color: var(--on-andon-warning);
+  background: var(--andon-warning);
+  border-color: var(--andon-warning);
+}
+body.kiosk .alert-banner.level-critical {
+  color: var(--on-andon-critical);
+  background: var(--andon-critical);
+  border-color: var(--andon-critical);
+}
 
 /* --- テーブル(大きく)--- */
 .kiosk-main { flex: 1; overflow: auto; }
@@ -152,42 +145,42 @@ table.kiosk-table { width: 100%; border-collapse: collapse; }
 table.kiosk-table thead th {
   position: sticky;
   top: 0;
-  background: var(--k-head);
-  color: var(--k-muted);
+  background: var(--bg);
+  color: var(--muted);
   font-size: 2vh;
+  font-weight: 500;
   text-align: left;
   padding: 1.2vh 1.5vw;
-  border-bottom: 2px solid var(--k-border);
+  border-bottom: 1px solid var(--border);
 }
 table.kiosk-table tbody td {
   font-size: 2.6vh;
   padding: 1.2vh 1.5vw;
-  border-bottom: 1px solid var(--k-border);
+  border-bottom: 1px solid var(--border);
 }
-table.kiosk-table tbody tr:nth-child(even) { background: var(--k-stripe); }
 
-/* --- ローテーションのインジケータ(下部のドット)--- */
+/* --- ローテーションのインジケータ(下部のピル)--- */
 .kiosk-dots {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 1vw;
   padding-top: 1.2vh;
 }
-.kiosk-dots { flex-wrap: wrap; }
 .kiosk-dots .view-pill {
   font-size: 1.7vh;
   padding: 0.6vh 1.2vw;
-  border-radius: var(--radius);
-  background: var(--k-surface);
-  color: var(--k-muted);
-  border: 1px solid var(--k-border);
+  border: none;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
 }
-.kiosk-dots .view-pill:hover { color: var(--k-text); border-color: var(--k-muted); }
+.kiosk-dots .view-pill:hover { color: var(--text); }
 .kiosk-dots .view-pill.active {
-  background: var(--k-text);
-  color: var(--k-bg);
-  border-color: var(--k-text);
-  font-weight: 700;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
 }

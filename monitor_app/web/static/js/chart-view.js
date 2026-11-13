@@ -16,7 +16,7 @@
 //   chart.update(payload);   // payload は /api/views/<v> のレスポンス
 //
 // テーマ追従:
-//   グリッド・目盛り色は CSS 変数 --chart-grid / --chart-tick から読む。
+//   グリッド・目盛り・凡例の色は CSS 変数 --chart-grid / --chart-tick から読む。
 //   document の monitor:themechange イベントで色を再適用し chart.update("none")。
 
 (function () {
@@ -26,6 +26,8 @@
   // CSS 変数が取れない場合のフォールバック定数
   var GRID_COLOR_DEFAULT = "rgba(100, 116, 139, 0.18)"; // 目盛り線(薄いスレート)
   var TICK_COLOR_DEFAULT = "#475569"; // 目盛りテキスト
+
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
 
   // CSS 変数から色を読む。空なら定数にフォールバック。
   function cssVar(name, fallback) {
@@ -107,12 +109,12 @@
       return { labels: labels, datasets: datasets };
     }
 
-    // グリッド・目盛り色を現在の CSS 変数から読み直してチャートに適用する。
+    // グリッド・目盛り・凡例の色を現在の CSS 変数から読み直してチャートに適用する。
     function applyThemeColors() {
       if (!chart) return;
       var gc = gridColor();
       var tc = tickColor();
-      chart.options.scales.x.grid.color = gc;
+      chart.options.plugins.legend.labels.color = tc;
       chart.options.scales.x.ticks.color = tc;
       chart.options.scales.x.title.color = tc;
       chart.options.scales.y.grid.color = gc;
@@ -133,8 +135,21 @@
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            elements: {
+              bar: { borderRadius: 4 },
+              line: { borderWidth: 2 },
+            },
             plugins: {
-              legend: { display: !compact },
+              legend: {
+                display: !compact,
+                labels: {
+                  color: tc,
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                  boxWidth: 8,
+                  boxHeight: 8,
+                },
+              },
               tooltip: {
                 callbacks: {
                   // ツールチップの見出しは元の完全な日時を残す(短縮は軸目盛りのみ)
@@ -152,7 +167,8 @@
                   color: tc,
                   font: { weight: "600" },
                 },
-                grid: { color: gc },
+                grid: { display: false },
+                border: { display: false },
                 ticks: {
                   color: tc,
                   autoSkip: true,
@@ -173,6 +189,7 @@
                   font: { weight: "600" },
                 },
                 grid: { color: gc },
+                border: { display: false },
                 ticks: {
                   color: tc,
                   maxTicksLimit: compact ? 5 : 8,

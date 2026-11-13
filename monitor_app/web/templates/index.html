@@ -46,7 +46,7 @@
 {% if group.group %}
 <h3 class="view-group-heading">{{ group.group }}</h3>
 {% endif %}
-<nav class="card view-list" aria-label="{{ group.group or 'ビュー一覧' }}">
+<nav class="view-list" aria-label="{{ group.group or 'ビュー一覧' }}">
     {% for view in group.views %}
     <a href="{{ url_for('show_table', view_name=view.name) }}">{{ view.title }}</a>
     {% endfor %}
@@ -69,7 +69,7 @@
 <div class="section-head">
     <h2>データ入力</h2>
 </div>
-<nav class="card view-list" aria-label="データ入力">
+<nav class="view-list" aria-label="データ入力">
     {% for form in form_tables %}
     <a href="{{ url_for('show_form', table_name=form.name) }}">{{ form.heading }}</a>
     {% endfor %}
