@@ -519,6 +519,43 @@ def test_kiosk_uses_the_full_screen_width(server, tab):
     assert tab.errors() == []
 
 
+#: 1440x900 の画面で 1 画面に見えるテーブルの行数の下限。現場の人はテーブルを
+#: ひと目で読むので行の密度を落とさない。
+MIN_VISIBLE_ROWS = 20
+
+
+def test_table_shows_enough_rows_at_1440x900(server, tab):
+    """1440x900 でヘッダーが最も高いテーブルの画面でも、スクロールせずに 20 行以上見える。"""
+    for _ in range(MIN_VISIBLE_ROWS * 2):
+        status, _ = _request(
+            server,
+            "POST",
+            ROOT + "/api/tables/orders",
+            {"user_id": 1, "product_id": 1, "amount": 1},
+        )
+        assert status == 201
+    tab.send(
+        "Emulation.setDeviceMetricsOverride",
+        {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False},
+    )
+    tab.goto(_url(server, "/table/orders_summary"))
+    tab.wait_for(
+        'document.querySelectorAll("#tbody tr").length'
+        f" >= {MIN_VISIBLE_ROWS * 2}"
+        ' && !!document.querySelector("#alert-banner .alert-item")'
+    )
+    rows = tab.eval("""(() => {
+        const wrap = document.querySelector(".table-wrap").getBoundingClientRect();
+        const bottom = Math.min(window.innerHeight, wrap.bottom);
+        const rows = [...document.querySelectorAll("#tbody tr")]
+            .map((tr) => tr.getBoundingClientRect());
+        return { visible: rows.filter((r) => r.bottom <= bottom).length,
+                 height: rows[0].height }; })()""")
+    assert (
+        rows["visible"] >= MIN_VISIBLE_ROWS
+    ), f"{rows['visible']} 行しか見えない(行の高さ {rows['height']}px)"
+
+
 def test_form_submit_inserts_a_row(server, tab):
     _, body = _request(server, "GET", ROOT + "/api/tables/orders?limit=1000")
     before = len(json.loads(body)["data"])
