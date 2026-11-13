@@ -51,6 +51,10 @@
   --warning-bg: #fffbeb;
   --critical-bg: #fef2f2;
   --scrim: rgb(0 0 0 / 0.45);
+  --andon-warning: #f59e0b;
+  --on-andon-warning: #18181b;
+  --andon-critical: #b91c1c;
+  --on-andon-critical: #ffffff;
   --shadow: 0 0 0 1px rgb(24 24 27 / 0.04), 0 1px 2px rgb(24 24 27 / 0.05),
     0 2px 8px rgb(24 24 27 / 0.04);
   --radius: 10px;
