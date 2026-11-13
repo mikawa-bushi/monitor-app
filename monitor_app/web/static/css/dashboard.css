@@ -7,25 +7,19 @@
 
 /* ---- ステータスバー(#status-bar) -------------------------------------- */
 .status-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  margin-bottom: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 13px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 16px;
+  font-size: 13.5px;
 }
 
 /* ステータスドット */
 .sb-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
   background: var(--idle); /* 初期/不明 */
 }
 .sb-dot.ok { background: var(--ok); }
@@ -49,12 +43,7 @@
 
 /* サマリーテキスト部 */
 .sb-summary {
-  flex: 1;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-wrap: wrap;
 }
 
 .sb-alert-count {
@@ -69,23 +58,25 @@
   color: var(--accent);
   text-decoration: none;
 }
-.sb-alert-link:hover { color: var(--accent); text-decoration: underline; }
+.sb-alert-link:hover { text-decoration: underline; }
 
 /* 右端: 最終更新時刻 */
 .sb-right {
-  margin-left: auto;
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
-  flex-shrink: 0;
+}
+
+@media (max-width: 599px) {
+  .sb-right { grid-column: 2; }
 }
 
 /* ---- ミニチャートグリッド(#dashboard-grid) ---------------------------- */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(var(--dash-columns, 3), 1fr);
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 /* 900px 未満は 1 列 */
@@ -97,27 +88,20 @@
 
 /* ダッシュボードカード */
 .dash-card {
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  padding: 16px 18px 12px;
+  gap: 12px;
 }
 
 /* カードタイトル(リンク) */
 .dash-card-title {
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
 }
 .dash-card-title a {
   color: var(--text);
   text-decoration: none;
 }
-.dash-card-title a:hover {
-  color: var(--accent);
-  text-decoration: underline;
-}
+.dash-card-title a:hover { color: var(--accent); }
 
 /* canvas ラッパ */
 .dash-canvas {
@@ -128,8 +112,8 @@
 
 /* ---- ビュー一覧グループ見出し ----------------------------------------- */
 .view-group-heading {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
-  margin: 10px 0 4px;
+  margin: 16px 0 8px;
 }
