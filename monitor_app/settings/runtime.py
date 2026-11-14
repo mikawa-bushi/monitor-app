@@ -26,23 +26,10 @@ LOG_LEVELS = ("critical", "error", "warning", "info", "debug", "trace")
 #: 従来どおり受け付ける Python の logging の別名(warning・critical・trace と同じ)。
 _LOG_LEVEL_ALIASES = ("warn", "fatal", "notset")
 
-#: AppSettings のフィールド以外で monitor-app(と配布するテンプレート)が読む変数。
+#: AppSettings のフィールド以外で monitor-app が読む変数。
 #: - MONITOR_CONFIG_PATH … app_factory が読む config.py の場所(runserver が設定する)
 #: - MONITOR_DEBUG … CLI のエラーでトレースバックを表示する
-#: - MONITOR_IMAGE / MONITOR_IMAGE_TAG … Docker Compose のテンプレートが使うイメージの
-#:   名前とタグ
-#: - MONITOR_PROJECT_DIR / MONITOR_DEMO_DIR … Docker イメージの起動スクリプトが使う
-#:   プロジェクトと雛形のフォルダ
-EXTRA_ENV_KEYS = frozenset(
-    {
-        "MONITOR_CONFIG_PATH",
-        "MONITOR_DEBUG",
-        "MONITOR_IMAGE",
-        "MONITOR_IMAGE_TAG",
-        "MONITOR_PROJECT_DIR",
-        "MONITOR_DEMO_DIR",
-    }
-)
+EXTRA_ENV_KEYS = frozenset({"MONITOR_CONFIG_PATH", "MONITOR_DEBUG"})
 #: この接頭辞で始まる変数は未知として扱わない(テスト用の DB 接続先など)。
 EXTRA_ENV_PREFIXES = ("MONITOR_TEST_",)
 #: ``MONITOR_`` で始まらないキーを「綴りの誤り」とみなす類似度(.env のみ対象)。

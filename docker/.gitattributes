@@ -1,3 +1,0 @@
-# コンテナ内の /bin/sh で実行するため、Windows でチェックアウトしても LF のままにする
-# (core.autocrlf=true で CRLF になると "set: Illegal option -" などで起動できない)。
-*.sh text eol=lf

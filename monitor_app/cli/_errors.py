@@ -121,10 +121,7 @@ def remember_sqlite_path(exc: BaseException, path: Path | None) -> None:
 
 
 #: SQLite の DB ファイル・フォルダに書き込めないときの案内の後半。
-_SQLITE_PERMISSION_HINT = (
-    "所有者と書き込みの権限を確認してください(Docker ではマウントしたフォルダの"
-    "所有者のユーザーで動きます。保存先は MONITOR_DATABASE_URL で変えられます)"
-)
+_SQLITE_PERMISSION_HINT = "所有者と書き込みの権限を確認してください(保存先は MONITOR_DATABASE_URL で変えられます)"
 
 
 def _is_sqlite_error(exc: BaseException) -> bool:

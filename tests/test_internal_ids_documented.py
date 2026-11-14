@@ -20,7 +20,7 @@ SUFFIXES = {".py", ".js", ".mjs", ".html", ".css", ".sh", ".ps1", ".bat", ".serv
 
 def _cited() -> dict[str, Path]:
     found: dict[str, Path] = {}
-    for folder in ("monitor_app", "tests", "docker"):
+    for folder in ("monitor_app", "tests"):
         for path in sorted((ROOT / folder).rglob("*")):
             if path.suffix not in SUFFIXES or not path.is_file():
                 continue

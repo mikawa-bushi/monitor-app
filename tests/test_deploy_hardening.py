@@ -5,7 +5,7 @@
 - systemd・Windows の起動ファイルは、config.py の無いフォルダには生成しない(--force で生成)。
   ``--config`` で設定ファイルを指定でき、起動ファイルの runserver に渡る
 - Windows の起動時のタスクは、既定で SYSTEM ではなく登録したユーザーの権限で動く
-- sdist にテストが使うコンテナのスクリプトが入り、ワークフローのアクションは SHA で固定する
+- ワークフローのアクションは SHA で固定する
 """
 
 from __future__ import annotations
@@ -240,28 +240,11 @@ def test_install_task_script_parses(project):
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
-def test_monitor_image_is_not_reported_as_an_unknown_setting(tmp_path):
-    from monitor_app.settings.runtime import find_unknown_env_keys
-
-    env = tmp_path / ".env"
-    env.write_text("MONITOR_IMAGE=monitor-app\nMONITOR_IMAGE_TAG=dev\n", "utf-8")
-    assert find_unknown_env_keys(environ={}, env_files=[env]) == []
-
-
 # ---------------------------------------------------------------------------
 # 配布物・依存・CI(#D1-02・#D6-14・#D6-15)
 # ---------------------------------------------------------------------------
 def _pyproject() -> dict:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-
-def test_sdist_ships_the_scripts_the_docker_tests_use():
-    include = _pyproject()["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
-    assert "/tests" in include
-    for test_file in sorted((ROOT / "tests").glob("test_docker_*.py")):
-        for script in re.findall(r'"docker" / "([^"]+)"', test_file.read_text("utf-8")):
-            assert f"/docker/{script}" in include, (test_file.name, script)
-    assert {"/docker/entrypoint.sh", "/docker/healthcheck.py"} <= set(include)
 
 
 def test_jinja2_floor_excludes_versions_with_known_vulnerabilities():
