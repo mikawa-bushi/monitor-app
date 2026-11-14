@@ -120,7 +120,7 @@ def test_check_migrate_and_backup_use_the_engines_memory_rule(url, memory):
 # デプロイ用ファイルの書き出し(D7-08)
 # ---------------------------------------------------------------------------
 def test_write_deploy_files_reports_written_and_skipped(tmp_path):
-    files = deploy_mod.plan_deploy_files(tmp_path, ["docker"])
+    files = deploy_mod.plan_deploy_files(tmp_path, ["windows"])
     written, skipped = deploy_mod.write_deploy_files(files)
     assert [f.path for f in written] == [f.path for f in files] and skipped == []
     written, skipped = deploy_mod.write_deploy_files(files)
@@ -134,7 +134,7 @@ def test_write_deploy_files_names_the_file_that_failed(tmp_path, monkeypatch):
         raise OSError(errno.ENOSPC, "No space left on device")
 
     monkeypatch.setattr(deploy_mod, "write_deploy_file", full)
-    files = deploy_mod.plan_deploy_files(tmp_path, ["docker"])
+    files = deploy_mod.plan_deploy_files(tmp_path, ["windows"])
     with pytest.raises(OSError) as info:
         deploy_mod.write_deploy_files(files)
     assert info.value.filename == str(files[0].path)

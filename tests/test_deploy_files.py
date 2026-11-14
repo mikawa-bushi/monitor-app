@@ -1,8 +1,8 @@
 """デプロイ用ファイルの生成(``monitor_app.deploy``・``monitor-app deploy``・
 ``startproject --deploy``)のテスト。
 
-systemd のユニットは ``systemd-analyze verify`` があれば実際に検証し、Compose の設定は
-``docker compose config`` があれば検証する(どちらも無ければその検査だけ飛ばす)。
+systemd のユニットは ``systemd-analyze verify`` があれば実際に検証する(無ければその
+検査だけ飛ばす)。
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 from contract import helpers
 from typer.testing import CliRunner
 
@@ -25,30 +24,21 @@ from monitor_app.cli import deploy as cli_deploy
 from monitor_app.cli.project import GITIGNORE
 from monitor_app.deploy import (
     DeployError,
-    default_targets,
-    foreign_targets,
     is_ephemeral_python,
-    local_timezone_name,
     native_target,
     parse_targets,
     plan_deploy_files,
     render_deploy_files,
 )
 
-TEMPLATES = Path(deploy_mod.__file__).parent / "scaffold" / "deploy"
-ALL_FILES = {
-    "compose.yaml",
-    ".dockerignore",
-    "monitor-app.service",
-    "start-monitor.bat",
-    "install-task.ps1",
-}
+SYSTEMD_FILES = {"monitor-app.service"}
+WINDOWS_FILES = {"start-monitor.bat", "install-task.ps1"}
+ALL_FILES = SYSTEMD_FILES | WINDOWS_FILES
 
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch, tmp_path):
     helpers.isolate_from_host(monkeypatch, tmp_path)
-    monkeypatch.setattr(deploy_mod, "local_timezone_name", lambda: None)
 
 
 @pytest.fixture
@@ -77,11 +67,10 @@ def _read_bytes(path: Path) -> bytes:
 @pytest.mark.parametrize(
     ("values", "expected"),
     [
-        ([], ["docker", "systemd", "windows"]),
-        (["all"], ["docker", "systemd", "windows"]),
-        (["docker,systemd"], ["docker", "systemd"]),
-        (["Windows", "docker"], ["docker", "windows"]),
-        (["docker", " docker ,", "all"], ["docker", "systemd", "windows"]),
+        (["all"], ["systemd", "windows"]),
+        (["windows,systemd"], ["systemd", "windows"]),
+        (["Windows", " windows ,"], ["windows"]),
+        (["systemd", "all"], ["systemd", "windows"]),
     ],
 )
 def test_parse_targets(values, expected):
@@ -90,83 +79,13 @@ def test_parse_targets(values, expected):
 
 def test_parse_targets_rejects_unknown_names():
     with pytest.raises(DeployError, match="不明な対象です: kubernetes") as info:
-        parse_targets(["docker,kubernetes"])
-    assert "docker / systemd / windows / all" in str(info.value)
+        parse_targets(["systemd,kubernetes"])
+    assert "systemd / windows / all" in str(info.value)
 
 
 def test_invalid_port_is_rejected(tmp_path):
     with pytest.raises(DeployError, match="1〜65535"):
-        plan_deploy_files(tmp_path, ["docker"], port=70000)
-
-
-# ---------------------------------------------------------------------------
-# docker
-# ---------------------------------------------------------------------------
-def test_compose_file_uses_the_published_image_and_mounts_the_project(tmp_path):
-    files = _by_name(plan_deploy_files(tmp_path, ["docker"]))
-    assert set(files) == {"compose.yaml", ".dockerignore"}
-    text = files["compose.yaml"].content
-    assert text == (TEMPLATES / "compose.yaml").read_text(encoding="utf-8")
-
-    service = yaml.safe_load(text)["services"]["monitor-app"]
-    # 既定は公開イメージ。.env の MONITOR_IMAGE で自分でビルドしたイメージにできる(#D1-04)
-    assert service["image"] == (
-        "${MONITOR_IMAGE:-ghcr.io/mikawa-bushi/monitor-app}:"
-        "${MONITOR_IMAGE_TAG:-latest}"
-    )
-    assert service["ports"] == ["${MONITOR_PORT:-9990}:9990"]
-    assert service["volumes"] == [".:/project"]
-    # .env の MONITOR_HOST / MONITOR_PORT よりも優先して、コンテナ内の待ち受けを固定する
-    assert service["environment"]["MONITOR_HOST"] == "0.0.0.0"
-    assert service["environment"]["MONITOR_PORT"] == "9990"
-    assert service["environment"]["TZ"] == "${TZ:-UTC}"
-    # .env はアプリ自身が読む(Compose の env_file は $ を展開して値を変えてしまう)
-    assert "env_file" not in service
-    # イメージの HEALTHCHECK と同じスクリプト(/api/health を、--port のポートで確かめる)
-    # (-I: root で動くため、PYTHONPATH などの環境変数・作業フォルダのモジュールを読まない)
-    assert service["healthcheck"]["test"] == [
-        "CMD",
-        "python",
-        "-I",
-        "/opt/monitor-app/healthcheck.py",
-    ]
-    assert service["restart"] == "unless-stopped"
-    assert service["stop_grace_period"] == "15s"
-    assert service["logging"]["driver"] == "local"
-    assert "postgresql+psycopg://" in text  # PostgreSQL の例(コメント)
-
-
-def test_compose_port_and_timezone_are_filled_in(tmp_path, monkeypatch):
-    monkeypatch.setattr(deploy_mod, "local_timezone_name", lambda: "Asia/Tokyo")
-    files = _by_name(plan_deploy_files(tmp_path, ["docker"], port=8123))
-    service = yaml.safe_load(files["compose.yaml"].content)["services"]["monitor-app"]
-    assert service["ports"] == ["${MONITOR_PORT:-8123}:9990"]
-    assert service["environment"]["TZ"] == "${TZ:-Asia/Tokyo}"
-    assert service["environment"]["MONITOR_PORT"] == "9990"  # コンテナ内は変えない
-    assert "http://localhost:8123/" in files["compose.yaml"].content
-
-
-def test_dockerignore_keeps_secrets_and_databases_out(tmp_path):
-    content = _by_name(plan_deploy_files(tmp_path, ["docker"]))[".dockerignore"].content
-    lines = {line for line in content.splitlines() if line and not line.startswith("#")}
-    assert {".env", "instances/*.db*", "logs/", ".git"} <= lines
-
-
-@pytest.mark.skipif(shutil.which("docker") is None, reason="docker が無い")
-def test_compose_file_is_valid_for_docker_compose(tmp_path):
-    probe = subprocess.run(["docker", "compose", "version"], capture_output=True)
-    if probe.returncode != 0:
-        pytest.skip("docker compose が無い")
-    render_deploy_files(tmp_path, ["docker"], port=8123)
-    proc = subprocess.run(
-        ["docker", "compose", "config", "-q"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env={k: v for k, v in os.environ.items() if k not in ("TZ", "MONITOR_PORT")},
-    )
-    assert proc.returncode == 0, proc.stderr
-    assert "warn" not in proc.stderr.lower(), proc.stderr
+        plan_deploy_files(tmp_path, ["systemd"], port=70000)
 
 
 # ---------------------------------------------------------------------------
@@ -373,37 +292,20 @@ def test_powershell_script_parses(tmp_path):
 def test_render_writes_every_file_once_and_never_overwrites(tmp_path):
     written = render_deploy_files(tmp_path, ["all"])
     assert {p.name for p in written} == ALL_FILES
-    (tmp_path / "compose.yaml").write_text("# 編集済み\n", encoding="utf-8")
+    unit = tmp_path / "monitor-app.service"
+    unit.write_text("# 編集済み\n", encoding="utf-8")
 
-    assert render_deploy_files(tmp_path, ["docker"]) == []
-    assert (tmp_path / "compose.yaml").read_text(encoding="utf-8") == "# 編集済み\n"
+    assert render_deploy_files(tmp_path, ["systemd"]) == []
+    assert unit.read_text(encoding="utf-8") == "# 編集済み\n"
 
-    again = render_deploy_files(tmp_path, ["docker"], force=True)
-    assert {p.name for p in again} == {"compose.yaml", ".dockerignore"}
-    assert "services:" in (tmp_path / "compose.yaml").read_text(encoding="utf-8")
+    again = render_deploy_files(tmp_path, ["systemd"], force=True)
+    assert {p.name for p in again} == SYSTEMD_FILES
+    assert "ExecStart=" in unit.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
 # 環境の判定
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize(
-    ("tz", "link", "expected"),
-    [
-        ("Asia/Tokyo", "/etc/localtime", "Asia/Tokyo"),
-        ("", "/usr/share/zoneinfo/Europe/Berlin", "Europe/Berlin"),
-        ("", "/usr/share/zoneinfo/posix/America/New_York", "America/New_York"),
-        (":/etc/localtime", "/var/db/timezone/zoneinfo/Asia/Tokyo", "Asia/Tokyo"),
-        ("Bad Zone; rm", "/etc/localtime", None),
-        ("", "/etc/localtime", None),
-    ],
-)
-def test_local_timezone_name(monkeypatch, tz, link, expected):
-    monkeypatch.setattr(deploy_mod, "local_timezone_name", local_timezone_name)
-    monkeypatch.setenv("TZ", tz)
-    monkeypatch.setattr(deploy_mod.os.path, "realpath", lambda path: link)
-    assert deploy_mod.local_timezone_name() == expected
-
-
 @pytest.mark.parametrize(
     ("path", "ephemeral"),
     [
@@ -421,42 +323,51 @@ def test_is_ephemeral_python(path, ephemeral):
 # CLI: monitor-app deploy
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
-    ("platform", "native", "defaults"),
+    ("platform", "expected", "step"),
     [
-        ("linux", "systemd", ["docker", "systemd"]),
-        ("win32", "windows", ["docker", "windows"]),
-        ("darwin", None, ["docker"]),
+        ("linux", SYSTEMD_FILES, "sudo systemctl enable --now monitor-app"),
+        ("win32", WINDOWS_FILES, "install-task.ps1"),
     ],
 )
-def test_default_targets_follow_the_os(platform, native, defaults):
-    assert native_target(platform) == native
-    assert default_targets(platform) == defaults
-    other = [t for t in ("systemd", "windows") if t != native]
-    assert foreign_targets(["docker", "systemd", "windows"], platform) == other
-
-
-def test_deploy_command_generates_docker_and_this_os_by_default(
-    project, runner, monkeypatch
+def test_deploy_command_generates_this_os_by_default(
+    project, runner, monkeypatch, platform, expected, step
 ):
+    monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.chdir(project)
     result = runner.invoke(app, ["deploy"])
     assert result.exit_code == 0, result.output
-    expected = {f.path.name for f in plan_deploy_files(project, default_targets())}
-    created = {p.name for p in project.iterdir()} & ALL_FILES
-    assert created == expected
+    assert {p.name for p in project.iterdir()} & ALL_FILES == expected
     assert "デプロイ用のファイルを作成しました" in result.output
-    assert "docker compose up -d" in result.output
-    assert ("sudo systemctl enable --now monitor-app" in result.output) is (
-        "systemd" in default_targets()
-    )
+    assert step in result.output
     assert "作り直してください" not in result.output  # この OS 向けのものだけ
+
+
+def test_deploy_command_without_a_target_stops_on_other_os(
+    project, runner, monkeypatch
+):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    before = set(project.iterdir())
+    result = runner.invoke(app, ["deploy", "--project", str(project)])
+    assert result.exit_code == 1
+    assert "対象を指定してください" in result.output
+    assert "systemd / windows / all" in result.output
+    assert set(project.iterdir()) == before
+
+
+def test_docker_is_an_unknown_target(project, runner):
+    before = set(project.iterdir())
+    result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+    assert result.exit_code == 1
+    assert "不明な対象です: docker" in result.output
+    assert "systemd / windows / all" in result.output
+    assert set(project.iterdir()) == before
 
 
 def test_deploy_all_generates_everything(project, runner, monkeypatch):
     monkeypatch.chdir(project)
     result = runner.invoke(app, ["deploy", "all"])
     assert result.exit_code == 0, result.output
-    assert {p.name for p in project.iterdir()} >= ALL_FILES
+    assert {p.name for p in project.iterdir()} & ALL_FILES == ALL_FILES
     assert "sudo systemctl enable --now monitor-app" in result.output
     assert "install-task.ps1" in result.output
 
@@ -478,34 +389,31 @@ def test_next_steps_quote_paths_with_spaces(tmp_path, runner):
     assert result.exit_code == 0, result.output
     unit = shlex.quote(str(project.resolve() / "monitor-app.service"))
     assert f"sudo cp {unit} /etc/systemd/system/" in result.output
-    cd_line = next(line for line in result.output.splitlines() if "  cd " in line)
-    assert str(project.resolve()) in cd_line
-    assert cd_line.strip() != f"cd {project.resolve()}"  # 引用符で囲む
 
 
 def test_deploy_command_with_target_port_and_project_option(project, runner):
     result = runner.invoke(
-        app, ["deploy", "docker", "--project", str(project), "--port", "8123"]
+        app, ["deploy", "windows", "--project", str(project), "--port", "8123"]
     )
     assert result.exit_code == 0, result.output
     assert not (project / "monitor-app.service").exists()
-    compose = (project / "compose.yaml").read_text(encoding="utf-8")
-    assert "${MONITOR_PORT:-8123}:9990" in compose
-    assert "http://localhost:8123/" in result.output
+    bat = (project / "start-monitor.bat").read_text(encoding="utf-8")
+    assert "--import-csv-if-empty --port 8123 >>" in bat
 
 
 def test_deploy_command_keeps_existing_files_unless_forced(project, runner):
-    (project / "compose.yaml").write_text("# 手で編集\n", encoding="utf-8")
-    result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+    unit = project / "monitor-app.service"
+    unit.write_text("# 手で編集\n", encoding="utf-8")
+    result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
     assert result.exit_code == 0, result.output
-    assert "既にあるため上書きしませんでした: compose.yaml" in result.output
-    assert (project / "compose.yaml").read_text(encoding="utf-8") == "# 手で編集\n"
+    assert "既にあるため上書きしませんでした: monitor-app.service" in result.output
+    assert unit.read_text(encoding="utf-8") == "# 手で編集\n"
 
     forced = runner.invoke(
-        app, ["deploy", "docker", "--project", str(project), "--force"]
+        app, ["deploy", "systemd", "--project", str(project), "--force"]
     )
     assert forced.exit_code == 0, forced.output
-    assert "services:" in (project / "compose.yaml").read_text(encoding="utf-8")
+    assert "ExecStart=" in unit.read_text(encoding="utf-8")
 
 
 def test_deploy_command_errors(tmp_path, runner):
@@ -513,15 +421,11 @@ def test_deploy_command_errors(tmp_path, runner):
     assert unknown.exit_code == 1
     assert "不明な対象です: k8s" in unknown.output
 
-    missing = runner.invoke(app, ["deploy", "--project", str(tmp_path / "nope")])
+    missing = runner.invoke(
+        app, ["deploy", "systemd", "--project", str(tmp_path / "nope")]
+    )
     assert missing.exit_code == 1
     assert "フォルダが見つかりません" in missing.output
-
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    warned = runner.invoke(app, ["deploy", "docker", "--project", str(empty)])
-    assert warned.exit_code == 0, warned.output
-    assert "config.py がありません" in warned.output
 
 
 def test_deploy_command_reports_an_unwritable_folder_briefly(project, runner):
@@ -529,7 +433,7 @@ def test_deploy_command_reports_an_unwritable_folder_briefly(project, runner):
         pytest.skip("chmod で書き込みを禁止できる一般ユーザーのみ")
     project.chmod(0o555)
     try:
-        result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+        result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
     finally:
         project.chmod(0o755)
     assert result.exit_code == 1
@@ -539,19 +443,26 @@ def test_deploy_command_reports_an_unwritable_folder_briefly(project, runner):
 
 
 def test_deploy_command_rejects_an_invalid_port(project, runner):
-    result = runner.invoke(app, ["deploy", "--project", str(project), "--port", "0"])
+    result = runner.invoke(
+        app, ["deploy", "systemd", "--project", str(project), "--port", "0"]
+    )
     assert result.exit_code == 1
     assert "ポート番号は 1〜65535 です" in result.output
-    assert not (project / "compose.yaml").exists()
+    assert not (project / "monitor-app.service").exists()
 
 
 def test_deploy_warns_about_an_ephemeral_python(project, runner, monkeypatch):
+    monkeypatch.setattr(cli_deploy, "is_ephemeral_python", lambda: False)
+    lasting = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
+    assert lasting.exit_code == 0, lasting.output
+    assert "uv tool install" not in lasting.output
+
     monkeypatch.setattr(cli_deploy, "is_ephemeral_python", lambda: True)
-    result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
+    result = runner.invoke(
+        app, ["deploy", "systemd", "--project", str(project), "--force"]
+    )
     assert result.exit_code == 0, result.output
     assert "uv tool install monitor-app" in result.output
-    docker_only = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
-    assert "uv tool install" not in docker_only.output
 
 
 # ---------------------------------------------------------------------------
@@ -562,33 +473,25 @@ def test_startproject_always_writes_a_gitignore(project):
     assert gitignore == GITIGNORE
     lines = set(gitignore.splitlines())
     assert {"instances/*.db*", "backups/", ".env", "logs/", "__pycache__/"} <= lines
-    assert not (project / "compose.yaml").exists()  # --deploy なしでは作らない
+    assert not (project / "monitor-app.service").exists()  # --deploy なしでは作らない
 
 
 def test_startproject_with_deploy_targets(tmp_path, runner):
-    result = runner.invoke(app, ["startproject", "proj", "--deploy", "docker,windows"])
+    result = runner.invoke(app, ["startproject", "proj", "--deploy", "windows"])
     assert result.exit_code == 0, result.output
     proj = tmp_path / "proj"
-    names = {p.name for p in proj.iterdir()}
-    assert {
-        "compose.yaml",
-        ".dockerignore",
-        "start-monitor.bat",
-        "install-task.ps1",
-    } <= names
-    assert "monitor-app.service" not in names
+    assert {p.name for p in proj.iterdir()} & ALL_FILES == WINDOWS_FILES
     # 通常の起動手順のあとに、対象ごとの手順を出す
     output = result.output
     assert output.index("monitor-app runserver --import-csv-if-empty") < output.index(
-        "[Docker]"
+        "[Windows]"
     )
-    assert "[Windows]" in output
 
 
 def test_startproject_rejects_unknown_targets_before_creating_anything(
     tmp_path, runner
 ):
-    result = runner.invoke(app, ["startproject", "proj", "--deploy", "docker,foo"])
+    result = runner.invoke(app, ["startproject", "proj", "--deploy", "docker"])
     assert result.exit_code == 1
-    assert "不明な対象です: foo" in result.output
+    assert "不明な対象です: docker" in result.output
     assert not (tmp_path / "proj").exists()

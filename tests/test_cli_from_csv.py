@@ -131,14 +131,14 @@ def test_from_csv_accepts_a_single_file_and_deploy_targets(tmp_path, runner, exp
             "--from-csv",
             str(exports / "sensors.csv"),
             "--deploy",
-            "docker",
+            "windows",
         ],
     )
     assert result.exit_code == 0, result.output
     proj = tmp_path / "solo"
     assert [p.name for p in (proj / "csv").iterdir()] == ["sensors.csv"]
-    assert (proj / "compose.yaml").exists()
-    assert "[Docker]" in result.stdout
+    assert (proj / "start-monitor.bat").exists()
+    assert "[Windows]" in result.stdout
     assert set(load_config(proj / "config.py").tables) == {"sensors"}
 
 
