@@ -1,7 +1,7 @@
 """追記監視の読み取り位置を DB に保存し、再起動後も続きから読む(D3-03)。
 
 以前は起動のたびに CSV の末尾を読み取り位置にしたため、``runserver
---import-csv-if-empty``(Docker・systemd の既定の起動)と追記監視の組み合わせでは、
+--import-csv-if-empty``(systemd・Windows の既定の起動)と追記監視の組み合わせでは、
 停止中に追記された行が失われていた。
 """
 

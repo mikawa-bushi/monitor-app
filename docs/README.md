@@ -1,8 +1,8 @@
 # Documentation / ドキュメント一覧
 
 How to install, configure, run and deploy Monitor App is in the main
-[README.md](../README.md) ([日本語](../README_ja.md)). Docker details:
-[docker/README.md](../docker/README.md). Release notes: [CHANGELOG.md](../CHANGELOG.md).
+[README.md](../README.md) ([日本語](../README_ja.md)). Release notes:
+[CHANGELOG.md](../CHANGELOG.md).
 Development: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 The documents below are in Japanese.

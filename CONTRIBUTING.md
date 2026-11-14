@@ -25,9 +25,9 @@ We are committed to providing a welcoming and inspiring community for all.
 ### Prerequisites
 
 - Git
-- [uv](https://docs.astral.sh/uv/) 0.12.9 or newer (the version CI and the Dockerfile use).
+- [uv](https://docs.astral.sh/uv/) 0.12.9 or newer (the version CI uses).
   uv installs the Python versions it needs; Monitor App supports Python 3.11–3.14.
-- Optional: Docker (PostgreSQL/MySQL tests, image builds), Node.js 18+ (JavaScript unit
+- Optional: Docker (PostgreSQL/MySQL tests), Node.js 18+ (JavaScript unit
   tests), Chrome or Chromium (browser tests).
 
 ### Setup
@@ -78,7 +78,6 @@ JavaScript or CSS, restart the server (or reload the page with Ctrl+Shift+R).
 | `monitor_app/api/`, `monitor_app/web/` | FastAPI routers; templates, JavaScript and CSS of the bundled UI |
 | `monitor_app/container.py`, `main.py` | service wiring (`build_services`) and `create_app` / `app_factory` |
 | `monitor_app/scaffold/` | files written by `startproject` and `deploy` |
-| `Dockerfile`, `compose.yaml`, `docker/` | container image, entrypoint and health check |
 | `tests/` | the test suite (see below) |
 
 ## 🧪 Running the tests
@@ -110,7 +109,7 @@ uv run python scripts/verify.py --setup-browser   # install Chrome for the brows
 
 - The steps are `uv lock --check`, `black --check`, `ruff check`, the test suite with all
   extras, and `tests/e2e/test_browser_ui.py`. Windows, macOS, the other Python versions,
-  the lowest dependency versions, PostgreSQL/MySQL and Docker stay CI's job.
+  the lowest dependency versions and PostgreSQL/MySQL stay CI's job.
 - `--shots DIR` starts `monitor-app demo` and saves every page in the light and the dark
   theme at 1440x900 and at a phone size of 390x844. The step fails when a page is wider
   than the phone screen. Attach the images that show your change to the pull request.
@@ -268,7 +267,7 @@ the tests and the public behaviour above stay the same.
 
 CI runs on every pull request: lint (`uv lock --check`, black, ruff), the tests on the
 Python/OS matrix with the coverage gate, the lowest-dependency job, the PostgreSQL 16 /
-MySQL 8.4 job, a smoke test of the built wheel and a smoke test of the Docker image.
+MySQL 8.4 job and a smoke test of the built wheel.
 `dependency-audit.yml` runs pip-audit on the dependencies locked in `uv.lock`, on every pull
 request and weekly. The workflows pin every action by commit SHA (the version is in a comment)
 and check out without persisting credentials; Dependabot (`.github/dependabot.yml`) proposes
@@ -294,18 +293,14 @@ published. Keep both when you edit a workflow.
   `uv run monitor-app <command> --help`.
 - `CHANGELOG.md` is written in Japanese, in the style of the existing entries (Added /
   Changed / Fixed / ... with migration hints).
-- `docs/README.md` indexes the design notes in `docs/design/`; `docker/README.md` covers
-  the container image.
+- `docs/README.md` indexes the design notes in `docs/design/`.
 
 ## 📦 Releasing (maintainers)
 
 1. Set the version in `pyproject.toml`, run `uv lock`, and add the `CHANGELOG.md` entry.
 2. Merge to `main`, then tag and push: `git tag v2.4.0 && git push origin v2.4.0`.
 3. `build.yml` runs the full test workflow, checks that the tag matches the version, builds
-   the sdist and wheel, publishes them to PyPI (Trusted Publishing, environment `pypi`) and
-   pushes the `linux/amd64` + `linux/arm64` image to `ghcr.io/mikawa-bushi/monitor-app`
-   (tags `X.Y.Z`, `X.Y`, `X`, `latest`). After the very first image push, make the GHCR
-   package public.
+   the sdist and wheel, and publishes them to PyPI (Trusted Publishing, environment `pypi`).
 4. In the repository settings, give the `pypi` environment required reviewers and allow
    deployments from `v*` tags only, so that a publish always needs a person's approval.
 
@@ -336,7 +331,7 @@ Remove passwords and API keys before posting.
 - OS: [e.g. Ubuntu 24.04, Windows 11, Raspberry Pi OS 64-bit]
 - Python version: [e.g. 3.12.4]
 - Monitor App version: [output of `monitor-app --version`]
-- Installed with: [pipx / uv / pip / Docker]
+- Installed with: [pipx / uv / pip]
 - Database: [SQLite / PostgreSQL 16 / MySQL 8.4]
 ```
 
