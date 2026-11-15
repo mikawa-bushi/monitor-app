@@ -20,7 +20,7 @@ Please **do not open a public issue** for a security problem. Report it privatel
 Include as much of the following as you can:
 
 - the affected version (`monitor-app --version`) and how it is installed and deployed
-  (pipx / uv / pip / Docker, reverse proxy or not, database)
+  (pipx / uv / pip, reverse proxy or not, database)
 - the steps or a request that reproduces the problem
 - what an attacker can do with it (the impact)
 

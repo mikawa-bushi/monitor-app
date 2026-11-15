@@ -5,9 +5,9 @@
 DB も一時フォルダの中(終了時に削除)で、作業フォルダには何も書かない。
 
 作業フォルダの .env は読まない(プロジェクトの DB・通知先・バックアップの設定をデモに
-持ち込まない)。環境変数の MONITOR_HOST / MONITOR_PORT / MONITOR_API_KEY などは使う
-(Docker の既定の MONITOR_HOST=0.0.0.0 で、コンテナの外から開ける)。通知(メール・
-Webhook)・バックアップ・フォルダ監視は、環境変数の設定にかかわらず使わない。
+持ち込まない)。環境変数の MONITOR_HOST / MONITOR_PORT / MONITOR_API_KEY などは使う。
+通知(メール・Webhook)・バックアップ・フォルダ監視は、環境変数の設定にかかわらず
+使わない。
 """
 
 from __future__ import annotations

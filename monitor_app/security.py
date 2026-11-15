@@ -62,7 +62,7 @@ class KeyProblem(NamedTuple):
 
 
 def generate_api_key() -> str:
-    """推測されにくい API キー(英数字と ``-`` ``_`` だけ。.env・Compose で引用符が不要)。"""
+    """推測されにくい API キー(英数字と ``-`` ``_`` だけ。.env で引用符が不要)。"""
     return secrets.token_urlsafe(API_KEY_BYTES)
 
 

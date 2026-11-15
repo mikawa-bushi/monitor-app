@@ -5,8 +5,7 @@
 - systemd・Windows の起動ファイルは、config.py の無いフォルダには生成しない(--force で生成)。
   ``--config`` で設定ファイルを指定でき、起動ファイルの runserver に渡る
 - Windows の起動時のタスクは、既定で SYSTEM ではなく登録したユーザーの権限で動く
-- Compose のイメージ名は MONITOR_IMAGE で変えられる
-- sdist にテストが使うコンテナのスクリプトが入り、ワークフローのアクションは SHA で固定する
+- ワークフローのアクションは SHA で固定する
 """
 
 from __future__ import annotations
@@ -35,7 +34,6 @@ ROOT = Path(__file__).parent.parent
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch, tmp_path):
     helpers.isolate_from_host(monkeypatch, tmp_path)
-    monkeypatch.setattr(deploy_mod, "local_timezone_name", lambda: None)
 
 
 @pytest.fixture
@@ -59,7 +57,7 @@ def _key(project: Path) -> str | None:
 # API キー(#D6-17)
 # ---------------------------------------------------------------------------
 def test_deploy_generates_an_api_key_into_a_new_env(project, runner):
-    result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+    result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
     assert result.exit_code == 0, result.output
     key = _key(project)
     assert key and len(key) >= 32
@@ -77,7 +75,7 @@ def test_deploy_generates_an_api_key_into_a_new_env(project, runner):
 
 def test_deploy_keeps_an_existing_key(project, runner):
     (project / ".env").write_text("MONITOR_API_KEY='" + "x" * 40 + "'\n", "utf-8")
-    result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+    result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
     assert result.exit_code == 0, result.output
     assert _key(project) == "x" * 40
     assert "生成" not in result.output
@@ -85,7 +83,7 @@ def test_deploy_keeps_an_existing_key(project, runner):
 
 def test_deploy_warns_about_a_placeholder_key_without_changing_it(project, runner):
     (project / ".env").write_text("MONITOR_API_KEY=change-me\n", encoding="utf-8")
-    result = runner.invoke(app, ["deploy", "docker", "--project", str(project)])
+    result = runner.invoke(app, ["deploy", "systemd", "--project", str(project)])
     assert result.exit_code == 0, result.output
     assert "説明用の例の値" in result.output
     assert _key(project) == "change-me"
@@ -116,7 +114,7 @@ def test_startproject_without_deploy_stays_keyless(tmp_path, runner):
 
 
 def test_startproject_with_deploy_writes_a_key(tmp_path, runner):
-    result = runner.invoke(app, ["startproject", "srv", "--deploy", "docker"])
+    result = runner.invoke(app, ["startproject", "srv", "--deploy", "systemd"])
     assert result.exit_code == 0, result.output
     assert _key(tmp_path / "srv")
     assert ".env" in (tmp_path / "srv" / ".gitignore").read_text(encoding="utf-8")
@@ -145,14 +143,6 @@ def test_native_targets_refuse_a_folder_without_config(tmp_path, runner, target)
     assert forced.exit_code == 0, forced.output
 
 
-def test_docker_only_still_warns_for_an_empty_folder(tmp_path, runner):
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    result = runner.invoke(app, ["deploy", "docker", "--project", str(empty)])
-    assert result.exit_code == 0, result.output
-    assert "デモのプロジェクト" in result.output
-
-
 def test_config_option_is_passed_to_every_target(tmp_path, runner):
     legacy = tmp_path / "legacy"
     (legacy / "config").mkdir(parents=True)
@@ -166,25 +156,14 @@ def test_config_option_is_passed_to_every_target(tmp_path, runner):
     assert re.search(r"^ExecStart=.* --config config/config\.py$", unit, re.M)
     bat = (legacy / "start-monitor.bat").read_bytes().decode("ascii")
     assert ' --config "config/config.py" >> logs\\monitor.log' in bat
-    service = yaml.safe_load((legacy / "compose.yaml").read_text(encoding="utf-8"))[
-        "services"
-    ]["monitor-app"]
-    assert service["command"] == ["--config", "config/config.py"]
 
 
 def test_missing_config_option_file_is_an_error(project, runner):
     result = runner.invoke(
-        app, ["deploy", "docker", "--project", str(project), "--config", "nope.py"]
+        app, ["deploy", "systemd", "--project", str(project), "--config", "nope.py"]
     )
     assert result.exit_code == 1
     assert "設定ファイルが見つかりません" in result.output
-
-
-def test_docker_needs_a_relative_config_path(project):
-    with pytest.raises(DeployError, match="相対パス"):
-        plan_deploy_files(project, ["docker"], config=str(project / "config.py"))
-    with pytest.raises(DeployError):
-        plan_deploy_files(project, ["docker"], config="../other/config.py")
 
 
 def test_config_paths_are_escaped_for_systemd_and_batch(project):
@@ -262,74 +241,10 @@ def test_install_task_script_parses(project):
 
 
 # ---------------------------------------------------------------------------
-# Compose のイメージ名(#D1-04)
-# ---------------------------------------------------------------------------
-def test_compose_image_name_can_be_changed_from_env(project):
-    compose = {f.path.name: f for f in plan_deploy_files(project, ["docker"])}
-    service = yaml.safe_load(compose["compose.yaml"].content)["services"]["monitor-app"]
-    assert service["image"] == (
-        "${MONITOR_IMAGE:-ghcr.io/mikawa-bushi/monitor-app}:"
-        "${MONITOR_IMAGE_TAG:-latest}"
-    )
-
-
-def test_monitor_image_is_not_reported_as_an_unknown_setting(tmp_path):
-    from monitor_app.settings.runtime import find_unknown_env_keys
-
-    env = tmp_path / ".env"
-    env.write_text("MONITOR_IMAGE=monitor-app\nMONITOR_IMAGE_TAG=dev\n", "utf-8")
-    assert find_unknown_env_keys(environ={}, env_files=[env]) == []
-
-
-def _docker_compose_works() -> bool:
-    if shutil.which("docker") is None:
-        return False
-    probe = subprocess.run(["docker", "compose", "version"], capture_output=True)
-    return probe.returncode == 0
-
-
-@pytest.mark.skipif(not _docker_compose_works(), reason="docker compose が無い")
-@pytest.mark.parametrize(
-    ("dotenv", "image"),
-    [
-        ("", "ghcr.io/mikawa-bushi/monitor-app:latest"),
-        ("MONITOR_IMAGE=monitor-app\n", "monitor-app:latest"),
-        ("MONITOR_IMAGE_TAG=2.4.0\n", "ghcr.io/mikawa-bushi/monitor-app:2.4.0"),
-    ],
-)
-def test_docker_compose_resolves_the_image(project, dotenv, image):
-    deploy_mod.render_deploy_files(project, ["docker"])
-    (project / ".env").write_text(dotenv, encoding="utf-8")
-    environ = {
-        k: v
-        for k, v in os.environ.items()
-        if k not in ("TZ", "MONITOR_PORT", "MONITOR_IMAGE", "MONITOR_IMAGE_TAG")
-    }
-    proc = subprocess.run(
-        ["docker", "compose", "config", "--images"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-        env=environ,
-    )
-    assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.split() == [image]
-
-
-# ---------------------------------------------------------------------------
 # 配布物・依存・CI(#D1-02・#D6-14・#D6-15)
 # ---------------------------------------------------------------------------
 def _pyproject() -> dict:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-
-def test_sdist_ships_the_scripts_the_docker_tests_use():
-    include = _pyproject()["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
-    assert "/tests" in include
-    for test_file in sorted((ROOT / "tests").glob("test_docker_*.py")):
-        for script in re.findall(r'"docker" / "([^"]+)"', test_file.read_text("utf-8")):
-            assert f"/docker/{script}" in include, (test_file.name, script)
-    assert {"/docker/entrypoint.sh", "/docker/healthcheck.py"} <= set(include)
 
 
 def test_jinja2_floor_excludes_versions_with_known_vulnerabilities():

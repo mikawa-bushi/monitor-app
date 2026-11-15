@@ -1,8 +1,7 @@
-"""``deploy``: Docker・systemd・Windows 向けの起動ファイルを生成する。"""
+"""``deploy``: systemd・Windows 向けの起動ファイルを生成する。"""
 
 from __future__ import annotations
 
-import os
 import shlex
 from pathlib import Path
 
@@ -10,7 +9,6 @@ import typer
 
 from ..deploy import (
     DeployError,
-    default_targets,
     ensure_api_key,
     foreign_targets,
     is_ephemeral_python,
@@ -21,7 +19,7 @@ from ..deploy import (
 from ._common import fail
 
 #: 対象ごとの見出し。
-_TITLES = {"docker": "Docker", "systemd": "Linux・systemd", "windows": "Windows"}
+_TITLES = {"systemd": "Linux・systemd", "windows": "Windows"}
 #: 対象ごとに、作り直す OS とコマンド(この OS 向けではない対象を生成したときの案内)。
 _REGENERATE = {
     "systemd": ("Linux のサーバー", "monitor-app deploy systemd"),
@@ -29,27 +27,9 @@ _REGENERATE = {
 }
 
 
-def _cd_path(path: Path) -> str:
-    """``cd`` の例に書くパス(空白などを含むなら、この OS のシェルに合わせて引用符で囲む)。"""
-    text = str(path)
-    if os.name == "nt":
-        return f'"{text}"' if any(c in text for c in " &()^%!;,=") else text
-    return shlex.quote(text)
-
-
-def next_steps(
-    project: Path, targets: list[str], *, port: int | None = None
-) -> list[str]:
+def next_steps(project: Path, targets: list[str]) -> list[str]:
     """生成した対象ごとの「次のステップ」の行(startproject からも使う)。"""
     lines: list[str] = []
-    if "docker" in targets:
-        url = f"http://localhost:{port or 9990}/"
-        lines += [
-            f"[{_TITLES['docker']}]",
-            f"  cd {_cd_path(project)}",
-            f"  docker compose up -d      → {url}(公開ポートは .env の MONITOR_PORT)",
-            "  docker compose ps         (healthy なら正常。ログは docker compose logs -f)",
-        ]
     if "systemd" in targets:
         unit = project / "monitor-app.service"
         lines += [
@@ -71,11 +51,10 @@ def next_steps(
             "    (実行したユーザーの権限で動く。管理者でなければ -AtLogon を付けると、"
             "サインインしたときに開始する)",
         ]
-    if {"systemd", "windows"} & set(targets):
-        lines.append(
-            "ほかの PC から見るには、.env に MONITOR_HOST=0.0.0.0 を設定してください"
-            "(書き込みに必要な MONITOR_API_KEY は .env にあります)"
-        )
+    lines.append(
+        "ほかの PC から見るには、.env に MONITOR_HOST=0.0.0.0 を設定してください"
+        "(書き込みに必要な MONITOR_API_KEY は .env にあります)"
+    )
     return lines
 
 
@@ -144,7 +123,7 @@ def generate(
             f"⚠️  既にあるため上書きしませんでした: {names}(上書きするには --force)",
             fg=typer.colors.YELLOW,
         )
-    if {"systemd", "windows"} & set(targets) and is_ephemeral_python():
+    if is_ephemeral_python():
         typer.secho(
             "⚠️  uvx などの一時的な環境の Python を起動ファイルに書きました。この環境が"
             "消えると起動できません。uv tool install monitor-app(または pip install)"
@@ -165,11 +144,10 @@ def generate(
 def _check_config(
     root: Path, targets: list[str], config: str | None, *, force: bool
 ) -> None:
-    """設定ファイルが無ければ止める(systemd・Windows)か警告する(Docker)(#D5-10)。
+    """設定ファイルが無ければ止める(--force なら警告だけにする)(#D5-10)。
 
-    systemd・Windows の起動ファイルは、設定ファイルが無いと起動に失敗し続ける
-    (systemd は 5 秒ごとに再起動を繰り返す)。Docker は空のフォルダにデモの
-    プロジェクトを作るため、警告だけにする。
+    起動ファイルは、設定ファイルが無いと起動に失敗し続ける(systemd は 5 秒ごとに
+    再起動を繰り返す)。
     """
     if config is not None:
         if not (root / config).is_file():
@@ -186,18 +164,13 @@ def _check_config(
         "実行するか、--project で指定してください。設定ファイルの名前・場所が違うなら"
         " --config)"
     )
-    native = [t for t in targets if t in ("systemd", "windows")]
-    if native and not force:
+    if not force:
         fail(
             message,
-            f"このままでは {' / '.join(_TITLES[t] for t in native)} の起動ファイルが"
+            f"このままでは {' / '.join(_TITLES[t] for t in targets)} の起動ファイルが"
             "起動に失敗します。それでも生成するなら --force を付けてください",
         )
     typer.secho(f"⚠️  {message}", fg=typer.colors.YELLOW)
-    if "docker" in targets:
-        typer.echo(
-            "  (Docker は、空のフォルダならデモのプロジェクトを作って起動します)"
-        )
 
 
 def deploy_command(
@@ -205,9 +178,9 @@ def deploy_command(
         None,
         metavar="[TARGET]...",
         help=(
-            "生成する対象: docker / systemd / windows / all"
-            "(既定: docker と、この OS 向けのもの。Linux なら systemd、"
-            "Windows なら windows)。複数指定やカンマ区切りもできる"
+            "生成する対象: systemd / windows / all"
+            "(既定: この OS 向けのもの。Linux なら systemd、Windows なら windows)。"
+            "複数指定やカンマ区切りもできる"
         ),
         show_default=False,
     ),
@@ -218,7 +191,7 @@ def deploy_command(
     port: int | None = typer.Option(
         None,
         "--port",
-        help="公開するポート(既定: .env の MONITOR_PORT または 9990)",
+        help="待ち受けるポート(既定: .env の MONITOR_PORT または 9990)",
     ),
     config: str | None = typer.Option(
         None,
@@ -230,25 +203,25 @@ def deploy_command(
         show_default=False,
     ),
 ) -> None:
-    """Docker・systemd・Windows 向けの起動ファイルを生成する。
+    """systemd・Windows 向けの起動ファイルを生成する。
 
-    Docker Compose の compose.yaml、systemd のユニット、Windows の起動用 .bat と
-    タスク登録用スクリプトを、プロジェクトのフォルダに書き出す。.env に API キーが
-    無ければ、推測されにくいキーを生成して書く。
+    systemd のユニット、Windows の起動用 .bat とタスク登録用スクリプトを、
+    プロジェクトのフォルダに書き出す。.env に API キーが無ければ、推測されにくい
+    キーを生成して書く。
     """
     try:
-        names = parse_targets(targets) if targets else default_targets()
+        names = parse_targets(targets or [])
     except DeployError as exc:
         fail(str(exc))
     root = project.expanduser()
     if not root.is_dir():
         fail(
             f"フォルダが見つかりません: {root}",
-            "monitor-app startproject <name> --deploy docker で、デプロイ用ファイル付きの"
-            "プロジェクトを作成できます",
+            f"monitor-app startproject <name> --deploy {','.join(names)} で、"
+            "デプロイ用ファイル付きのプロジェクトを作成できます",
         )
     _check_config(root, names, config, force=force)
     generate(root, names, force=force, port=port, config=config)
     typer.echo("次のステップ:")
-    for line in next_steps(root.resolve(), names, port=port):
+    for line in next_steps(root.resolve(), names):
         typer.echo(line)

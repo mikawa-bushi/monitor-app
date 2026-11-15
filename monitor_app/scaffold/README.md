@@ -27,7 +27,7 @@ config.py にあとから列を足したら `monitor-app migrate` で DB の表�
 
 ## ほかの PC から使う・PC の起動時に動かす
 
-`monitor-app deploy`(Docker・systemd・Windows 向け)が起動ファイルを書き出し、
+`monitor-app deploy`(systemd・Windows 向け)が起動ファイルを書き出し、
 `.env` に API キーが無ければ推測されにくいキーを生成して書く。閲覧はキーなしで
 でき、行の追加・変更・削除には画面でのログイン(このキー)が必要になる。
 

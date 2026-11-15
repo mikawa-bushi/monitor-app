@@ -17,18 +17,17 @@ English documentation: [README.md](https://github.com/mikawa-bushi/monitor-app/b
 準備なしで、架空の物流センターの在庫画面を開けます。
 
 ```sh
-uvx monitor-app demo --open                                      # インストール済みなら monitor-app demo --open
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app    # Docker なら(何もマウントしない)
+uvx monitor-app demo --open      # インストール済みなら monitor-app demo --open
 ```
 
-http://127.0.0.1:9990 が開きます(Docker は http://localhost:9990)。見どころ:
+http://127.0.0.1:9990 が開きます。見どころ:
 
 - **在庫一覧**: 棚番・ロット・賞味期限・残日数・ケース / バラ。在庫は入出庫の台帳を SQL で合計して求めます。
 - **ひとりでに動く**: 4 秒ごとに入荷・出荷・移動が起き、入出庫履歴・KPI カード・グラフが自動で更新されます。
 - **アラート**: 起動した直後は「安全在庫を下回っている品目」と「賞味期限まで 2 日以内のロット」のバナーが出ます。約 1 分半後に入荷が届くと、安全在庫のバナーが消えます。
 - **ほかの画面**: `/kiosk`(大型表示)、`/form/movements`(入出庫の入力フォーム)。この PC で動かしているときは `/settings`(画面での設定の変更)も使えます。
 
-データは一時的な DB に入り、終了すると消えます。起動したときに、この画面の `config.py` の場所を表示します。Docker では時刻が UTC になるため、日本時間で見るには `-e TZ=Asia/Tokyo` を付けます。
+データは一時的な DB に入り、終了すると消えます。起動したときに、この画面の `config.py` の場所を表示します。
 
 同じ設定と架空のデータで自分のプロジェクトを作るには:
 
@@ -42,7 +41,7 @@ monitor-app runserver --import-csv-if-empty
 
 ## ✨ 2.5 の新機能
 
-- **準備なしで動くデモ。** `monitor-app demo` で、架空の物流センターの在庫画面を開きます。4 秒ごとに入荷・出荷・移動が起き、KPI カード・グラフ・アラートがひとりでに動きます。データは一時的な SQLite に入り、終了すると消えます。Docker を何もマウントせずに起動したときも、サンプルのプロジェクトの代わりにこのデモが起動します(空のフォルダをマウントすれば、これまでどおりサンプルのプロジェクトを書き込みます)。
+- **準備なしで動くデモ。** `monitor-app demo` で、架空の物流センターの在庫画面を開きます。4 秒ごとに入荷・出荷・移動が起き、KPI カード・グラフ・アラートがひとりでに動きます。データは一時的な SQLite に入り、終了すると消えます。
 - **デモからプロジェクトを始める。** `monitor-app startproject 名前 --template warehouse` で、デモと同じ `config.py`・マスタ・7 日分の架空のデータでプロジェクトを作ります。
 - **設定ページ。** `/settings` で、表示・ビュー(SQL・列の見出し・セルの色分け・グラフ)・KPI・アラート・大型表示・ダッシュボードを、`config.py` を書き換えずに編集できます。保存すると `monitor-app check` と同じ点検をしてから、サーバーを止めずに反映します。保存するのは `config.py` との差分だけで、DB に置きます。
 - **CSV のアップロード。** `/upload` で、ブラウザから CSV をテーブルに取り込めます。`monitor-app import-csv` と同じ処理で、追記と置き換えを選べます。
@@ -70,7 +69,7 @@ monitor-app runserver --import-csv-if-empty
 | Python API | 自分のプログラムからアプリを組み立てる・`config.py` を読み込んで検証する | `create_app`、`load_config`(「**Python API**」を参照) |
 | データの保全 | SQLite の WAL、稼働中のバックアップと復元、保持期間、表定義の点検と `migrate`、監査ログ | `monitor-app backup`、`MONITOR_AUDIT_ENABLED` |
 | データベース | SQLite(既定。インストール不要)・PostgreSQL・MySQL | `MONITOR_DATABASE_URL` |
-| 運用・公開 | Docker イメージ、Compose / systemd / Windows の起動ファイル、リバースプロキシ配下のサブパス、死活監視 | `monitor-app deploy`、`/api/health` |
+| 運用・公開 | systemd / Windows の起動ファイル、リバースプロキシ配下のサブパス、死活監視 | `monitor-app deploy`、`/api/health` |
 | オフライン | Node.js もビルドも不要。Chart.js を同梱し、見た目は素の CSS で書いているため、ダッシュボードはインターネットなしで動きます。API ドキュメントの `/docs` と `/redoc` だけは Swagger UI / ReDoc(版を固定)を CDN から読み込みます。`MONITOR_API_DOCS=false` で出さないようにできます | — |
 
 ---
@@ -128,7 +127,7 @@ pipx install monitor-app
 
 または `curl -LsSf https://astral.sh/uv/install.sh | sh` で uv を入れて `uv tool install monitor-app`。
 
-**64 ビット版の Raspberry Pi OS** はふつうの Linux PC と同じです(Docker イメージも対応)。**32 ビット版の Raspberry Pi OS** でも、Raspberry Pi 2 以降(Zero 2 W を含む)なら依存パッケージのビルド済みファイルがすべて PyPI にあり、`pipx install monitor-app` で入ります。ARMv6 の機種(Pi 1、初代の Pi Zero と Zero W)では、pydantic-core と MarkupSafe のビルド済みファイルが PyPI にありません。Raspberry Pi OS の pip は最初から [piwheels](https://www.piwheels.org/) も使う設定になっていて、piwheels はこの 2 つを ARMv6 向けにビルドしています。ただし piwheels に pydantic-core の最新版がまだ無いことがあり、手元でビルドするには Rust のコンパイラが要ります。uv は pip の設定を読まないため、uv を使うなら `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` を設定します。32 ビットの ARM では `[postgres]` は使えないため、同梱の pg8000 ドライバ(`postgresql+pg8000://...`)を使います。32 ビット用の Docker イメージはありません。
+**64 ビット版の Raspberry Pi OS** はふつうの Linux PC と同じです。**32 ビット版の Raspberry Pi OS** でも、Raspberry Pi 2 以降(Zero 2 W を含む)なら依存パッケージのビルド済みファイルがすべて PyPI にあり、`pipx install monitor-app` で入ります。ARMv6 の機種(Pi 1、初代の Pi Zero と Zero W)では、pydantic-core と MarkupSafe のビルド済みファイルが PyPI にありません。Raspberry Pi OS の pip は最初から [piwheels](https://www.piwheels.org/) も使う設定になっていて、piwheels はこの 2 つを ARMv6 向けにビルドしています。ただし piwheels に pydantic-core の最新版がまだ無いことがあり、手元でビルドするには Rust のコンパイラが要ります。uv は pip の設定を読まないため、uv を使うなら `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` を設定します。32 ビットの ARM では `[postgres]` は使えないため、同梱の pg8000 ドライバ(`postgresql+pg8000://...`)を使います。
 
 ### 追加機能(extras)
 
@@ -217,7 +216,7 @@ http://127.0.0.1:9990 を開きます(API ドキュメントは http://127.0.0.1
 |---|---|---|
 | `monitor-app demo` | 物流倉庫の在庫画面のデモを開く(準備不要・データは架空で終了すると消える) | `--host`、`--port`、`--open` |
 | `monitor-app serve [PATH...]` | config.py なしで CSV からダッシュボードを開く | `--host`、`--port`、`--db FILE`、`--append`、`--no-watch`、`--write-config FILE`、`--open` |
-| `monitor-app startproject NAME` | プロジェクトのフォルダを作る | `--template warehouse`(デモと同じ設定とデータ)、`--from-csv DIR`、`--deploy docker,systemd,windows`(または `all`) |
+| `monitor-app startproject NAME` | プロジェクトのフォルダを作る | `--template warehouse`(デモと同じ設定とデータ)、`--from-csv DIR`、`--deploy systemd,windows`(または `all`) |
 | `monitor-app runserver` | Web サーバーを起動する | `--import-csv-if-empty`、`--import-csv`、`--force`、`--host`、`--port`、`--reload`、`--config` |
 | `monitor-app check` | 起動せずに `config.py`・SQL・実行時設定・DB の表定義を点検する | `--data`(CSV の中身も)、`--strict`(警告でも失敗。CI 向け)、`--fix-schema`、`--config` |
 | `monitor-app import-csv` | `csv/` を DB へ取り込む(置き換え) | `--keep`、`--if-empty`、`--force`、`--config` |
@@ -225,7 +224,7 @@ http://127.0.0.1:9990 を開きます(API ドキュメントは http://127.0.0.1
 | `monitor-app migrate` | `config.py` に足した列を既存の表に追加する(2.3 で遅れたままの PostgreSQL の id の連番も直す) | `--dry-run`、`--config` |
 | `monitor-app backup` | SQLite の一貫したバックアップ(稼働中でもよい) | `--dest DIR`、`--keep N`、`--config` |
 | `monitor-app restore FILE` | バックアップから復元する(先にサーバーを止める) | `--yes` / `-y`、`--config` |
-| `monitor-app deploy [TARGET...]` | 起動ファイルを書き出す: `docker`・`systemd`・`windows`・`all`。API キーを生成して `.env` に書く | `--project DIR`、`--port N`、`--config FILE`、`--force` |
+| `monitor-app deploy [TARGET...]` | 起動ファイルを書き出す: `systemd`・`windows`・`all`(既定はこの OS 向けのもの)。API キーを生成して `.env` に書く | `--project DIR`、`--port N`、`--config FILE`、`--force` |
 
 - `monitor-app --version`(`-V`)。`monitor-app --debug <コマンド>`(または `MONITOR_DEBUG=1`)でトレースバックを表示します。ふだんはエラーを最大 3 行で stderr に出します。
 - `--config` には `config.py` のパスかプロジェクトのフォルダを指定します(`~` も可)。ほかのフォルダから実行すると、そのプロジェクトの `.env` も読みます。設定の相対パス(`instances/`・`csv/`・`backups/`)は、コマンドを実行したフォルダが基準のままです。DB(取り込むときは CSV のフォルダも)がプロジェクトのフォルダにしか無いときは、空の DB を作らずに、そのフォルダへ `cd` するよう案内して止まります。
@@ -405,7 +404,6 @@ PC ごとに変わる設定(DB の接続先・ポート・パスワード)は `c
 | `MONITOR_LOG_FORMAT` | `text` | `text` / `json`(1 行 1 つの JSON。ログ収集基盤向け) |
 
 - 次の 2 つは **環境変数でだけ** 効き、`.env` に書いても効きません: `MONITOR_DEBUG=1`(トレースバックを表示。`--debug` と同じ)と `MONITOR_CONFIG_PATH`(`uvicorn monitor_app.main:app_factory --factory` が読む `config.py`。プロジェクトのフォルダや `~` で始まるパスも可。`runserver` は `--config` の値を設定します)。
-- `$` を含む値はシングルクォートで囲みます(`MONITOR_API_KEY='ab$cd'`)。Docker Compose も `.env` を読むためです。
 - 値の誤りはトレースバックではなく短いメッセージで説明します。例: `MONITOR_PORT='abc'(整数を指定してください)`。パスワード・キー・URL の値は表示しません。
 - `monitor-app check` は設定として読まれない `MONITOR_*`(綴りの誤り)を知らせます。
 
@@ -436,39 +434,9 @@ monitor-app restore backups/database-20261021-172955.db --yes   # 先にサー�
 
 **停止。** `docker stop`・`systemctl stop`・Ctrl+C では、実行中のバックグラウンドの処理(フォルダの監視・保持期間による削除・アラートの評価・`sources`)を次の SQL の実行時に打ち切り、トランザクションを取り消します。サーバーが待つのは最大約 4.5 秒なので、長い取り込みのせいでコンテナが強制終了されるまで停止が遅れることはありません。
 
-## 🐳 公開・運用
+## 🖥 公開・運用
 
-### Docker
-
-```sh
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # 物流倉庫の在庫画面のデモ(ファイル不要)
-```
-
-自分のプロジェクト(`config.py` のあるフォルダ)を動かす:
-
-```sh
-cd myproject
-docker run -d --name monitor-app -p 9990:9990 -v "$PWD":/project \
-    --restart unless-stopped ghcr.io/mikawa-bushi/monitor-app
-```
-
-(Windows の PowerShell では `-v "${PWD}:/project"`。)コンテナはマウントしたフォルダの所有者のユーザーに切り替え、Linux の特権(capability)をすべて捨てて動くため、ホストのユーザー ID が何であっても、DB やバックアップはホストの利用者のファイルになります。起動コマンドは `runserver --import-csv-if-empty` なので、画面で入力した行は更新しても残ります。空のフォルダをマウントするとサンプルのプロジェクトを書き込みます(何もマウントしなければ、上のデモが一時的な DB で動きます)。さらに守りを固めるなら `--cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add CHOWN --security-opt no-new-privileges` を付けます(生成する `compose.yaml` には設定済み)。`docker run --rm ghcr.io/mikawa-bushi/monitor-app --version` で版を表示します。
-
-Docker Compose を使うときは、Monitor App にファイルを書かせます:
-
-```sh
-monitor-app deploy docker      # compose.yaml と .dockerignore を書き出す
-docker compose up -d           # http://localhost:9990/
-docker compose ps              # サーバーが応答すると (healthy)
-docker compose logs -f
-docker compose pull && docker compose up -d     # 最新のイメージに更新
-```
-
-- `monitor-app deploy` は、`.env` に `MONITOR_API_KEY` が無ければ推測されにくいキーを生成して書きます(書いた場所を表示し、キーそのものは表示しません)。閲覧はキーなしでできますが、行の追加・変更・削除にはキーが必要です(画面でログインするか、`X-API-Key` を送る)。
-- `.env` はコンテナの中のアプリがふだんどおり読みます。生成した `compose.yaml` は `.env` から `MONITOR_PORT`(ホスト側のポート)・`TZ`(例: `TZ=Asia/Tokyo`)・`MONITOR_IMAGE`(イメージの名前)・`MONITOR_IMAGE_TAG`(例: `2.5.0` で版を固定)も読みます。
-- ほかのコマンドも同じく所有者のユーザーで実行できます: `docker compose run --rm monitor-app check`、`... backup`、`... import-csv`。`docker compose exec monitor-app monitor-app backup` は使わないでください。root で動くため、バックアップのファイルを root しか読めなくなります。
-- イメージのタグ: `latest`・`2`・`2.5`・`2.5.0`。プラットフォームは `linux/amd64` と `linux/arm64`(64 ビットの Raspberry Pi OS)。ヘルスチェック(`/api/health`)つきで、停止は約 1 秒です。
-- Docker Desktop(Windows・macOS)では、速度のためと「database is locked」のエラーを避けるため、`instances/` を名前付きボリュームにします(`compose.yaml` のコメントを参照)。イメージを自分でビルドするには `docker build -t monitor-app .` のあと、`.env` に `MONITOR_IMAGE=monitor-app` を書き、`pull` せずに `docker compose up -d` します。詳しくは[docker/README.md](https://github.com/mikawa-bushi/monitor-app/blob/main/docker/README.md)(英語)。
+`monitor-app deploy` は、この OS 向けの起動ファイルを書き出します。Linux なら `systemd`、Windows なら `windows` です。ほかの OS では対象を指定します。`.env` に `MONITOR_API_KEY` が無ければ、推測されにくいキーを生成して書きます(書いた場所を表示し、キーそのものは表示しません)。閲覧はキーなしでできますが、行の追加・変更・削除にはキーが必要です(画面でログインするか、`X-API-Key` を送る)。
 
 ### Linux・Raspberry Pi(systemd)
 
@@ -658,7 +626,7 @@ monitor-app check --data          # 読み取りだけ。直すべき点を知�
 
 - **SQLite が WAL になります**(初回の起動時)。DB の隣に `database.db-wal` と `database.db-shm` ができます。`database.db` だけをコピーせず、`monitor-app backup` でバックアップしてください。`MONITOR_SQLITE_JOURNAL_MODE=delete` で従来のモードに戻ります。
 - **CSV の文字コードを自動判別します**(`MONITOR_CSV_ENCODING=auto`)。失敗していた cp932 の CSV が取り込めるようになりました。cp1252 の CSV は失敗せず文字化けして取り込まれるため、`MONITOR_CSV_ENCODING=cp1252` を設定してください。
-- **`runserver --import-csv-if-empty` を使ってください。** `--import-csv` は従来どおり起動のたびにテーブルを置き換え、入力フォームのあるテーブルを置き換えると警告を出すようになりました。Docker イメージは `--import-csv-if-empty` で起動します。
+- **`runserver --import-csv-if-empty` を使ってください。** `--import-csv` は従来どおり起動のたびにテーブルを置き換え、入力フォームのあるテーブルを置き換えると警告を出すようになりました。
 - **取り込みが慎重・安全になりました**: 置き換えの取り込みでは、CSV の見出しに宣言した列(主キー以外)が無いテーブルの既存の行を残します(`import-csv` は終了コード 1。`--force` で置き換え)。`--keep` は既にあるキーを読み飛ばし、失敗しなくなりました。値がすべて空の行は読み飛ばします。
 - **コマンドの出力**: エラーは stderr への短いメッセージになりました(`--debug` でトレースバック)。uvicorn の行に時刻が付き、アクセスログは stdout ではなく stderr に出ます。`runserver` は取り込みの前にポートが空いているか確かめ、常に 1 プロセスで動きます。
 - **`/api/health`** は DB に接続できないと `503` を返し、本文に `version`・`database`・`tasks` が加わりました。
@@ -672,7 +640,7 @@ monitor-app check --data          # 読み取りだけ。直すべき点を知�
 - **`date` / `datetime` の値** の形式が広がりました(`2026/10/21`、`Z`、`+09:00`)。タイムゾーンつきの値は PC のローカル時刻で保存します。
 - **config.py**: 未知のキーは警告になります(`python -W error` ではエラー)。ビューと KPI の SQL の末尾の `;` を許します。
 - **MySQL**: 2.3 で作った表の小数の列は単精度です。起動時に表示される `ALTER TABLE ... DOUBLE` を実行してください。
-- **Docker**: Dockerfile はリポジトリの直下に移り(`docker build -t monitor-app .`)、`docker/docker-compose.yml` は無くなりました(`monitor-app deploy docker` を使う)。コンテナは固定のユーザーではなく、プロジェクトのフォルダの所有者で動きます。
+- **Docker**: Docker イメージは無くなりました。pipx か uv でインストールし、`monitor-app deploy` で起動ファイルを書き出します(**公開・運用** を参照)。
 - **削除**: 使われていなかった画像 `img/background.webp` と `img/logo.webp`。
 - **2.3.x に戻すとき**: `"datetime"` 型の列・`retention`・`max_rows` や、`monitor_app` からの `Retention`・`DashboardConfig`・`SourceDef` の import を使った `config.py` は 2.3.x では読み込めません。`config.py` で `sources` や procdiag・netdiag・network-checker のプリセットを使っているときは、2.4 がそれらの読み取り位置を 2.3.x の比べられない形で保存しています。**`_ingest_state` の行は削除しないでください**(2.3.x がすべてを取り込み直し、ポーリングのたびに失敗するか、行が二重に入ります)。代わりに、サーバーを止め、2.4 が入っているうちに、プロジェクトのフォルダで読み取り位置を戻します:
 

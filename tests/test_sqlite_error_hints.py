@@ -65,7 +65,7 @@ def test_a_read_only_database_file_is_named_in_the_hint(project, restore_modes):
     assert result.exit_code == 1
     assert "readonly database" in result.output
     assert f"データベースファイル {db_file.resolve()} に書き込めません" in result.output
-    assert "Docker" in result.output
+    assert "MONITOR_DATABASE_URL" in result.output
     assert SERVER_HINT not in result.output
 
 

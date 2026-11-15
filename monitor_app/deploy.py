@@ -1,12 +1,10 @@
-"""デプロイ用ファイル(Docker Compose・systemd・Windows)の生成。
+"""デプロイ用ファイル(systemd・Windows)の生成。
 
 ``monitor-app deploy`` と ``monitor-app startproject --deploy`` が使う。雛形は
 ``monitor_app/scaffold/deploy/`` にあり、プロジェクトの場所・いま動いている Python・
 ユーザー名・ポートを埋め込んで書き出す。既存のファイルは ``force=True`` でない限り
 上書きしない。
 
-- ``docker``  … ``compose.yaml``(公開イメージを使い、このフォルダを /project に
-  マウント)と ``.dockerignore``
 - ``systemd`` … ``monitor-app.service``(``python -m monitor_app runserver
   --import-csv-if-empty`` を常駐させる)
 - ``windows`` … ``start-monitor.bat``(ログを ``logs\\monitor.log`` に追記)と
@@ -22,27 +20,22 @@ from __future__ import annotations
 import contextlib
 import getpass
 import importlib.resources as resources
-import json
 import os
-import re
 import shlex
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .security import KeyProblem, api_key_problems, generate_api_key
 
 #: 生成できる対象(この順に生成・表示する)。
-TARGETS = ("docker", "systemd", "windows")
+TARGETS = ("systemd", "windows")
 #: すべての対象を表す指定。
 ALL = "all"
 
 #: 起動コマンドの引数(再起動しても画面・API で入力した行を消さない取り込み方)。
 RUNSERVER_ARGS = ("-m", "monitor_app", "runserver", "--import-csv-if-empty")
-
-# IANA のタイムゾーン名として受け付ける文字(YAML にそのまま埋め込むため厳しめにする)。
-_TZ_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_+\-]*(/[A-Za-z0-9_+\-]+)*$")
 
 
 class DeployError(ValueError):
@@ -53,7 +46,7 @@ class DeployError(ValueError):
 class DeployFile:
     """書き出す 1 ファイル。"""
 
-    #: 対象(``docker`` / ``systemd`` / ``windows``)。
+    #: 対象(``systemd`` / ``windows``)。
     target: str
     #: 書き出す先(絶対パス)。
     path: Path
@@ -64,10 +57,10 @@ class DeployFile:
 
 
 def parse_targets(values: Iterable[str]) -> list[str]:
-    """``["docker,systemd"]`` や ``["all"]`` を、重複のない対象名のリストにする。
+    """``["systemd,windows"]`` や ``["all"]`` を、重複のない対象名のリストにする。
 
-    空なら ``all`` とみなす。並びは :data:`TARGETS` の順。未知の名前は
-    :class:`DeployError`。
+    空なら、この OS 向けの対象(:func:`native_target`)。並びは :data:`TARGETS` の順。
+    未知の名前と、この OS 向けの対象が無いのに空のときは :class:`DeployError`。
     """
     names = [
         part.strip().lower()
@@ -75,37 +68,35 @@ def parse_targets(values: Iterable[str]) -> list[str]:
         for part in value.split(",")
         if part.strip()
     ]
+    choices = f"({' / '.join((*TARGETS, ALL))} から選んでください)"
     unknown = sorted({n for n in names if n not in (*TARGETS, ALL)})
     if unknown:
-        raise DeployError(
-            f"不明な対象です: {', '.join(unknown)}"
-            f"({' / '.join((*TARGETS, ALL))} から選んでください)"
-        )
-    if not names or ALL in names:
+        raise DeployError(f"不明な対象です: {', '.join(unknown)}{choices}")
+    if ALL in names:
         return list(TARGETS)
-    return [t for t in TARGETS if t in names]
+    if names:
+        return [t for t in TARGETS if t in names]
+    native = native_target()
+    if native is None:
+        raise DeployError(
+            f"この OS 向けの対象はありません。対象を指定してください{choices}"
+        )
+    return [native]
 
 
-def native_target(platform: str | None = None) -> str | None:
+def native_target() -> str | None:
     """この OS で常駐させる対象(Linux: ``systemd``、Windows: ``windows``、ほか: None)。"""
-    platform = platform or sys.platform
-    if platform.startswith("linux"):
+    if sys.platform.startswith("linux"):
         return "systemd"
-    if platform == "win32":
+    if sys.platform == "win32":
         return "windows"
     return None
 
 
-def default_targets(platform: str | None = None) -> list[str]:
-    """対象を指定しなかったときに生成する対象(Docker と、この OS 向けのもの)。"""
-    native = native_target(platform)
-    return [t for t in TARGETS if t in ("docker", native)]
-
-
-def foreign_targets(targets: Iterable[str], platform: str | None = None) -> list[str]:
+def foreign_targets(targets: Iterable[str]) -> list[str]:
     """この OS 向けではない対象(この PC の Python のパスを書くため、そのままでは動かない)。"""
-    native = native_target(platform)
-    return [t for t in targets if t in ("systemd", "windows") and t != native]
+    native = native_target()
+    return [t for t in targets if t != native]
 
 
 def _template(name: str) -> str:
@@ -125,26 +116,6 @@ def _current_user() -> str:
         return getpass.getuser()
 
 
-def local_timezone_name() -> str | None:
-    """このマシンのタイムゾーン名(例: ``Asia/Tokyo``)。分からなければ None。
-
-    環境変数 ``TZ``、なければ ``/etc/localtime`` のリンク先から求める(Linux・macOS)。
-    """
-    candidates = [os.environ.get("TZ", "").strip()]
-    try:
-        target = os.path.realpath("/etc/localtime")
-    except OSError:  # pragma: no cover - realpath は通常失敗しない
-        target = ""
-    if "zoneinfo/" in target:
-        candidates.append(target.split("zoneinfo/", 1)[1])
-    for name in candidates:
-        for prefix in ("posix/", "right/"):
-            name = name.removeprefix(prefix)
-        if name and _TZ_NAME.match(name) and name not in ("localtime",):
-            return name
-    return None
-
-
 def is_ephemeral_python(executable: str | None = None) -> bool:
     """``uvx`` などが作る一時的な環境の Python か(後で消えるためユニットに書けない)。"""
     parts = Path(executable or sys.executable).parts
@@ -154,43 +125,6 @@ def is_ephemeral_python(executable: str | None = None) -> bool:
 # ---------------------------------------------------------------------------
 # 対象ごとの内容
 # ---------------------------------------------------------------------------
-def _docker_config_arg(config: str) -> str:
-    """コンテナ内(/project が作業フォルダ)で使う設定ファイルのパス。"""
-    path = PurePath(config)
-    if path.is_absolute() or PurePosixPath(config).is_absolute() or ".." in path.parts:
-        raise DeployError(
-            "Docker では、設定ファイルをプロジェクトのフォルダからの相対パスで"
-            f"指定してください: {config}"
-        )
-    return path.as_posix()
-
-
-def _docker_files(
-    project: Path, port: int | None, config: str | None = None
-) -> list[DeployFile]:
-    compose = _template("compose.yaml")
-    if config is not None:
-        # エントリポイントはオプションだけの引数を runserver に渡す。
-        command = json.dumps(["--config", _docker_config_arg(config)])
-        image_line = next(
-            line for line in compose.splitlines() if line.strip().startswith("image:")
-        )
-        compose = compose.replace(
-            image_line, f"{image_line}\n    command: {command}", 1
-        )
-    if port is not None:
-        compose = compose.replace("${MONITOR_PORT:-9990}", f"${{MONITOR_PORT:-{port}}}")
-        compose = compose.replace("(既定 9990)", f"(既定 {port})")
-        compose = compose.replace("http://localhost:9990/", f"http://localhost:{port}/")
-    tz = local_timezone_name()
-    if tz:
-        compose = compose.replace("TZ: ${TZ:-UTC}", f"TZ: ${{TZ:-{tz}}}")
-    return [
-        DeployFile("docker", project / "compose.yaml", compose),
-        DeployFile("docker", project / ".dockerignore", _template("dockerignore")),
-    ]
-
-
 def _systemd_escape(value: str) -> str:
     """systemd の指定子(``%``)を無効にする(WorkingDirectory= などの値)。"""
     return value.replace("%", "%%")
@@ -300,9 +234,7 @@ def plan_deploy_files(
     python = python or sys.executable
     files: list[DeployFile] = []
     for target in parse_targets(targets):
-        if target == "docker":
-            files += _docker_files(project, port, config)
-        elif target == "systemd":
+        if target == "systemd":
             files += _systemd_files(project, port, python, config)
         else:
             files += _windows_files(project, port, python, config)

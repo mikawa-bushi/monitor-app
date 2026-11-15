@@ -78,8 +78,8 @@ def startproject(
         "--deploy",
         metavar="TARGETS",
         help=(
-            "デプロイ用のファイルも生成する(docker,systemd,windows,all を"
-            "カンマ区切りで指定。例: --deploy docker,windows)"
+            "デプロイ用のファイルも生成する(systemd,windows,all を"
+            "カンマ区切りで指定。例: --deploy systemd)"
         ),
     ),
     from_csv: Path | None = typer.Option(

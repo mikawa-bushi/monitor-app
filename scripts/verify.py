@@ -2,7 +2,7 @@
 """push 前のローカル確認を 1 コマンドで走らせ、結果を 1 つの表にまとめる。
 
 GitHub の CI は Windows・macOS・Python 3.11〜3.14・最低バージョンの依存・PostgreSQL /
-MySQL・Docker・PyPI への公開を確かめるが、ブラウザ E2E(tests/e2e/test_browser_ui.py)
+MySQL・PyPI への公開を確かめるが、ブラウザ E2E(tests/e2e/test_browser_ui.py)
 は Chrome が無いため常にスキップされる。このスクリプトは CI と同じ速い検査に加えて、
 ブラウザ E2E とデモ画面のスクリーンショットを手元で走らせる。
 

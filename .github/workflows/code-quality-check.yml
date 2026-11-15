@@ -215,7 +215,7 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       with:
-        version: "0.12.9"  # Same as UV_VERSION in test.yml and the Dockerfile
+        version: "0.12.9"  # Same as UV_VERSION in test.yml
 
     - name: Check code formatting with Black
       run: |

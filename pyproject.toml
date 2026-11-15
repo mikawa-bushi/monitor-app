@@ -93,9 +93,6 @@ packages = ["monitor_app"]
 include = [
     "/monitor_app",
     "/tests",
-    # tests/test_docker_*.py が使うコンテナのスクリプト(sdist からテストを実行できるように)
-    "/docker/entrypoint.sh",
-    "/docker/healthcheck.py",
     "/README.md",
     "/README_ja.md",
     "/LICENSE",

@@ -26,11 +26,10 @@ works on offline factory networks.
 Open the inventory screen of a fictional distribution center, with nothing to prepare:
 
 ```sh
-uvx monitor-app demo --open                                      # if installed: monitor-app demo --open
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app    # with Docker (mount nothing)
+uvx monitor-app demo --open      # if installed: monitor-app demo --open
 ```
 
-Open http://127.0.0.1:9990 (with Docker, http://localhost:9990). What to look at:
+Open http://127.0.0.1:9990. What to look at:
 
 - **Stock list**: location, lot, best-before date, days left, cases and pieces. Stock is
   the SQL sum of a ledger of stock movements.
@@ -43,8 +42,7 @@ Open http://127.0.0.1:9990 (with Docker, http://localhost:9990). What to look at
   demo runs on your own PC, `/settings` (edit settings in the browser) works too.
 
 The data lives in a temporary database that is deleted on exit. At start the demo
-prints where its `config.py` is. Docker shows times in UTC; add `-e TZ=Asia/Tokyo` (or
-your zone) for local time.
+prints where its `config.py` is.
 
 To start your own project with the same configuration and fictional data:
 
@@ -62,9 +60,7 @@ how to replace the data with your own.
 - **A demo with nothing to prepare.** `monitor-app demo` opens the inventory screen of a
   fictional distribution center. Every 4 seconds a receipt, shipment or move happens, so
   the KPI cards, charts and alerts change on their own. The data lives in a temporary
-  SQLite database that is deleted on exit. Docker started with nothing mounted now runs
-  this demo instead of the sample project. Mount an empty folder to get the sample
-  project as before.
+  SQLite database that is deleted on exit.
 - **Start a project from the demo.** `monitor-app startproject NAME --template warehouse`
   writes the demo's `config.py`, master data and 7 days of fictional data.
 - **Settings page.** `/settings` edits the display options, views (SQL, column labels,
@@ -107,7 +103,7 @@ Coming from 2.3? Read **Upgrading from 2.3.x** below.
 | Python API | Build the app from your own code, load and validate `config.py` | `create_app`, `load_config` (see **Python API**) |
 | Data safety | SQLite WAL, online backup and restore, retention, schema checks and `migrate`, audit log | `monitor-app backup`, `MONITOR_AUDIT_ENABLED` |
 | Databases | SQLite (default, nothing to install), PostgreSQL, MySQL | `MONITOR_DATABASE_URL` |
-| Deployment | Docker image, Compose/systemd/Windows start-up files, sub-path behind a reverse proxy, health endpoint | `monitor-app deploy`, `/api/health` |
+| Deployment | systemd and Windows start-up files, sub-path behind a reverse proxy, health endpoint | `monitor-app deploy`, `/api/health` |
 | Offline use | No Node.js and no build step. Chart.js is bundled and the styles are plain CSS, so the dashboard needs no internet. Only the API documentation pages `/docs` and `/redoc` load Swagger UI / ReDoc (pinned versions) from a CDN; `MONITOR_API_DOCS=false` turns them off. | — |
 
 ---
@@ -173,7 +169,7 @@ pipx install monitor-app
 or install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh` and run
 `uv tool install monitor-app`.
 
-**64-bit Raspberry Pi OS** works like any Linux PC (and the Docker image supports it).
+**64-bit Raspberry Pi OS** works like any Linux PC.
 **32-bit Raspberry Pi OS** on a Raspberry Pi 2 or newer (Zero 2 W included) gets every
 dependency as a prebuilt package from PyPI, so `pipx install monitor-app` works there
 too. On the ARMv6 boards (Pi 1, and the first Pi Zero and Zero W), PyPI has no prebuilt
@@ -183,7 +179,7 @@ behind the newest pydantic-core release, and building pydantic-core yourself nee
 Rust compiler. uv does not read pip's settings, so set
 `UV_EXTRA_INDEX_URL=https://www.piwheels.org/simple` when you use uv.
 The `[postgres]` extra is not available on 32-bit ARM. Use the built-in pg8000 driver
-(`postgresql+pg8000://...`). There is no 32-bit Docker image.
+(`postgresql+pg8000://...`).
 
 ### Optional extras
 
@@ -304,7 +300,7 @@ Note that `--keep` adds back rows you deleted in the UI if the CSV file still co
 |---|---|---|
 | `monitor-app demo` | Warehouse inventory demo, nothing to prepare (fictional data, deleted on exit) | `--host`, `--port`, `--open` |
 | `monitor-app serve [PATH...]` | Dashboard straight from CSV files, no `config.py` | `--host`, `--port`, `--db FILE`, `--append`, `--no-watch`, `--write-config FILE`, `--open` |
-| `monitor-app startproject NAME` | Create a project folder | `--template warehouse` (the demo's configuration and data), `--from-csv DIR`, `--deploy docker,systemd,windows` (or `all`) |
+| `monitor-app startproject NAME` | Create a project folder | `--template warehouse` (the demo's configuration and data), `--from-csv DIR`, `--deploy systemd,windows` (or `all`) |
 | `monitor-app runserver` | Start the web server | `--import-csv-if-empty`, `--import-csv`, `--force`, `--host`, `--port`, `--reload`, `--config` |
 | `monitor-app check` | Check `config.py`, SQL, settings and the database tables without starting | `--data` (also the CSV files), `--strict` (warnings fail, for CI), `--fix-schema`, `--config` |
 | `monitor-app import-csv` | Import `csv/` into the database (replace) | `--keep`, `--if-empty`, `--force`, `--config` |
@@ -312,7 +308,7 @@ Note that `--keep` adds back rows you deleted in the UI if the CSV file still co
 | `monitor-app migrate` | Add columns you added to `config.py` to existing tables (and repair PostgreSQL id sequences left behind by 2.3) | `--dry-run`, `--config` |
 | `monitor-app backup` | Consistent SQLite backup, also while the server runs | `--dest DIR`, `--keep N`, `--config` |
 | `monitor-app restore FILE` | Restore a backup (stop the server first) | `--yes` / `-y`, `--config` |
-| `monitor-app deploy [TARGET...]` | Write start-up files: `docker`, `systemd`, `windows`, `all`; generates an API key into `.env` | `--project DIR`, `--port N`, `--config FILE`, `--force` |
+| `monitor-app deploy [TARGET...]` | Write start-up files: `systemd`, `windows`, `all` (default: the one for this OS); generates an API key into `.env` | `--project DIR`, `--port N`, `--config FILE`, `--force` |
 
 - `monitor-app --version` (`-V`), and `monitor-app --debug <command>` (or `MONITOR_DEBUG=1`)
   for a full traceback. Errors are otherwise reported in at most three lines on stderr.
@@ -550,8 +546,6 @@ setting) or set them as environment variables, which win over `.env`.
   `MONITOR_DEBUG=1` (full tracebacks, same as `--debug`) and `MONITOR_CONFIG_PATH` (the
   `config.py` read by `uvicorn monitor_app.main:app_factory --factory`, also a project
   folder or a path starting with `~`; `runserver` sets it from `--config`).
-- Wrap values that contain `$` in single quotes (`MONITOR_API_KEY='ab$cd'`): Docker
-  Compose reads `.env` too.
 - A wrong value is explained in a short message instead of a traceback, for example
   `MONITOR_PORT='abc'(整数を指定してください)` ("give a whole number"). Passwords, keys
   and URLs are never printed.
@@ -648,60 +642,13 @@ locked") is tried again at the next check, then at growing intervals up to 60 s,
 back its transaction. The server waits at most about 4.5 s for it, so a long import never
 delays the shutdown until the container is killed.
 
-## 🐳 Deploy
+## 🖥 Deploy
 
-### Docker
-
-```sh
-docker run --rm -p 9990:9990 ghcr.io/mikawa-bushi/monitor-app       # warehouse demo, no files needed
-```
-
-Run your own project (the folder with `config.py`):
-
-```sh
-cd myproject
-docker run -d --name monitor-app -p 9990:9990 -v "$PWD":/project \
-    --restart unless-stopped ghcr.io/mikawa-bushi/monitor-app
-```
-
-(Windows PowerShell: `-v "${PWD}:/project"`.) The container switches to the owner of the
-mounted folder and drops all Linux capabilities, so the database and backups belong to
-you on the host whatever your user id is. It starts `runserver --import-csv-if-empty`, so
-rows entered in the UI survive updates. An empty folder gets the sample project. With
-nothing mounted, the warehouse demo above runs on a temporary database.
-For a hardened container add `--cap-drop ALL --cap-add SETUID --cap-add SETGID
---cap-add CHOWN --security-opt no-new-privileges` (the generated `compose.yaml` sets
-these). `docker run --rm ghcr.io/mikawa-bushi/monitor-app --version` prints the version.
-
-With Docker Compose, let Monitor App write the file:
-
-```sh
-monitor-app deploy docker      # writes compose.yaml and .dockerignore
-docker compose up -d           # http://localhost:9990/
-docker compose ps              # (healthy) when the server answers
-docker compose logs -f
-docker compose pull && docker compose up -d     # update to the newest image
-```
-
-- `monitor-app deploy` writes a random `MONITOR_API_KEY` into `.env` when there is none
-  (it prints where, never the key itself). Viewing stays open; adding, changing and
-  deleting rows needs the key (log in on the page, or send `X-API-Key`).
-- `.env` is read by the app inside the container as usual. The generated `compose.yaml`
-  also takes `MONITOR_PORT` (port on the host), `TZ` (for example `TZ=Asia/Tokyo`),
-  `MONITOR_IMAGE` (image name) and `MONITOR_IMAGE_TAG` (for example `2.5.0` to stay on a
-  version) from `.env`.
-- Other commands run the same way as the folder's owner:
-  `docker compose run --rm monitor-app check`, `... backup`, `... import-csv`. Do not use
-  `docker compose exec monitor-app monitor-app backup`: that runs as root and the backup
-  file can then only be read by root.
-- Image tags: `latest`, `2`, `2.5`, `2.5.0`; platforms `linux/amd64` and `linux/arm64`
-  (64-bit Raspberry Pi OS). The image has a health check (`/api/health`) and stops within
-  about a second.
-- On Docker Desktop (Windows, macOS) keep `instances/` in a named volume, for speed and
-  to avoid "database is locked" errors (see the comments in `compose.yaml`). Build the
-  image yourself with `docker build -t monitor-app .`, then set `MONITOR_IMAGE=monitor-app`
-  in `.env` and run `docker compose up -d` without `pull`. More:
-  [docker/README.md](https://github.com/mikawa-bushi/monitor-app/blob/main/docker/README.md).
+`monitor-app deploy` writes the start-up files for this OS: `systemd` on Linux and
+`windows` on Windows. On other systems, name the target. It also writes a random
+`MONITOR_API_KEY` into `.env` when there is none (it prints where, never the key itself).
+Viewing stays open; adding, changing and deleting rows needs the key (log in on the page,
+or send `X-API-Key`).
 
 ### Linux and Raspberry Pi (systemd)
 
@@ -952,8 +899,7 @@ Existing projects and databases keep working. Things you may notice:
   fail now import. cp1252 files now import with garbled characters instead of failing;
   set `MONITOR_CSV_ENCODING=cp1252` for them.
 - **Use `runserver --import-csv-if-empty`.** `--import-csv` still replaces the tables at
-  every start and now warns when a table with an entry form is replaced. The Docker
-  image uses `--import-csv-if-empty`.
+  every start and now warns when a table with an entry form is replaced.
 - **Imports are stricter and safer**: a replacing import keeps the rows of a table whose
   CSV header lacks a declared column other than the primary key (`import-csv` exits 1;
   `--force` overrides), `--keep` skips existing keys instead of failing, and rows whose
@@ -991,9 +937,8 @@ Existing projects and databases keep working. Things you may notice:
   a trailing `;` in view and KPI SQL is allowed.
 - **MySQL**: float columns of tables created by 2.3 are single precision; run the
   `ALTER TABLE ... DOUBLE` statements printed at startup.
-- **Docker**: the Dockerfile moved to the repository root (`docker build -t monitor-app .`),
-  `docker/docker-compose.yml` is gone (use `monitor-app deploy docker`), and the container
-  runs as the owner of the project folder instead of a fixed user.
+- **Docker**: there is no Docker image any more. Install with pipx or uv and let
+  `monitor-app deploy` write the start-up files (see **Deploy**).
 - **Removed** the unused images `img/background.webp` and `img/logo.webp`.
 - **Going back to 2.3.x**: a `config.py` that uses `"datetime"` columns, `retention` or
   `max_rows`, or imports `Retention`, `DashboardConfig` or `SourceDef` from `monitor_app`,

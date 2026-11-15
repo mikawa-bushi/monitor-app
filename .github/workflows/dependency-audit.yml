@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # uv のバージョンは Dockerfile の UV_VERSION とそろえる。
+  # uv のバージョンは test.yml の UV_VERSION とそろえる。
   UV_VERSION: "0.12.9"
   PIP_AUDIT_VERSION: "2.10.1"
 
