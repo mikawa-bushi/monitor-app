@@ -55,34 +55,27 @@ monitor-app runserver --import-csv-if-empty
 In a project, movements do not happen on their own. The project's `README.md` explains
 how to replace the data with your own.
 
-## ✨ What's new in 2.5
+## ✨ What's new in 2.6
 
-- **A demo with nothing to prepare.** `monitor-app demo` opens the inventory screen of a
-  fictional distribution center. Every 4 seconds a receipt, shipment or move happens, so
-  the KPI cards, charts and alerts change on their own. The data lives in a temporary
-  SQLite database that is deleted on exit.
-- **Start a project from the demo.** `monitor-app startproject NAME --template warehouse`
-  writes the demo's `config.py`, master data and 7 days of fictional data.
-- **Settings page.** `/settings` edits the display options, views (SQL, column labels,
-  cell styles, charts), KPI cards, alerts, the wallboard and the dashboard without
-  editing `config.py`. A save runs the same checks as `monitor-app check`, then applies
-  at once without a restart. Only the difference from `config.py` is stored, in the
-  database.
-- **CSV upload.** `/upload` imports a CSV file into a table from the browser, with the
-  same code as `monitor-app import-csv`. Choose append or replace.
-- **`MONITOR_ADMIN_KEY`.** A key for the settings page and CSV upload only. When it is
-  set, operators who log in with `MONITOR_API_KEY` cannot change the settings. Without
-  it, `MONITOR_API_KEY` works, and with neither key the admin features work only from
-  this PC.
-- **Named entry forms.** `FormDef(title="...")` sets the form's heading, its browser tab
-  title and its link on the home page.
-- **Security.** The admin features refuse requests sent from pages on other sites
-  (CSRF). SQL saved from the browser must be one statement with no `;`, and a KPI number
-  format can only format the value. The name of an uploaded file loses its folder and
-  drive parts on every OS, so it cannot point outside the temporary folder.
+- **A simpler screen that shows more.** Tables and the dashboard use the full width of
+  the window, and table cells no longer wrap. On a 1440x900 screen the demo's stock list
+  shows 20 rows instead of 8. White cards sit on a light grey background, and colour marks
+  only states, links and main actions. The entry, settings and upload pages keep a
+  readable width.
+- **A wallboard that fills the screen.** `/kiosk` now uses the full width of the screen,
+  and its warning and critical banners are solid yellow and red.
+- **Fewer dependencies.** Bootstrap's CSS (about 230 KB) is no longer bundled. The cell
+  style classes such as `bg-danger`, `text-white` and `fw-bold` still work. monitor-app
+  depends on plain `uvicorn` instead of `uvicorn[standard]`. Install `uvicorn[standard]`
+  next to it to get uvloop and httptools back.
+- **No Docker image.** Install with pipx or uv. `monitor-app deploy` without a target
+  writes the start-up files for this OS (systemd on Linux, Task Scheduler on Windows).
 
 Full list: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md).
-Coming from 2.4? Nothing needs changing beyond the **Upgrade notes** in the CHANGELOG.
+Coming from 2.5? Read the **Upgrade notes** in the CHANGELOG: the screen's HTML, the
+bundled CSS and the uvicorn extras changed.
+Ran the Docker image? The Docker item in the **Upgrade notes** moves the same project
+folder to a pipx or uv install.
 Coming from 2.3? Read **Upgrading from 2.3.x** below.
 
 ## Features
@@ -782,7 +775,7 @@ curl http://127.0.0.1:9990/api/health
 ```
 
 ```json
-{"status":"ok","version":"2.5.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
+{"status":"ok","version":"2.6.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
 ```
 
 It answers `200` when the database responds to `SELECT 1` and `503` (with
