@@ -1,20 +1,31 @@
 # Changelog
 
-## [Unreleased]
+## [2.6.0] - 2026-11-15
+
+> 「現場の画面で表とダッシュボードを一目で読め、少ない依存で動く」ことを目標にしたリリース。画面を簡素な見た目にし、表とダッシュボードを画面の幅いっぱいに使うようにした(1440x900 の画面で在庫の一覧に見える行は 8 行から 20 行)。大型表示は画面の幅いっぱいに広がり、警報のバナーを塗りつぶしにした。同梱の Bootstrap の CSS と uvicorn の高速化のパッケージを外し、Docker イメージの提供をやめた。既存のプロジェクト・`config.py`・DB・REST API はそのまま動く。CLI では `monitor-app deploy` の対象 `docker` が無くなった。挙動が変わる点は「Changed」と「Removed」、更新するときの注意は「Upgrade notes」を参照。
 
 ### Changed
-- 画面の見た目を簡素にした。薄い灰色の地に、枠線の無い白いカード(大きめの角丸と淡い影)を置き、サイドバーとヘッダーは地と同じ色にした。色は状態・リンク・主な操作にだけ使う。表は縞模様をやめて行の区切り線だけにし、KPI の状態は上端の色の帯の代わりに右上の点で示す。ダッシュボードのアラートの一覧は、スマホの幅では 1 文として折り返し、最終更新の時刻を次の行に出す。グラフは縦の目盛り線と軸の線を消し、凡例を小さな丸にした(ダークテーマでも凡例の文字が読める)。ダークテーマでは日付の入力欄などブラウザの部品も暗い色で描く。大型表示も同じ色を使い、警報の帯(黄・赤)・信号灯・画面の枠の点滅はこれまでどおり。HTML の id と JS が使うクラス名、セルスタイルの色のクラス(`bg-*`・`text-*`・`fw-bold`)、テーマの設定(ライト・ダーク)は変わらない。表の行の高さもこれまでどおりで、ページの見出しが少し高くなった分、1440x900 の画面で在庫の一覧に見える行は 22 行から 20 行になった
-- 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルで使う色のクラスと太字の `fw-bold` は、`app.css` が Bootstrap 5.3 と同じ値で定義する
+- 表とダッシュボードは画面の幅いっぱいに使い、表のセルは折り返さない(2.5.0 では本文の幅を 960px に固定し、セルが折り返していた)。1440x900 の画面で在庫の一覧(`monitor-app demo` の `/table/stock_list`、アラートのバナーが出ている状態)に見える行は 8 行から 20 行になった(行の高さは 68px から 31px)。入力・設定・CSV の取り込みの画面は、入力欄が長くなりすぎないよう本文の幅を 960px までに抑える
+- 画面の見た目を簡素にした。薄い灰色の地に、枠線の無い白いカード(大きめの角丸と淡い影)を置き、サイドバーとヘッダーは地と同じ色にした(2.5.0 では白で、地との境に線があった)。色は状態・リンク・主な操作にだけ使う。KPI の状態は左端の色の帯の代わりに右上の点で示す。ダッシュボードのアラートの一覧は、スマホの幅では 1 文として折り返し、最終更新の時刻を次の行に出す。グラフは縦の目盛り線と軸の線を消し、凡例を小さな丸にした(ダークテーマでも凡例の文字が読める)。ダークテーマでは日付の入力欄などブラウザの部品も暗い色で描く。HTML の id と JS が使うクラス名、セルスタイルの色のクラス(`bg-*`・`text-*`・`fw-bold`)、テーマの設定(ライト・ダーク)は変わらない(サイドバーのリンクと本文の枠のクラス名は変わった。「Upgrade notes」を参照)
+- 大型表示もほかの画面と同じ色を使い、警告と異常のバナーを黄と赤の塗りつぶしにした(2.5.0 では淡い色の地に色の文字)。信号灯と画面の枠の点滅はこれまでどおり
+- 入力フォームの欄を格子に並べた(広い画面では 1 行に複数の欄が並ぶ)
+- 画面の枠の絵文字(📺 📤 ⚙️ 📝 ⬇ 🌙 ☀️ 🔔)を外した。トップページの入力フォームへのリンクは「📝 <フォームの名前>」から「<フォームの名前>」に、表の画面の「⬇ CSV」は「CSV 出力」になり、テーマの切り替えのボタンは絵文字の代わりに SVG のアイコンにした
+- 同梱していた Bootstrap の CSS(`bootstrap.min.css`、約 230 KB)を外した。外したこと自体では画面の見た目は変わらない(全画面のスクリーンショットを、ライト・ダーク・スマホの幅で外す前と画素単位で比べて確かめた)。セルスタイルで使う色のクラスと太字の `fw-bold` は、`app.css` が Bootstrap 5.3 と同じ値で定義する
 - 依存を減らすため、uvicorn を `uvicorn[standard]` ではなく `uvicorn` だけで入れるようにした。uvloop・httptools・watchfiles・websockets・PyYAML が入らなくなり、サーバーは Python 標準の asyncio と h11 で動く(手元の計測では 1 リクエストあたり 0.1〜0.3 ミリ秒遅く、同時 20 接続での処理量は最大で約 9% 下がる)。`runserver --reload` は uvicorn 同梱の StatReload(0.25 秒ごとに `.py` の更新時刻を見る)で再起動する
-- `monitor-app deploy` で対象を指定しないときは、この OS 向けの起動ファイル(Linux なら systemd、Windows なら windows)だけを書き出す。それ以外の OS(macOS など)では何も書かずに、選べる対象(`systemd` / `windows` / `all`)を示して止まる
+- `monitor-app deploy` で対象を指定しないときは、この OS 向けの起動ファイル(Linux なら systemd、Windows なら windows)だけを書き出す(2.5.0 では Docker 用のファイルも書き出していた)。それ以外の OS(macOS など)では何も書かずに、選べる対象(`systemd` / `windows` / `all`)を示して止まる
 
 ### Removed
 - Docker イメージと、その GHCR(`ghcr.io/mikawa-bushi/monitor-app`)への公開。2.5.0 からは公開に失敗していて、公開されている最新のイメージは 2.4.0 のまま
 - `Dockerfile`・`compose.yaml`・`.dockerignore`・`docker/`(エントリポイントとヘルスチェック)
 - `monitor-app deploy` と `startproject --deploy` の対象 `docker`(`compose.yaml` と `.dockerignore` の生成)。指定すると「不明な対象です」で止まる
-- 何もマウントしない・空のフォルダをマウントしたイメージでデモを起動する動き(手元では `monitor-app demo`、デモと同じプロジェクトは `startproject NAME --template warehouse`)
+- 何もマウントしないイメージで倉庫在庫のデモを起動し、空のフォルダをマウントしたイメージでサンプルのプロジェクトを書き込む動き(手元では、デモは `monitor-app demo`、デモと同じプロジェクトは `startproject NAME --template warehouse`、サンプルのプロジェクトは `startproject NAME`)
+
+### Fixed
+- 大型表示が画面の幅の一部しか使っていなかったのを、幅いっぱいに使うようにした。サイドバーのための横並びのレイアウトが、大型表示とログインの画面にもかかっていた
+- 入力フォームの「日時」(`datetime-local`)の欄だけ、ほかの欄と違うブラウザの既定の見た目だったのを、ほかの欄とそろえた
 
 ### Upgrade notes
+- **画面の HTML の変化**: 画面の枠の絵文字を外し(「Changed」を参照)、サイドバーのリンクのクラス名を `nav-link` から `side-link` に、本文の枠(`<main>`)のクラス名を `container` から `page` に変えた。トップページのフォームへのリンクを「📝」で探すなど、画面の HTML や文字を文字列やクラス名で確かめている外部のテスト・監視・独自の CSS は、新しい文字とクラス名に合わせる
 - **Bootstrap の CSS を同梱しなくなった**: `config.py` のセルスタイル(`css_class`)の色のクラスと太字の `fw-bold` は、これまでと同じ見た目で使える(背景色 `bg-primary`・`bg-secondary`・`bg-success`・`bg-danger`・`bg-warning`・`bg-info`・`bg-light`・`bg-dark`・`bg-white`、文字色 `text-primary`・`text-secondary`・`text-success`・`text-danger`・`text-warning`・`text-info`・`text-light`・`text-dark`・`text-white`・`text-black`・`text-muted`・`text-body`、太字 `fw-bold`)。それ以外の Bootstrap のクラス(`text-end`・`text-bg-danger` など)は効かなくなる。寄せ・文字の大きさは `CellStyle` の `align`・`font_size` で指定する
 - **uvicorn の高速化のパッケージが入らなくなった**: 使うには monitor-app と同じ環境に `uvicorn[standard]` を入れる(pip なら `pip install "uvicorn[standard]"`、pipx なら `pipx inject --force monitor-app "uvicorn[standard]"`、uv なら `uv tool install monitor-app --with "uvicorn[standard]"`)。入っていれば uvicorn が設定なしで uvloop・httptools・watchfiles を使う。uvicorn を直接起動して YAML のログ設定(`--log-config *.yaml`)を読ませる場合も、PyYAML を入れるためにこれが要る
 - **Docker で動かしていた場合**: 公開されている最新のイメージは 2.4.0 のままで、今後は更新しない。続けて使うには、pipx か uv で入れて(`pipx install monitor-app` か `uv tool install monitor-app`)、プロジェクトのフォルダで `monitor-app deploy` を実行し、systemd か Windows のタスクで起動する。プロジェクトのフォルダ(`config.py`・`.env`・`instances/`)はそのまま使える(Docker Desktop で `instances/` を名前付きボリュームにしていたなら、先に `docker compose run --rm monitor-app backup` で `backups/` に取り出し、`monitor-app restore` で戻す)。削除した `compose.yaml` はすべてのインターフェースで待ち受けていた(`MONITOR_HOST=0.0.0.0`)が、ネイティブ実行の既定はこの PC だけで待ち受けるので、ほかの PC から画面を開くには `.env` に `MONITOR_HOST=0.0.0.0` を書く(`monitor-app deploy` の次の手順も同じことを示す)。`.env` の `TZ` はもう効かず、OS のタイムゾーンが使われる。PostgreSQL を compose の `db` サービスで動かしていたなら、`MONITOR_DATABASE_URL` のホスト名 `db` を実際のホストに変える。`.env` の `MONITOR_IMAGE`・`MONITOR_IMAGE_TAG`・`MONITOR_PROJECT_DIR`・`MONITOR_DEMO_DIR` は消してよい(残すと `monitor-app check` が monitor-app の設定ではないと警告する)

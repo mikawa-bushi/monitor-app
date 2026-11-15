@@ -6,8 +6,8 @@ Security fixes are made for the latest release line only.
 
 | Version | Supported |
 |---------|-----------|
-| 2.5.x   | ✅        |
-| < 2.5   | ❌        |
+| 2.6.x   | ✅        |
+| < 2.6   | ❌        |
 
 ## Reporting a vulnerability
 

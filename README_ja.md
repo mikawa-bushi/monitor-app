@@ -39,17 +39,14 @@ monitor-app runserver --import-csv-if-empty
 
 プロジェクトでは入出庫は自動で起きません。自分のデータへの替え方は、プロジェクトの `README.md` にあります。
 
-## ✨ 2.5 の新機能
+## ✨ 2.6 の新機能
 
-- **準備なしで動くデモ。** `monitor-app demo` で、架空の物流センターの在庫画面を開きます。4 秒ごとに入荷・出荷・移動が起き、KPI カード・グラフ・アラートがひとりでに動きます。データは一時的な SQLite に入り、終了すると消えます。
-- **デモからプロジェクトを始める。** `monitor-app startproject 名前 --template warehouse` で、デモと同じ `config.py`・マスタ・7 日分の架空のデータでプロジェクトを作ります。
-- **設定ページ。** `/settings` で、表示・ビュー(SQL・列の見出し・セルの色分け・グラフ)・KPI・アラート・大型表示・ダッシュボードを、`config.py` を書き換えずに編集できます。保存すると `monitor-app check` と同じ点検をしてから、サーバーを止めずに反映します。保存するのは `config.py` との差分だけで、DB に置きます。
-- **CSV のアップロード。** `/upload` で、ブラウザから CSV をテーブルに取り込めます。`monitor-app import-csv` と同じ処理で、追記と置き換えを選べます。
-- **`MONITOR_ADMIN_KEY`。** 設定ページと CSV のアップロードだけに使う鍵です。設定すると、`MONITOR_API_KEY` でログインした作業者は設定を変えられません。未設定なら `MONITOR_API_KEY` で使え、どちらの鍵も無ければこの PC からだけ使えます。
-- **入力フォームの名前。** `FormDef(title="...")` で付けた名前が、フォームの見出し・ブラウザのタブの題名・トップページのリンクに出ます。
-- **セキュリティの強化。** 管理の機能は、ほかのサイトのページから送られた要求を断ります(CSRF)。画面から保存する SQL は `;` を含まない 1 つの文に限り、KPI の表示形式は値の書式だけを許します。アップロードしたファイルの名前は、どの OS でもフォルダとドライブの部分を取り除くため、一時フォルダの外を指せません。
+- **簡素で、多く見える画面。** 表とダッシュボードは画面の幅いっぱいに使い、表のセルは折り返しません。1440x900 の画面で、デモの在庫の一覧に見える行は 8 行から 20 行になりました。薄い灰色の地に白いカードを置き、色は状態・リンク・主な操作にだけ使います。入力・設定・CSV の取り込みの画面は、読みやすい幅のままです。
+- **画面いっぱいの大型表示。** `/kiosk` が画面の幅いっぱいに広がり、警告と異常のバナーを黄と赤の塗りつぶしにしました。
+- **依存が減りました。** Bootstrap の CSS(約 230 KB)を同梱しなくなりました。`bg-danger`・`text-white`・`fw-bold` などのセルスタイルのクラスはこれまでどおり使えます。uvicorn は `uvicorn[standard]` ではなく `uvicorn` だけを入れます。uvloop・httptools を使うには、同じ環境に `uvicorn[standard]` を入れます。
+- **Docker イメージは無くなりました。** pipx か uv でインストールします。`monitor-app deploy` を対象なしで実行すると、この OS 向けの起動ファイル(Linux なら systemd、Windows ならタスク スケジューラ)を書き出します。
 
-すべての変更: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md)。2.4 から更新するときは、CHANGELOG の「Upgrade notes」のほかに変えることはありません。2.3 から更新するときは、下の「**2.3.x からの更新**」を読んでください。
+すべての変更: [CHANGELOG.md](https://github.com/mikawa-bushi/monitor-app/blob/main/CHANGELOG.md)。2.5 から更新するときは、CHANGELOG の「Upgrade notes」を読んでください(画面の HTML・同梱の CSS・uvicorn の追加のパッケージが変わりました)。Docker で動かしていたときは、「Upgrade notes」の Docker の項に、同じプロジェクトのフォルダを pipx か uv のインストールで動かす手順があります。2.3 から更新するときは、下の「**2.3.x からの更新**」を読んでください。
 
 ## 特徴
 
@@ -532,7 +529,7 @@ curl http://127.0.0.1:9990/api/health
 ```
 
 ```json
-{"status":"ok","version":"2.5.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
+{"status":"ok","version":"2.6.0","database":"ok","tasks":{"alert scheduler":{"running":true,"last_tick":"2026-10-21T17:30:44+09:00","last_error":null}}}
 ```
 
 DB が `SELECT 1` に応答すれば `200`、応答しなければ `503`(`"status":"error"`)を返します。ログインは不要で、`HEAD` にも応答します。`tasks` はバックグラウンドの処理(`ingest watcher`・`alert scheduler`・`retention`・`backup`)が動いているか、最後に成功した時刻、直近の失敗の種類を示します。
