@@ -113,7 +113,8 @@ def test_an_interrupted_computation_has_no_result():
 # ---------------------------------------------------------------------------
 # SSE: 専用の枠と非同期の相乗り
 # ---------------------------------------------------------------------------
-def _slow_app(delay: float):
+def _slow_app(release: threading.Event | None = None):
+    """遅いビューのアプリ。release を渡すと、それが立つまで計算が終わらない。"""
     config = MonitorConfig(
         tables={"t": TableDef(columns={"id": "int"}, primary_key="id")},
         views={"slow": ViewDef(query="SELECT id FROM t")},
@@ -125,7 +126,9 @@ def _slow_app(delay: float):
 
     def slow_compute(*args):
         calls.append(1)
-        time.sleep(delay)
+        if release is not None:
+            # 下のテストの 10 秒の待ちより長く、壊れたときは必ず 8 と読める
+            release.wait(30)
         return original(*args)
 
     service._compute_snapshot = slow_compute
@@ -133,7 +136,8 @@ def _slow_app(delay: float):
 
 
 def test_many_sse_viewers_of_a_slow_view_hold_one_thread_and_share_one_compute():
-    app, calls = _slow_app(0.5)
+    release = threading.Event()
+    app, calls = _slow_app(release)
     service = app.state.view_service
     engine = app.state.alert_engine
     viewers = 50
@@ -147,16 +151,27 @@ def test_many_sse_viewers_of_a_slow_view_hold_one_thread_and_share_one_compute()
                 await views_router._next_frame(service, engine, "slow", None)
             )
 
+        sse = views_router._sse_thread_limiter()
         async with anyio.create_task_group() as tg:
             for _ in range(viewers):
                 tg.start_soon(viewer)
-            await anyio.sleep(0.25)  # 計算の途中
+            # 計算を止めたまま、ほかの購読者がスレッドを返し終えるまで待つ。決まった
+            # 時間で見ると、遅い機械ではまだ返し終えておらず、枠が埋まって見える
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                await anyio.sleep(0.01)
+                if sse.borrowed_tokens == 1 and sse.statistics().tasks_waiting == 0:
+                    break
             default = anyio.to_thread.current_default_thread_limiter()
             observed["default"] = default.borrowed_tokens
-            observed["sse"] = views_router._sse_thread_limiter().borrowed_tokens
+            observed["sse"] = sse.borrowed_tokens
+            release.set()
         return results
 
-    results = anyio.run(main)
+    try:
+        results = anyio.run(main)
+    finally:
+        release.set()
     assert len(calls) == 1  # 計算は 1 回だけ
     assert observed["default"] == 0  # 通常の API のスレッドには手を付けない
     assert observed["sse"] == 1  # 計算しているリーダーだけがスレッドを使う
@@ -167,7 +182,7 @@ def test_many_sse_viewers_of_a_slow_view_hold_one_thread_and_share_one_compute()
 
 
 def test_sse_frames_use_at_most_sse_threads_threads():
-    app, _calls = _slow_app(0.0)
+    app, _calls = _slow_app()
     service = app.state.view_service
     engine = app.state.alert_engine
     peak = {"sse": 0}
