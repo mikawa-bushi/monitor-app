@@ -322,8 +322,22 @@ def cli_contract() -> dict:
     }
 
 
+def _cli_type_name(param: Any) -> str:
+    """引数・オプションの型名(click の表記)。
+
+    typer 0.29 以降のパラメータは click の型(``param.type``)を持たず、Python の型を
+    ``type_descriptor.annotation`` に持つ。どの版でも同じ表記になるようにそろえる。
+    """
+    click_type = getattr(param, "type", None)
+    if click_type is not None:
+        return str(getattr(click_type, "name", type(click_type).__name__)).lower()
+    annotation = param.type_descriptor.annotation
+    (item,) = typing.get_args(annotation) or (annotation,)  # list[Path] → Path
+    return "choice" if issubclass(item, Enum) else item.__name__.lower()
+
+
 def _cli_param(param: Any) -> dict:
-    type_name = str(getattr(param.type, "name", type(param.type).__name__)).lower()
+    type_name = _cli_type_name(param)
     default = param.default
     return {
         "name": param.name,
