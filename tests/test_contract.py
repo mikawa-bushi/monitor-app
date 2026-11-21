@@ -19,10 +19,13 @@ import importlib.resources
 import json
 import textwrap
 import warnings
+from enum import Enum
 from pathlib import Path
 
 import anyio
 import pytest
+import typer
+import typer.main
 from contract import compat, helpers, snapshot
 from fastapi.testclient import TestClient
 
@@ -112,6 +115,44 @@ def test_cli_is_backward_compatible():
         snapshot.load_baseline("cli"), snapshot.cli_contract()
     )
     assert not errors, _report(errors)
+
+
+class _ProbeChoice(Enum):
+    A = "a"
+
+
+def test_cli_type_names_do_not_depend_on_the_typer_version():
+    """範囲・パスの種類・選択肢つきの型も、typer のどの版でも click の表記になる。"""
+    probe = typer.Typer(add_completion=False)
+
+    @probe.command()
+    def _probe(
+        ranged: int = typer.Option(1, min=1),
+        ratio: float = typer.Option(0.5, max=1.0),
+        file: Path = typer.Option(Path("f"), dir_okay=False),
+        folder: Path = typer.Option(Path("d"), file_okay=False),
+        anything: Path = typer.Option(Path(".")),
+        many: list[Path] = typer.Argument(None),
+        choice: _ProbeChoice = typer.Option(_ProbeChoice.A),
+        plain: int = typer.Option(1),
+        flag: bool = typer.Option(False),
+        text: str = typer.Option("x"),
+    ) -> None:
+        pass
+
+    params = typer.main.get_command(probe).params
+    assert {p.name: snapshot._cli_param(p)["type"] for p in params} == {
+        "ranged": "int range",
+        "ratio": "float range",
+        "file": "file",
+        "folder": "directory",
+        "anything": "path",
+        "many": "path",
+        "choice": "choice",
+        "plain": "int",
+        "flag": "bool",
+        "text": "str",
+    }
 
 
 # ---------------------------------------------------------------------------

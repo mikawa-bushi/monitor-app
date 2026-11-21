@@ -302,6 +302,7 @@ _CLI_TYPE_ALIASES = {
     "text": "str",
     "string": "str",
     "integer": "int",
+    "integer range": "int range",
     "boolean": "bool",
 }
 
@@ -322,18 +323,37 @@ def cli_contract() -> dict:
     }
 
 
+#: typer 0.29 がパスの種類に付ける名前 → click の表記(ほかは同じ)。
+_CLI_PATH_KINDS = {"dir": "directory"}
+
+
 def _cli_type_name(param: Any) -> str:
     """引数・オプションの型名(click の表記)。
 
-    typer 0.29 以降のパラメータは click の型(``param.type``)を持たず、Python の型を
-    ``type_descriptor.annotation`` に持つ。どの版でも同じ表記になるようにそろえる。
+    typer 0.29 以降のパラメータは click の型(``param.type``)を持たず、Python の型と
+    制約(範囲・パスの種類・選択肢)を ``type_descriptor`` に持つ。そこから click と
+    同じ表記を作る。型だけを見ると、``min=`` を足すような変更を見逃す。
     """
     click_type = getattr(param, "type", None)
     if click_type is not None:
         return str(getattr(click_type, "name", type(click_type).__name__)).lower()
-    annotation = param.type_descriptor.annotation
+    descriptor = param.type_descriptor
+    if descriptor.is_tuple:
+        raise NotImplementedError(f"{param.name}: タプルの型名は未対応です")
+    if descriptor.is_choice:
+        return "choice"
+    if descriptor.is_file:
+        return "filename"
+    parser = descriptor.parameter_info.parser
+    if parser is not None:
+        return parser.__name__.lower()
+    if descriptor.is_ranged:
+        return f"{descriptor.ranged_type_name} range"
+    annotation = descriptor.annotation
     (item,) = typing.get_args(annotation) or (annotation,)  # list[Path] → Path
-    return "choice" if issubclass(item, Enum) else item.__name__.lower()
+    if item is Path:
+        return _CLI_PATH_KINDS.get(descriptor.path_type, descriptor.path_type)
+    return item.__name__.lower()
 
 
 def _cli_param(param: Any) -> dict:
