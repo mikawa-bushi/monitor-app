@@ -121,6 +121,10 @@ class _ProbeChoice(Enum):
     A = "a"
 
 
+def _probe_parser(value: str) -> int:
+    return int(value, 16)
+
+
 def test_cli_type_names_do_not_depend_on_the_typer_version():
     """範囲・パスの種類・選択肢つきの型も、typer のどの版でも click の表記になる。"""
     probe = typer.Typer(add_completion=False)
@@ -129,6 +133,10 @@ def test_cli_type_names_do_not_depend_on_the_typer_version():
     def _probe(
         ranged: int = typer.Option(1, min=1),
         ratio: float = typer.Option(0.5, max=1.0),
+        ranged_list: list[int] = typer.Option([], min=1),
+        parsed: int = typer.Option(0, parser=_probe_parser),
+        parsed_choice: _ProbeChoice = typer.Option(None, parser=_probe_parser),
+        opened: typer.FileText = typer.Option(None),
         file: Path = typer.Option(Path("f"), dir_okay=False),
         folder: Path = typer.Option(Path("d"), file_okay=False),
         anything: Path = typer.Option(Path(".")),
@@ -144,6 +152,10 @@ def test_cli_type_names_do_not_depend_on_the_typer_version():
     assert {p.name: snapshot._cli_param(p)["type"] for p in params} == {
         "ranged": "int range",
         "ratio": "float range",
+        "ranged_list": "int range",
+        "parsed": "_probe_parser",
+        "parsed_choice": "_probe_parser",
+        "opened": "filename",
         "file": "file",
         "folder": "directory",
         "anything": "path",

@@ -338,19 +338,19 @@ def _cli_type_name(param: Any) -> str:
     if click_type is not None:
         return str(getattr(click_type, "name", type(click_type).__name__)).lower()
     descriptor = param.type_descriptor
+    info = descriptor.parameter_info
     if descriptor.is_tuple:
         raise NotImplementedError(f"{param.name}: タプルの型名は未対応です")
+    if info.parser is not None:
+        return info.parser.__name__.lower()
     if descriptor.is_choice:
         return "choice"
     if descriptor.is_file:
         return "filename"
-    parser = descriptor.parameter_info.parser
-    if parser is not None:
-        return parser.__name__.lower()
-    if descriptor.is_ranged:
-        return f"{descriptor.ranged_type_name} range"
     annotation = descriptor.annotation
     (item,) = typing.get_args(annotation) or (annotation,)  # list[Path] → Path
+    if item in (int, float) and (info.min is not None or info.max is not None):
+        return f"{item.__name__} range"
     if item is Path:
         return _CLI_PATH_KINDS.get(descriptor.path_type, descriptor.path_type)
     return item.__name__.lower()
